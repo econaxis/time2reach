@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
-use rstar::PointDistance;
-use crate::{Gtfs1, gtfs_setup, InProgressTrip, TimeToReachRTree, WALKING_SPEED};
 use crate::trips_arena::TripsArena;
+use crate::{gtfs_setup, Gtfs1, InProgressTrip, TimeToReachRTree, WALKING_SPEED};
+use rstar::PointDistance;
+use std::fmt::{Display, Formatter};
 
 pub struct InProgressTripsFormatter<'a, 'b> {
     trips: Vec<&'a InProgressTrip>,

@@ -1,7 +1,7 @@
+use crate::trips_arena::TripsArena;
+use crate::{Gtfs0, Gtfs1, InProgressTrip, LibraryGTFS, StopsWithTrips};
 use id_arena::Id;
 use std::fs::File;
-use crate::{Gtfs0, Gtfs1, InProgressTrip, LibraryGTFS, StopsWithTrips};
-use crate::trips_arena::TripsArena;
 
 pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
     let mut result = StopsWithTrips::default();

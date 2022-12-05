@@ -1,11 +1,9 @@
 use crate::IdType;
 use gtfs_structures::{
-    Availability, BikesAllowedType, DirectionType, Frequency,
-    RawTrip, RouteType, Stop,
+    Availability, BikesAllowedType, DirectionType, Frequency, RawTrip, RouteType, Stop,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 

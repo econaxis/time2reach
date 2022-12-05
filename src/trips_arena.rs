@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
-use id_arena::{Arena, Id};
 use crate::InProgressTrip;
+use id_arena::{Arena, Id};
+use std::collections::VecDeque;
 
 #[derive(Debug, Default)]
 pub struct TripsArena {

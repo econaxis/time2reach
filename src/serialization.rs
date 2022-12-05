@@ -1,6 +1,6 @@
-use serde_bytes::ByteBuf;
 use crate::TimeToReachRTree;
 use serde::Serialize;
+use serde_bytes::ByteBuf;
 
 #[derive(Serialize)]
 pub struct MapSerialize {

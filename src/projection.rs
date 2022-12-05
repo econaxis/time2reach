@@ -3,7 +3,6 @@ use proj::Proj;
 
 const ZERO_LATLNG: [f64; 2] = [43.765313, -79.649588];
 
-
 thread_local! {
     pub static PROJ: Proj = {
         Proj::new(&format!("+proj=merc +lon_0={} +lat_0={} +lat_ts={}", ZERO_LATLNG[1], ZERO_LATLNG[0], ZERO_LATLNG[0])).unwrap()

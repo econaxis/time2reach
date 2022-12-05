@@ -1,14 +1,13 @@
 #![feature(file_create_new)]
 #![feature(vec_into_raw_parts)]
 
-mod gtfs_wrapper;
 mod formatter;
 mod gtfs_setup;
-mod serialization;
-mod trips_arena;
-mod time_to_reach;
+mod gtfs_wrapper;
 mod projection;
-
+mod serialization;
+mod time_to_reach;
+mod trips_arena;
 
 use gtfs_structures::{DirectionType, Stop};
 use id_arena::{Arena, Id};
@@ -18,17 +17,14 @@ use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use serde::Serialize;
 
-
-
+use bson::to_bson;
+use formatter::InProgressTripsFormatter;
+use serde_bytes::ByteBuf;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
-pub use time_to_reach::TimeToReachRTree;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::Write;
-use bson::to_bson;
-use serde_bytes::ByteBuf;
-use formatter::InProgressTripsFormatter;
-
+pub use time_to_reach::TimeToReachRTree;
 
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1, StopTime, Trip};
 use gtfs_wrapper::LibraryGTFS;
@@ -98,8 +94,6 @@ struct StopsData<'a> {
 #[derive(Debug)]
 struct SpatialStopsWithTrips<'a>(rstar::RTree<GeomWithData<[f64; 2], StopsData<'a>>>);
 
-
-
 impl StopsWithTrips {
     fn add_stop(&mut self, stop_time: &StopTime, trip: &Trip) {
         if let Some(trips) = self.0.get_mut(&stop_time.stop_id) {
@@ -148,7 +142,6 @@ struct ReachData {
     progress_trip_id: Id<InProgressTrip>,
     transfers: u8,
 }
-
 
 fn all_stops_along_trip(
     gtfs: &Gtfs1,
@@ -291,7 +284,7 @@ fn main() {
     let mut file = File::create("observations.rmp").unwrap();
     file.write(
         &rmp_serde::to_vec_named(&MapSerialize {
-            map: unsafe { serialization::to_bytebuf(tg.map)},
+            map: unsafe { serialization::to_bytebuf(tg.map) },
             x: tg.x_samples,
             y: tg.y_samples,
         })

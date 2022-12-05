@@ -1,6 +1,6 @@
+use crate::{ReachData, WALKING_SPEED};
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
-use crate::{ReachData, WALKING_SPEED};
 
 #[derive(Debug, Default)]
 pub struct TimeToReachRTree {
@@ -55,9 +55,7 @@ impl TimeToReachRTree {
                     + obs.data.transfers as u32 * 25;
                 (time_to_reach, obs)
             })
-            .min_by_key(|(time, _obs)| {
-                *time
-            });
+            .min_by_key(|(time, _obs)| *time);
 
         best_time1.map(|a| a.0)
     }
