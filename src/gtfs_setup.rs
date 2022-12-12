@@ -3,6 +3,7 @@ use crate::{Gtfs0, Gtfs1, InProgressTrip, LibraryGTFS, StopsWithTrips};
 use id_arena::Id;
 use std::fs::File;
 
+#[inline(never)]
 pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
     let mut result = StopsWithTrips::default();
     for (_trip_id, trip) in &gtfs.trips {
@@ -13,17 +14,18 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
     result
 }
 
-pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs0 {
+#[inline(never)]
+pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs1 {
     if let Ok(file) = File::create_new(format!("{path}.bson")) {
         println!("GTFS not detected! Creating new");
         let gtfs = Gtfs0::from(LibraryGTFS::from_path(path).unwrap());
         let document = bson::to_document(&gtfs).unwrap();
         document.to_writer(file).unwrap();
         println!("GTFS created");
-        gtfs
+        gtfs.into()
     } else {
         let file = File::open(format!("{path}.bson")).unwrap();
-        bson::from_reader(file).unwrap()
+        bson::from_reader::<File, Gtfs0>(file).unwrap().into()
     }
 }
 

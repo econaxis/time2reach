@@ -1,7 +1,7 @@
 use gtfs_structures::Stop;
 use proj::Proj;
 
-const ZERO_LATLNG: [f64; 2] = [43.765313, -79.649588];
+pub const ZERO_LATLNG: [f64; 2] = [43.765313, -79.649588];
 
 thread_local! {
     pub static PROJ: Proj = {

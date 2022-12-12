@@ -3,6 +3,7 @@ import json
 import msgpack
 from PIL import Image, ImageFilter
 import matplotlib
+from matplotlib import pyplot as plt
 import array
 
 data = msgpack.unpackb(open("observations.rmp", "rb").read())
@@ -14,14 +15,17 @@ min_ = np.nanmin(arr)
 max_ = np.nanmax(arr)
 
 arr = (arr - min_)/ (max_ - min_)
-arr = 1 - arr
+arr = arr
 
 arr = np.reshape(arr, (data["x"], data["y"]))
 
 cmap = matplotlib.colormaps['Spectral']
 arr = cmap(arr)
 
-img = Image.fromarray(np.uint8(arr * 255))
-img = img.transpose(method=Image.Transpose.FLIP_TOP_BOTTOM)
-img = img.filter(ImageFilter.GaussianBlur(radius=5))
-img.show()
+plt.imshow(arr, origin = "lower")
+plt.colorbar()
+plt.show()
+# img = Image.fromarray(np.uint8(arr * 255))
+# img = img.transpose(method=Image.Transpose.FLIP_TOP_BOTTOM)
+# img = img.filter(ImageFilter.GaussianBlur(radius=5))
+# img.show()

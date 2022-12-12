@@ -1,17 +1,48 @@
-use crate::InProgressTrip;
+use crate::{BusPickupInfo, IdType, InProgressTrip, RouteStopSequence};
 use id_arena::{Arena, Id};
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 
+//
+// #[derive(Hash, Debug, PartialEq, Eq)]
+// struct TripsAlreadyTakenCache {
+//     trip_id
+// }
 #[derive(Debug, Default)]
 pub struct TripsArena {
     explore_queue: VecDeque<id_arena::Id<InProgressTrip>>,
+    // TripID -> stop sequence number of boarding
+    trips_already_taken: HashMap<IdType, u16>,
+
+
+    // StopID -> Earliest Arrival time
+    stop_arrival_times: HashMap<IdType, u32>,
     arena: Arena<InProgressTrip>,
 }
 
+
 impl TripsArena {
+    pub fn should_explore(&mut self, bu: &BusPickupInfo) -> bool {
+        if let Some(sequence_no) = self.trips_already_taken.get(&bu.trip_id) {
+            // Don't get on this trip if we have already boarded on an earlier stop
+            if sequence_no <= &bu.stop_sequence_no {
+                return false;
+            }
+        }
+        self.trips_already_taken.insert(bu.trip_id, bu.stop_sequence_no);
+        return true;
+
+    }
     pub(crate) fn add_to_explore(&mut self, item: InProgressTrip) {
+        if let Some(arrival_time) = self.stop_arrival_times.get(&item.get_off_stop_id) {
+            if *arrival_time <= item.exit_time {
+                // Someone arrived at this stop before us. Don't explore further.
+                return;
+            }
+        } else {
+            self.stop_arrival_times.insert(item.get_off_stop_id, item.exit_time);
+        }
         let id = self.arena.alloc(item);
-        self.explore_queue.push_back(id);
+        self.explore_queue.push_front(id);
     }
 
     pub(crate) fn get_by_id(&self, id: id_arena::Id<InProgressTrip>) -> &InProgressTrip {

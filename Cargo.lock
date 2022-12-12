@@ -589,6 +589,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "gdal"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c01d034014ff4d9f29ea3bf5bde5d191d98a154bc3accebde7c8c00341c9b98a"
+dependencies = [
+ "bitflags",
+ "chrono",
+ "gdal-sys",
+ "geo-types",
+ "libc",
+ "once_cell",
+ "semver",
+ "thiserror",
+]
+
+[[package]]
+name = "gdal-sys"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc578b8a84a9c950dfc110ef134f592181db19745b4ef46bf92039adf0af2dad"
+dependencies = [
+ "libc",
+ "pkg-config",
+ "semver",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1630,6 +1657,7 @@ version = "0.1.0"
 dependencies = [
  "bson",
  "bytemuck",
+ "gdal",
  "gtfs-structures",
  "id-arena",
  "lazy_static",

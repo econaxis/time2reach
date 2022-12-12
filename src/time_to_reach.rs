@@ -20,7 +20,7 @@ impl TimeToReachRTree {
             .collect()
     }
     pub(crate) fn add_observation(&mut self, point: [f64; 2], mut data: ReachData) {
-        for near in self.tree.drain_within_distance(point, 10.0 * 10.0) {
+        for near in self.tree.drain_within_distance(point, 15.0 * 15.0) {
             let time_to_walk_here =
                 (near.distance_2(&point) / WALKING_SPEED) as u32 + near.data.timestamp;
             if time_to_walk_here < data.timestamp {
@@ -32,8 +32,8 @@ impl TimeToReachRTree {
     }
 
     pub(crate) fn sample_fastest_time(&self, point: [f64; 2]) -> Option<u32> {
-        self.sample_fastest_time_within_distance(point, 650.0)
-            .or_else(|| self.sample_fastest_time_within_distance(point, 1000.0))
+        self.sample_fastest_time_within_distance(point, 1000.0)
+            .or_else(|| self.sample_fastest_time_within_distance(point, 1500.0))
     }
 
     fn sample_fastest_time_within_distance(&self, point: [f64; 2], distance: f64) -> Option<u32> {
@@ -43,17 +43,32 @@ impl TimeToReachRTree {
             .map(|obs| {
                 let distance = obs.distance_2(&point).sqrt();
 
-                let mut penalty = 0;
-                if distance > 90.0 {
-                    penalty = (0.7 * (distance - 80.0).sqrt()) as u32;
+                let time_to_reach = distance / WALKING_SPEED;
+                let mut penalty = 0.0;
+                if time_to_reach >= 60.0 {
+                    penalty += 1.0 * time_to_reach;
+                } else {
+                    penalty += (time_to_reach - 60.0) * 5.0;
                 }
 
-                let time_to_reach = (distance / WALKING_SPEED) as u32
-                    + obs.data.timestamp
-                    + penalty
+                if time_to_reach >= 2.0 * 60.0 {
+                    penalty += 0.8 * (time_to_reach - 2.0 * 60.0);
+                }
+
+
+                if obs.data.transfers >= 2 {
                     // Penalize time for every transfer performed
-                    + obs.data.transfers as u32 * 25;
-                (time_to_reach, obs)
+                    penalty += (obs.data.transfers as u32 - 1) as f64 * 20.0
+                }
+
+                let mut time_to_reach = time_to_reach
+                    + obs.data.timestamp as f64
+                    + penalty;
+                let mut time_to_reach = time_to_reach as u32;
+                if time_to_reach < obs.data.timestamp {
+                    time_to_reach = obs.data.timestamp;
+                }
+                (time_to_reach as u32, obs)
             })
             .min_by_key(|(time, _obs)| *time);
 

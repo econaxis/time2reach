@@ -19,14 +19,20 @@ pub unsafe fn to_bytebuf(v: Vec<i32>) -> ByteBuf {
 }
 
 pub struct TimeGrid {
-    start_coord: [f64; 2],
-    end_coord: [f64; 2],
+    pub start_coord: [f64; 2],
+    pub end_coord: [f64; 2],
     pub(crate) x_samples: usize,
     pub(crate) y_samples: usize,
     pub(crate) map: Vec<i32>,
 }
 
 impl TimeGrid {
+    pub fn calculate_x_scale(&self) -> f64 {
+        (self.end_coord[0] - self.start_coord[0]) / self.x_samples as f64
+    }
+    pub fn calculate_y_scale(&self) -> f64 {
+        (self.end_coord[1] - self.start_coord[1]) / self.y_samples as f64
+    }
     fn at(&mut self, x: usize, y: usize) -> &mut i32 {
         &mut self.map[y * self.x_samples + x]
     }
@@ -49,7 +55,7 @@ impl TimeGrid {
 
         let total_cells = x_samples * y_samples;
         let mut map = Vec::with_capacity(total_cells);
-        map.resize(total_cells, 0);
+        map.resize(total_cells, -1);
 
         Self {
             start_coord,
@@ -60,7 +66,8 @@ impl TimeGrid {
         }
     }
 
-    pub(crate) fn process(&mut self, data: &TimeToReachRTree) {
+    #[inline(never)]
+    pub(crate) fn process(&mut self, data: &TimeToReachRTree, time_range: [u32; 2]) {
         let x_iter = (self.end_coord[0] - self.start_coord[0]) / self.x_samples as f64;
         let y_iter = (self.end_coord[1] - self.start_coord[1]) / self.y_samples as f64;
 
@@ -70,7 +77,9 @@ impl TimeGrid {
                 let ycoord = y as f64 * y_iter + self.start_coord[1];
 
                 let time = data.sample_fastest_time([xcoord, ycoord]);
-                *self.at(x as usize, y as usize) = time.map(|a| a as i32).unwrap_or(-1);
+                *self.at(x as usize, y as usize) = time.map(|a|{
+                    255 - ((255 * (a - time_range[0])) / (time_range[1] - time_range[0])) as i32
+                }).unwrap_or(-1);
             }
         }
     }

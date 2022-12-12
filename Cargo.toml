@@ -18,7 +18,10 @@ bytemuck = {version ="1.12.3", features = ["extern_crate_alloc"]}
 rmp-serde = "1.1.1"
 rmp = "0.8.11"
 serde_bytes = "0.11.7"
-
+gdal = "0.14.0"
 
 [workspace]
 members = ["gtfs-structure"]
+
+[profile.release]
+debug=1
