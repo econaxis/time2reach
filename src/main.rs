@@ -36,7 +36,8 @@ use trips_arena::TripsArena;
 use crate::projection::ZERO_LATLNG;
 
 const WALKING_SPEED: f64 = 1.3;
-type IdType = u64;
+type IdType = (u8, u64);
+const NULL_ID: (u8, u64) = (0, 0);
 
 #[derive(Default, Debug)]
 pub struct RoutePickupTimes(HashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
@@ -96,7 +97,7 @@ struct StopsData<'a> {
 }
 
 #[derive(Debug)]
-struct SpatialStopsWithTrips<'a>(rstar::RTree<GeomWithData<[f64; 2], StopsData<'a>>>);
+pub struct SpatialStopsWithTrips<'a>(rstar::RTree<GeomWithData<[f64; 2], StopsData<'a>>>);
 
 impl StopsWithTrips {
     fn add_stop(&mut self, stop_time: &StopTime, trip: &Trip) {
@@ -140,107 +141,12 @@ pub struct InProgressTrip {
 }
 
 #[derive(PartialOrd, PartialEq, Debug, Serialize)]
-struct ReachData {
+pub struct ReachData {
     timestamp: u32,
 
     #[serde(skip)]
     progress_trip_id: Id<InProgressTrip>,
     transfers: u8,
-}
-
-#[inline(never)]
-fn all_stops_along_trip(
-    gtfs: &Gtfs1,
-    trip_id: IdType,
-    start_sequence_no: u16,
-    route_info: &RouteStopSequence,
-    previous_transfer: Id<InProgressTrip>,
-    transfers_remaining: u8,
-    explore_queue: &mut TripsArena,
-) {
-    let stop_times = &gtfs.trips[&trip_id].stop_times;
-    let boarding_stop = &stop_times[start_sequence_no as usize - 1];
-
-    for (_stops_travelled, st) in stop_times[start_sequence_no as usize..].iter().enumerate() {
-        let point = projection::project_stop(&gtfs.stops[&st.stop_id]);
-        let timestamp = st.arrival_time.unwrap();
-
-        explore_queue.add_to_explore(InProgressTrip {
-                boarding_time: boarding_stop.arrival_time.unwrap(),
-                exit_time: timestamp,
-                point,
-                current_route: route_info.clone(),
-                get_off_stop_id: st.stop_id,
-                boarding_stop_id: boarding_stop.stop_id,
-                total_transfers: transfers_remaining,
-                previous_transfer: Some(previous_transfer),
-            });
-    }
-}
-
-fn explore_from_point(
-    gtfs: &Gtfs1,
-    data: &SpatialStopsWithTrips,
-    ip: InProgressTrip,
-    ip_id: Id<InProgressTrip>,
-    explore_queue: &mut TripsArena,
-) {
-
-
-    let mut routes_already_taken = HashSet::from([ip.current_route.clone()]);
-
-    for (stop, distance) in data.0.nearest_neighbor_iter_with_distance_2(&ip.point) {
-        if distance > 600.0 * 600.0 {
-            // Exceeds the walking threshold.
-            break;
-        }
-
-        let stop_d = &stop.data;
-
-        let time_to_stop = (distance.sqrt() / WALKING_SPEED) as u32;
-        const MIN_TRANSFER_SECONDS: u32 = 15;
-        let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
-        for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
-            // Search for route pickup on or after the starting_timestamp
-            if routes_already_taken.contains(route_info) {
-                continue;
-            }
-            let starting_buspickup = BusPickupInfo {
-                timestamp: this_timestamp,
-                stop_sequence_no: 0,
-                trip_id: 0,
-            };
-            if let Some(next_bus) = route_pickup.range(starting_buspickup..).next() {
-                // For all next stops on the line...push into explore_queue to force a transfer
-                assert!(next_bus.timestamp >= this_timestamp);
-
-                if explore_queue.should_explore(next_bus) {
-                    all_stops_along_trip(
-                        gtfs,
-                        next_bus.trip_id,
-                        next_bus.stop_sequence_no,
-                        route_info,
-                        ip_id,
-                        ip.total_transfers + 1,
-                        explore_queue,
-                    );
-
-                    routes_already_taken.insert(route_info.clone());
-                }
-            }
-        }
-    }
-}
-
-#[inline(never)]
-fn is_first_reacher(answer: &TimeToReachRTree, point: &[f64; 2], this_timestamp: u32) -> bool {
-    for already_reached in answer.tree.locate_within_distance(*point, 75.0 * 75.0) {
-        let time_to_walk_there = (already_reached.distance_2(point).sqrt() / WALKING_SPEED) as u32;
-        if already_reached.data.timestamp + time_to_walk_there <= this_timestamp {
-            return false;
-        }
-    }
-    true
 }
 
 struct GTiffOutput {
@@ -292,53 +198,18 @@ impl GTiffOutput {
 }
 
 fn main() {
-    const MAP_RESOLUTION: usize = 3000;
+    const MAP_RESOLUTION: usize = 900;
     let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
 
 
-    let gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/gtfs-2");
+    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/gtfs-2");
+    let gtfs_go = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/GO_GTFS");
+    gtfs.merge(gtfs_go);
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
-    let mut trips_arena = TripsArena::default();
-    trips_arena.add_to_explore(InProgressTrip {
-        boarding_time: 9 * 3600,
-        exit_time: 9 * 3600,
-        point: projection::project_lng_lat(-79.466791, 43.653210),
-        current_route: RouteStopSequence::default(),
-        get_off_stop_id: 0,
-        total_transfers: 0,
-        previous_transfer: None,
-        boarding_stop_id: 0,
-    });
-
-    let mut answer = TimeToReachRTree::default();
-
-    let mut skip_times = 0;
-    while let Some((item, id)) = trips_arena.pop_front() {
-        if !is_first_reacher(&mut answer, &item.point, item.exit_time) {
-            skip_times += 1;
-            continue;
-        }
-        if item.exit_time > (12.0 * 3600.0) as u32 {
-            continue;
-        }
-        if item.total_transfers >= 5 {
-            continue;
-        }
-        answer.add_observation(
-            item.point,
-            ReachData {
-                timestamp: item.exit_time,
-                progress_trip_id: id,
-                transfers: item.total_transfers,
-            },
-        );
-
-        explore_from_point(&gtfs, &data, item, id, &mut trips_arena);
-    }
+    let answer = time_to_reach::generate_reach_times(&gtfs, &data);
 
     dbg!(answer.tree.size());
-    dbg!(skip_times);
 
     let mut tg = TimeGrid::new(&answer, MAP_RESOLUTION, MAP_RESOLUTION);
     tg.process(&answer, [9 * 3600, 12 * 3600]);

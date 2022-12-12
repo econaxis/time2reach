@@ -1,5 +1,5 @@
 use crate::trips_arena::TripsArena;
-use crate::{gtfs_setup, Gtfs1, InProgressTrip, TimeToReachRTree, WALKING_SPEED};
+use crate::{gtfs_setup, Gtfs1, InProgressTrip, TimeToReachRTree, WALKING_SPEED, NULL_ID};
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
 
@@ -63,7 +63,7 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
 impl<'a, 'b> Display for InProgressTripsFormatter<'a, 'b> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for trip in self.trips.iter().rev() {
-            if trip.current_route.route_id == 0 {
+            if trip.current_route.route_id == NULL_ID {
                 // Begin of trip. Skip here.
                 continue;
             }

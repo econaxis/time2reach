@@ -7,6 +7,10 @@ use std::collections::HashMap;
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
+trait FromWithAgencyId<From> {
+    fn from_with_agency_id(agency_id: u8, f: From) -> Self where Self: Sized;
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StopTime {
     /// Arrival time of the stop time.
@@ -84,36 +88,33 @@ pub struct Route {
     pub route_type: RouteType,
     /// URL of a web page about the particular route
     pub url: Option<String>,
-    /// Agency for the specified route
-    pub agency_id: Option<String>,
     /// Orders the routes in a way which is ideal for presentation to customers. Routes with smaller route_sort_order values should be displayed first.
     #[serde(rename = "route_sort_order")]
     pub order: Option<u32>,
 }
 
-impl From<gtfs_structures::Route> for Route {
-    fn from(a: gtfs_structures::Route) -> Self {
+impl FromWithAgencyId<gtfs_structures::Route> for Route {
+    fn from_with_agency_id(agency_id: u8, a: gtfs_structures::Route) -> Self {
         Self {
-            id: a.id.parse().unwrap(),
+            id: (agency_id, a.id.parse().unwrap()),
             short_name: a.short_name,
             long_name: a.long_name,
             desc: a.desc,
             route_type: a.route_type,
             url: a.url,
-            agency_id: a.agency_id,
             order: a.order,
         }
     }
 }
 
-impl From<gtfs_structures::RawTrip> for Trip {
-    fn from(a: RawTrip) -> Self {
+impl FromWithAgencyId<RawTrip> for Trip {
+    fn from_with_agency_id(agency_id: u8, a: RawTrip) -> Self {
         Self {
-            id: a.id.parse().unwrap(),
-            service_id: a.service_id.parse().unwrap(),
-            route_id: a.route_id.parse().unwrap(),
+            id: (agency_id, a.id.parse().unwrap()),
+            service_id: (agency_id, a.service_id.parse().unwrap()),
+            route_id:(agency_id, a.route_id.parse().unwrap()),
             stop_times: Default::default(),
-            shape_id: a.shape_id.map(|a| a.parse().unwrap()),
+            shape_id: a.shape_id.map(|a| (agency_id, a.parse().unwrap())),
             trip_headsign: a.trip_headsign,
             trip_short_name: a.trip_short_name,
             direction_id: a.direction_id,
@@ -134,6 +135,14 @@ pub struct Gtfs0 {
     /// All trips by `trip_id`
     pub trips: Vec<Trip>,
     pub stop_times: Vec<StopTime>,
+    pub agency_id: u8
+}
+
+
+impl Gtfs0 {
+    fn convert<F, T: FromWithAgencyId<F>>(&self, f: F) -> T {
+        T::from_with_agency_id(self.agency_id, f)
+    }
 }
 
 pub struct Gtfs1 {
@@ -156,7 +165,7 @@ fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<I
 
 impl From<Gtfs0> for Gtfs1 {
     fn from(a: Gtfs0) -> Self {
-        let stops = vec_to_hashmap(a.stops, |stop| stop.id.parse().unwrap());
+        let stops = vec_to_hashmap(a.stops, |stop| (a.agency_id, stop.id.parse().unwrap()));
         let mut trips: HashMap<IdType, Trip> = a
             .trips
             .into_iter()
@@ -193,10 +202,11 @@ impl From<Gtfs0> for Gtfs1 {
 }
 impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
+        let agency_id = a.agencies.unwrap()[0].id.as_ref().unwrap().parse().unwrap();
         Self {
             stops: a.stops.unwrap(),
-            routes: a.routes.unwrap().into_iter().map(From::from).collect(),
-            trips: a.trips.unwrap().into_iter().map(From::from).collect(),
+            routes: a.routes.unwrap().into_iter().map(|a| Route::from_with_agency_id(agency_id, a)).collect(),
+            trips: a.trips.unwrap().into_iter().map(|a| Trip::from_with_agency_id(agency_id, a)).collect(),
             stop_times: a
                 .stop_times
                 .unwrap()
@@ -204,10 +214,19 @@ impl From<LibraryGTFS> for Gtfs0 {
                 .map(|st| StopTime {
                     arrival_time: st.arrival_time,
                     stop_sequence: st.stop_sequence,
-                    stop_id: st.stop_id.parse().unwrap(),
-                    trip_id: st.trip_id.parse().unwrap(),
+                    stop_id: (agency_id, st.stop_id.parse().unwrap()),
+                    trip_id: (agency_id, st.trip_id.parse().unwrap()),
                 })
                 .collect(),
+            agency_id
         }
+    }
+}
+
+impl Gtfs1 {
+    pub fn merge(&mut self, other: Gtfs1)  {
+        self.stops.extend(other.stops);
+        self.routes.extend(other.routes);
+        self.trips.extend(other.trips);
     }
 }
