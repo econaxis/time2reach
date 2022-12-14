@@ -1,14 +1,33 @@
 use crate::IdType;
-use gtfs_structures::{
-    Availability, BikesAllowedType, DirectionType, Frequency, RawTrip, RouteType, Stop,
-};
+use gtfs_structures::{Availability, BikesAllowedType, DirectionType, Frequency, Id, RawTrip, RouteType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
+use std::sync::atomic::{AtomicU8, Ordering};
+use std::cell::RefCell;
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
+
+static AGENCY_COUNT: AtomicU8 = AtomicU8::new(0);
 
 trait FromWithAgencyId<From> {
     fn from_with_agency_id(agency_id: u8, f: From) -> Self where Self: Sized;
+}
+
+thread_local! {
+    static ID_MAP: RefCell<HashMap<String, u64>> = {
+        RefCell::new(HashMap::new())
+    };
+}
+fn try_parse_id(a: &str) -> u64 {
+    ID_MAP.with(|idmap| {
+        let mut idmap = idmap.borrow_mut();
+        if let Some(id) = idmap.get(a) {
+            *id
+        } else {
+            let id = idmap.len() as u64;
+            idmap.insert(a.to_string(), id);
+            id
+        }
+    })
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -27,6 +46,41 @@ pub struct StopTime {
 
     #[serde(rename = "d")]
     pub trip_id: IdType,
+
+    #[serde(skip)]
+    pub index_of_stop_time: usize
+}
+
+/// A physical stop, station or area. See <https://gtfs.org/reference/static/#stopstxt>
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct Stop {
+    /// Unique technical identifier (not for the traveller) of the stop
+    #[serde(rename = "stop_id")]
+    pub id: IdType,
+    /// Short text or a number that identifies the location for riders
+    #[serde(rename = "stop_code")]
+    pub code: Option<String>,
+    ///Name of the location. Use a name that people will understand in the local and tourist vernacular
+    #[serde(rename = "stop_name")]
+    pub name: String,
+    /// Type of the location
+    pub longitude: Option<f64>,
+    /// Latitude of the stop
+    pub latitude: Option<f64>,
+    pub wheelchair_boarding: Availability,
+}
+
+impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
+    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Stop) -> Self where Self: Sized {
+        Self {
+            id: (agency_id, try_parse_id(&f.id)),
+            code: f.code,
+            name: f.name,
+            longitude: f.longitude,
+            latitude: f.latitude,
+            wheelchair_boarding: f.wheelchair_boarding,
+        }
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
@@ -96,7 +150,7 @@ pub struct Route {
 impl FromWithAgencyId<gtfs_structures::Route> for Route {
     fn from_with_agency_id(agency_id: u8, a: gtfs_structures::Route) -> Self {
         Self {
-            id: (agency_id, a.id.parse().unwrap()),
+            id: (agency_id, try_parse_id(&a.id)),
             short_name: a.short_name,
             long_name: a.long_name,
             desc: a.desc,
@@ -110,11 +164,11 @@ impl FromWithAgencyId<gtfs_structures::Route> for Route {
 impl FromWithAgencyId<RawTrip> for Trip {
     fn from_with_agency_id(agency_id: u8, a: RawTrip) -> Self {
         Self {
-            id: (agency_id, a.id.parse().unwrap()),
-            service_id: (agency_id, a.service_id.parse().unwrap()),
-            route_id:(agency_id, a.route_id.parse().unwrap()),
+            id: (agency_id, try_parse_id(&a.id)),
+            service_id: (agency_id, try_parse_id(&a.service_id)),
+            route_id:(agency_id, try_parse_id(&a.route_id)),
             stop_times: Default::default(),
-            shape_id: a.shape_id.map(|a| (agency_id, a.parse().unwrap())),
+            shape_id: a.shape_id.map(|a| (agency_id, try_parse_id(&a))),
             trip_headsign: a.trip_headsign,
             trip_short_name: a.trip_short_name,
             direction_id: a.direction_id,
@@ -145,6 +199,7 @@ impl Gtfs0 {
     }
 }
 
+#[derive(Debug)]
 pub struct Gtfs1 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: HashMap<IdType, Stop>,
@@ -164,8 +219,8 @@ fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<I
 }
 
 impl From<Gtfs0> for Gtfs1 {
-    fn from(a: Gtfs0) -> Self {
-        let stops = vec_to_hashmap(a.stops, |stop| (a.agency_id, stop.id.parse().unwrap()));
+    fn from(mut a: Gtfs0) -> Self {
+        let stops = vec_to_hashmap(a.stops, |stop| stop.id);
         let mut trips: HashMap<IdType, Trip> = a
             .trips
             .into_iter()
@@ -189,8 +244,13 @@ impl From<Gtfs0> for Gtfs1 {
                 )
             })
             .collect();
-        for st in a.stop_times {
-            trips.get_mut(&st.trip_id).unwrap().stop_times.push(st);
+
+        a.stop_times.sort_by(|a, b| a.stop_sequence.cmp(&b.stop_sequence));
+
+        for mut st in a.stop_times {
+            let stop_time_vec = &mut trips.get_mut(&st.trip_id).unwrap().stop_times;
+            st.index_of_stop_time = stop_time_vec.len();
+            stop_time_vec.push(st);
         }
 
         Self {
@@ -200,11 +260,12 @@ impl From<Gtfs0> for Gtfs1 {
         }
     }
 }
+
 impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
-        let agency_id = a.agencies.unwrap()[0].id.as_ref().unwrap().parse().unwrap();
+        let agency_id = AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
         Self {
-            stops: a.stops.unwrap(),
+            stops: a.stops.unwrap().into_iter().map(|a| Stop::from_with_agency_id(agency_id, a)).collect(),
             routes: a.routes.unwrap().into_iter().map(|a| Route::from_with_agency_id(agency_id, a)).collect(),
             trips: a.trips.unwrap().into_iter().map(|a| Trip::from_with_agency_id(agency_id, a)).collect(),
             stop_times: a
@@ -214,8 +275,9 @@ impl From<LibraryGTFS> for Gtfs0 {
                 .map(|st| StopTime {
                     arrival_time: st.arrival_time,
                     stop_sequence: st.stop_sequence,
-                    stop_id: (agency_id, st.stop_id.parse().unwrap()),
-                    trip_id: (agency_id, st.trip_id.parse().unwrap()),
+                    stop_id: (agency_id, try_parse_id(&st.stop_id)),
+                    trip_id: (agency_id, try_parse_id(&st.trip_id)),
+                    index_of_stop_time: 0
                 })
                 .collect(),
             agency_id

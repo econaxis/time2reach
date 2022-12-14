@@ -9,7 +9,7 @@ mod serialization;
 mod time_to_reach;
 mod trips_arena;
 
-use gtfs_structures::{DirectionType, Stop};
+use gtfs_structures::{DirectionType};
 use id_arena::{Arena, Id};
 
 use proj::Proj;
@@ -24,16 +24,16 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::Write;
-use gdal::Dataset;
+use gdal::{Dataset, GeoTransformEx};
 use gdal::raster::{Buffer, ColorInterpretation};
 use gdal::spatial_ref::SpatialRef;
 pub use time_to_reach::TimeToReachRTree;
 
-use crate::gtfs_wrapper::{Gtfs0, Gtfs1, StopTime, Trip};
+use crate::gtfs_wrapper::{Gtfs0, Gtfs1, StopTime, Trip, Stop};
 use gtfs_wrapper::LibraryGTFS;
 use serialization::{MapSerialize, TimeGrid};
 use trips_arena::TripsArena;
-use crate::projection::ZERO_LATLNG;
+use crate::projection::{project_lng_lat, PROJSTRING, ZERO_LATLNG};
 
 const WALKING_SPEED: f64 = 1.3;
 type IdType = (u8, u64);
@@ -71,7 +71,7 @@ impl RoutePickupTimes {
 
         let bus_pickup = BusPickupInfo {
             timestamp: stop_time.arrival_time.unwrap(),
-            stop_sequence_no: stop_time.stop_sequence,
+            stop_sequence_no: stop_time.index_of_stop_time as u16,
             trip_id: trip.id,
         };
         if let Some(times) = self.0.get_mut(&route_stop_sequence) {
@@ -109,7 +109,6 @@ impl StopsWithTrips {
             self.0.insert(stop_time.stop_id, rp);
         }
     }
-    #[inline(never)]
     fn to_spatial(self, gtfs: &Gtfs1) -> SpatialStopsWithTrips<'_> {
         let mut points_data = Vec::new();
 
@@ -159,7 +158,7 @@ impl GTiffOutput {
         let driver = gdal::DriverManager::get_driver_by_name("GTiff").unwrap();
         let mut dataset = driver.create_with_band_type::<i32, _>(path, size_x as isize, size_y as isize, 1).unwrap();
 
-        let spatial_ref = SpatialRef::from_proj4(&format!("+proj=merc +lon_0={} +lat_0={} +lat_ts={}", ZERO_LATLNG[1], ZERO_LATLNG[0], ZERO_LATLNG[0])).unwrap();
+        let spatial_ref = SpatialRef::from_proj4(&PROJSTRING).unwrap();
         let proj = spatial_ref.to_wkt().unwrap();
         dbg!(&proj);
 
@@ -171,7 +170,7 @@ impl GTiffOutput {
         }
     }
 
-    fn write_to_raster(&mut self, tg: &TimeGrid) {
+    fn write_to_raster(&mut self, tg: &mut TimeGrid) {
         let mut geotransform = [0.0; 6];
         let start = tg.start_coord;
         let end = tg.end_coord;
@@ -182,7 +181,7 @@ impl GTiffOutput {
         geotransform[1] = tg.calculate_x_scale();
         geotransform[5] = tg.calculate_y_scale();
 
-        self.dataset.set_geo_transform(&geotransform);
+        self.dataset.set_geo_transform(&geotransform).unwrap();
 
         let mut rb = self.dataset.rasterband(1).unwrap();
         rb.set_no_data_value(Some(-1.0)).unwrap();
@@ -192,19 +191,18 @@ impl GTiffOutput {
             data: tg.map.clone()
         };
         rb.write((0, 0), (tg.x_samples, tg.y_samples),&buffer );
-        rb.set_color_interpretation(ColorInterpretation::RedBand).unwrap();
+        // rb.set_color_interpretation(ColorInterpretation::RedBand).unwrap();
         self.dataset.flush_cache();
     }
 }
 
 fn main() {
-    const MAP_RESOLUTION: usize = 900;
+    const MAP_RESOLUTION: usize = 12000;
     let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
 
-
     let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/gtfs-2");
-    let gtfs_go = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/GO_GTFS");
-    gtfs.merge(gtfs_go);
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/GO_GTFS"));
+    // let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/GO_GTFS");
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
     let answer = time_to_reach::generate_reach_times(&gtfs, &data);
@@ -212,8 +210,8 @@ fn main() {
     dbg!(answer.tree.size());
 
     let mut tg = TimeGrid::new(&answer, MAP_RESOLUTION, MAP_RESOLUTION);
-    tg.process(&answer, [9 * 3600, 12 * 3600]);
-    gt.write_to_raster(&tg);
+    tg.process(&answer);
+    gt.write_to_raster(&mut tg);
     // let mut file = File::create("observations.rmp").unwrap();
     // file.write(
     //     &rmp_serde::to_vec_named(&MapSerialize {

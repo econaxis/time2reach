@@ -84,9 +84,9 @@ impl TimeToReachRTree {
 pub fn generate_reach_times(gtfs: &Gtfs1, data: &SpatialStopsWithTrips) -> TimeToReachRTree {
     let mut trips_arena = TripsArena::default();
     trips_arena.add_to_explore(InProgressTrip {
-        boarding_time: 9 * 3600,
-        exit_time: 9 * 3600,
-        point: projection::project_lng_lat(-79.466791, 43.653210),
+        boarding_time: 13 * 3600,
+        exit_time: 13 * 3600,
+        point: projection::project_lng_lat(-79.450641, 43.657628),
         current_route: RouteStopSequence::default(),
         get_off_stop_id: NULL_ID,
         total_transfers: 0,
@@ -102,7 +102,7 @@ pub fn generate_reach_times(gtfs: &Gtfs1, data: &SpatialStopsWithTrips) -> TimeT
             skip_times += 1;
             continue;
         }
-        if item.exit_time > (10.0 * 3600.0) as u32 {
+        if item.exit_time > (16.0 * 3600.0) as u32 {
             continue;
         }
         if item.total_transfers >= 5 {
@@ -133,7 +133,7 @@ fn all_stops_along_trip(
     explore_queue: &mut TripsArena,
 ) {
     let stop_times = &gtfs.trips[&trip_id].stop_times;
-    let boarding_stop = &stop_times[start_sequence_no as usize - 1];
+    let boarding_stop = &stop_times[start_sequence_no as usize];
 
     for (_stops_travelled, st) in stop_times[start_sequence_no as usize..].iter().enumerate() {
         let point = projection::project_stop(&gtfs.stops[&st.stop_id]);

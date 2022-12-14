@@ -1,7 +1,8 @@
 use std::cmp::min;
-use crate::{TimeToReachRTree, WALKING_SPEED};
+use crate::{project_lng_lat, TimeToReachRTree, WALKING_SPEED};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
+use crate::projection::inverse_project_lng_lat;
 use crate::time_to_reach::calculate_score;
 
 #[derive(Serialize)]
@@ -29,6 +30,24 @@ pub struct TimeGrid {
 }
 
 impl TimeGrid {
+    pub fn test() -> Self {
+        let mut m = Vec::new();
+
+        for i in 0..1000 * 1000 {
+            m.push(15 as i32);
+        }
+
+        let clarkson = project_lng_lat(-79.65209, 43.56631);
+        let markham = project_lng_lat(-79.95375, 43.85612);
+        dbg!(clarkson, markham);
+        Self {
+            start_coord: clarkson,
+            end_coord: markham,
+            x_samples: 1000,
+            y_samples: 1000,
+            map: m
+        }
+    }
     pub fn calculate_x_scale(&self) -> f64 {
         (self.end_coord[0] - self.start_coord[0]) / self.x_samples as f64
     }
@@ -62,7 +81,6 @@ impl TimeGrid {
             end[0] = end[0].max(x);
             end[1] = end[1].max(y);
         }
-
         (start, end)
     }
     pub(crate) fn new(data: &TimeToReachRTree, x_samples: usize, y_samples: usize) -> Self {
@@ -95,7 +113,7 @@ impl TimeGrid {
     }
 
     #[inline(never)]
-    pub(crate) fn process(&mut self, data: &TimeToReachRTree, time_range: [u32; 2]) {
+    pub(crate) fn process(&mut self, data: &TimeToReachRTree) {
         // Size of each x or y coordinate in meters
         let start_coord = self.start_coord;
 

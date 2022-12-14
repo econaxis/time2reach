@@ -42,7 +42,7 @@ impl TripsArena {
             self.stop_arrival_times.insert(item.get_off_stop_id, item.exit_time);
         }
         let id = self.arena.alloc(item);
-        self.explore_queue.push_front(id);
+        self.explore_queue.push_back(id);
     }
 
     pub(crate) fn get_by_id(&self, id: id_arena::Id<InProgressTrip>) -> &InProgressTrip {

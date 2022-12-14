@@ -1,11 +1,11 @@
-use gtfs_structures::Stop;
 use proj::Proj;
+use crate::gtfs_wrapper::Stop;
 
 pub const ZERO_LATLNG: [f64; 2] = [43.765313, -79.649588];
-
+pub static PROJSTRING: &'static str = concat!("+proj=merc +lat_ts=43.765313 +lon_0=-79.649588 +lat_0=43.765313");
 thread_local! {
     pub static PROJ: Proj = {
-        Proj::new(&format!("+proj=merc +lon_0={} +lat_0={} +lat_ts={}", ZERO_LATLNG[1], ZERO_LATLNG[0], ZERO_LATLNG[0])).unwrap()
+        Proj::new(&PROJSTRING).unwrap()
     };
 }
 
@@ -23,7 +23,7 @@ pub fn project_lng_lat(lng: f64, lat: f64) -> [f64; 2] {
     [coord.0, coord.1]
 }
 
-fn inverse_project_lng_lat(x: f64, y: f64) -> [f64; 2] {
+pub fn inverse_project_lng_lat(x: f64, y: f64) -> [f64; 2] {
     let coord = PROJ.with(|p| p.project((x, y), true).unwrap());
     [coord.1.to_degrees(), coord.0.to_degrees()]
 }
