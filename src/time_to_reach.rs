@@ -1,7 +1,11 @@
-use crate::{BusPickupInfo, Gtfs1, IdType, InProgressTrip, NULL_ID, projection, ReachData, RouteStopSequence, SpatialStopsWithTrips, TripsArena, WALKING_SPEED};
+use crate::road_structure::RoadStructure;
+use crate::{
+    projection, BusPickupInfo, Gtfs1, IdType, InProgressTrip, ReachData, RouteStopSequence,
+    SpatialStopsWithTrips, TripsArena, NULL_ID, WALKING_SPEED,
+};
+use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
-use id_arena::Id;
 use std::collections::HashSet;
 
 #[derive(Debug, Default)]
@@ -23,22 +27,18 @@ pub fn calculate_score(original_point: &[f64; 2], obs: &GeomWithData<[f64; 2], R
         penalty += 1.0 * (time_to_reach - 2.0 * 60.0);
     }
 
-
     if obs.data.transfers >= 2 {
         // Penalize time for every transfer performed
         penalty += (obs.data.transfers as u32 - 1) as f64 * 20.0
     }
 
-    let mut time_to_reach = time_to_reach
-        + obs.data.timestamp as f64
-        + penalty;
+    let mut time_to_reach = time_to_reach + obs.data.timestamp as f64 + penalty;
     let mut time_to_reach = time_to_reach as u32;
     if time_to_reach < obs.data.timestamp {
         time_to_reach = obs.data.timestamp;
     }
     time_to_reach
 }
-
 
 impl TimeToReachRTree {
     fn serialize_to_json(&self) -> Vec<serde_json::Value> {
@@ -78,10 +78,13 @@ impl TimeToReachRTree {
 
         best_time1
     }
-
 }
 
-pub fn generate_reach_times(gtfs: &Gtfs1, data: &SpatialStopsWithTrips) -> TimeToReachRTree {
+pub fn generate_reach_times(
+    gtfs: &Gtfs1,
+    data: &SpatialStopsWithTrips,
+    rs: &mut RoadStructure,
+) -> TimeToReachRTree {
     let mut trips_arena = TripsArena::default();
     trips_arena.add_to_explore(InProgressTrip {
         boarding_time: 13 * 3600,
@@ -96,18 +99,25 @@ pub fn generate_reach_times(gtfs: &Gtfs1, data: &SpatialStopsWithTrips) -> TimeT
 
     let mut answer = TimeToReachRTree::default();
 
-    let mut skip_times = 0;
     while let Some((item, id)) = trips_arena.pop_front() {
-        if !is_first_reacher(&mut answer, &item.point, item.exit_time) {
-            skip_times += 1;
+        if !rs.is_first_reacher(&item.point, item.exit_time) {
             continue;
         }
-        if item.exit_time > (16.0 * 3600.0) as u32 {
+        if item.exit_time > (13.5 * 3600.0) as u32 {
             continue;
         }
         if item.total_transfers >= 5 {
             continue;
         }
+
+        rs.add_observation(
+            &item.point,
+            ReachData {
+                timestamp: item.exit_time,
+                progress_trip_id: id,
+                transfers: item.total_transfers,
+            },
+        );
         answer.add_observation(
             item.point,
             ReachData {
@@ -140,15 +150,15 @@ fn all_stops_along_trip(
         let timestamp = st.arrival_time.unwrap();
 
         explore_queue.add_to_explore(InProgressTrip {
-                boarding_time: boarding_stop.arrival_time.unwrap(),
-                exit_time: timestamp,
-                point,
-                current_route: route_info.clone(),
-                get_off_stop_id: st.stop_id,
-                boarding_stop_id: boarding_stop.stop_id,
-                total_transfers: transfers_remaining,
-                previous_transfer: Some(previous_transfer),
-            });
+            boarding_time: boarding_stop.arrival_time.unwrap(),
+            exit_time: timestamp,
+            point,
+            current_route: route_info.clone(),
+            get_off_stop_id: st.stop_id,
+            boarding_stop_id: boarding_stop.stop_id,
+            total_transfers: transfers_remaining,
+            previous_transfer: Some(previous_transfer),
+        });
     }
 }
 
@@ -159,8 +169,6 @@ fn explore_from_point(
     ip_id: Id<InProgressTrip>,
     explore_queue: &mut TripsArena,
 ) {
-
-
     let mut routes_already_taken = HashSet::from([ip.current_route.clone()]);
 
     for (stop, distance) in data.0.nearest_neighbor_iter_with_distance_2(&ip.point) {

@@ -1,8 +1,9 @@
-use proj::Proj;
 use crate::gtfs_wrapper::Stop;
+use proj::Proj;
 
 pub const ZERO_LATLNG: [f64; 2] = [43.765313, -79.649588];
-pub static PROJSTRING: &'static str = concat!("+proj=merc +lat_ts=43.765313 +lon_0=-79.649588 +lat_0=43.765313");
+pub static PROJSTRING: &'static str =
+    concat!("+proj=merc +lat_ts=43.765313 +lon_0=-79.649588 +lat_0=43.765313");
 thread_local! {
     pub static PROJ: Proj = {
         Proj::new(&PROJSTRING).unwrap()

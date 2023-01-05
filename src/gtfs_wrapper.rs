@@ -1,15 +1,19 @@
 use crate::IdType;
-use gtfs_structures::{Availability, BikesAllowedType, DirectionType, Frequency, Id, RawTrip, RouteType};
+use gtfs_structures::{
+    Availability, BikesAllowedType, DirectionType, Frequency, Id, RawTrip, RouteType,
+};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::cell::RefCell;
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
 static AGENCY_COUNT: AtomicU8 = AtomicU8::new(0);
 
 trait FromWithAgencyId<From> {
-    fn from_with_agency_id(agency_id: u8, f: From) -> Self where Self: Sized;
+    fn from_with_agency_id(agency_id: u8, f: From) -> Self
+    where
+        Self: Sized;
 }
 
 thread_local! {
@@ -48,7 +52,7 @@ pub struct StopTime {
     pub trip_id: IdType,
 
     #[serde(skip)]
-    pub index_of_stop_time: usize
+    pub index_of_stop_time: usize,
 }
 
 /// A physical stop, station or area. See <https://gtfs.org/reference/static/#stopstxt>
@@ -71,7 +75,10 @@ pub struct Stop {
 }
 
 impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
-    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Stop) -> Self where Self: Sized {
+    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Stop) -> Self
+    where
+        Self: Sized,
+    {
         Self {
             id: (agency_id, try_parse_id(&f.id)),
             code: f.code,
@@ -166,7 +173,7 @@ impl FromWithAgencyId<RawTrip> for Trip {
         Self {
             id: (agency_id, try_parse_id(&a.id)),
             service_id: (agency_id, try_parse_id(&a.service_id)),
-            route_id:(agency_id, try_parse_id(&a.route_id)),
+            route_id: (agency_id, try_parse_id(&a.route_id)),
             stop_times: Default::default(),
             shape_id: a.shape_id.map(|a| (agency_id, try_parse_id(&a))),
             trip_headsign: a.trip_headsign,
@@ -189,9 +196,8 @@ pub struct Gtfs0 {
     /// All trips by `trip_id`
     pub trips: Vec<Trip>,
     pub stop_times: Vec<StopTime>,
-    pub agency_id: u8
+    pub agency_id: u8,
 }
-
 
 impl Gtfs0 {
     fn convert<F, T: FromWithAgencyId<F>>(&self, f: F) -> T {
@@ -245,7 +251,8 @@ impl From<Gtfs0> for Gtfs1 {
             })
             .collect();
 
-        a.stop_times.sort_by(|a, b| a.stop_sequence.cmp(&b.stop_sequence));
+        a.stop_times
+            .sort_by(|a, b| a.stop_sequence.cmp(&b.stop_sequence));
 
         for mut st in a.stop_times {
             let stop_time_vec = &mut trips.get_mut(&st.trip_id).unwrap().stop_times;
@@ -265,9 +272,24 @@ impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
         let agency_id = AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
         Self {
-            stops: a.stops.unwrap().into_iter().map(|a| Stop::from_with_agency_id(agency_id, a)).collect(),
-            routes: a.routes.unwrap().into_iter().map(|a| Route::from_with_agency_id(agency_id, a)).collect(),
-            trips: a.trips.unwrap().into_iter().map(|a| Trip::from_with_agency_id(agency_id, a)).collect(),
+            stops: a
+                .stops
+                .unwrap()
+                .into_iter()
+                .map(|a| Stop::from_with_agency_id(agency_id, a))
+                .collect(),
+            routes: a
+                .routes
+                .unwrap()
+                .into_iter()
+                .map(|a| Route::from_with_agency_id(agency_id, a))
+                .collect(),
+            trips: a
+                .trips
+                .unwrap()
+                .into_iter()
+                .map(|a| Trip::from_with_agency_id(agency_id, a))
+                .collect(),
             stop_times: a
                 .stop_times
                 .unwrap()
@@ -277,16 +299,16 @@ impl From<LibraryGTFS> for Gtfs0 {
                     stop_sequence: st.stop_sequence,
                     stop_id: (agency_id, try_parse_id(&st.stop_id)),
                     trip_id: (agency_id, try_parse_id(&st.trip_id)),
-                    index_of_stop_time: 0
+                    index_of_stop_time: 0,
                 })
                 .collect(),
-            agency_id
+            agency_id,
         }
     }
 }
 
 impl Gtfs1 {
-    pub fn merge(&mut self, other: Gtfs1)  {
+    pub fn merge(&mut self, other: Gtfs1) {
         self.stops.extend(other.stops);
         self.routes.extend(other.routes);
         self.trips.extend(other.trips);

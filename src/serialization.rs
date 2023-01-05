@@ -1,9 +1,9 @@
-use std::cmp::min;
+use crate::projection::inverse_project_lng_lat;
+use crate::time_to_reach::calculate_score;
 use crate::{project_lng_lat, TimeToReachRTree, WALKING_SPEED};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
-use crate::projection::inverse_project_lng_lat;
-use crate::time_to_reach::calculate_score;
+use std::cmp::min;
 
 #[derive(Serialize)]
 pub struct MapSerialize {
@@ -45,7 +45,7 @@ impl TimeGrid {
             end_coord: markham,
             x_samples: 1000,
             y_samples: 1000,
-            map: m
+            map: m,
         }
     }
     pub fn calculate_x_scale(&self) -> f64 {
@@ -99,13 +99,20 @@ impl TimeGrid {
         }
     }
 
-    fn mark_circle<F: Fn(usize, usize) -> i32>(&mut self, point: [usize; 2], square_size: usize, value_function: F) {
+    fn mark_circle<F: Fn(usize, usize) -> i32>(
+        &mut self,
+        point: [usize; 2],
+        square_size: usize,
+        value_function: F,
+    ) {
         let minimum_bound = value_function(point[0], point[1]);
         for x in point[0]..point[0] + 2 * square_size {
             if let Some(real_x) = x.checked_sub(square_size) {
                 for y in point[1]..point[1] + 2 * square_size {
                     if let Some(real_y) = y.checked_sub(square_size) {
-                        self.set_if_lower(real_x, real_y,minimum_bound, || value_function(real_x, real_y));
+                        self.set_if_lower(real_x, real_y, minimum_bound, || {
+                            value_function(real_x, real_y)
+                        });
                     }
                 }
             }
@@ -126,7 +133,10 @@ impl TimeGrid {
             let yindex = ((point[1] - self.start_coord[1]) / y_iter).floor() as usize;
 
             self.mark_circle([xindex, yindex], 40, |x, y| {
-                let evaluated_point = [(x as f64 + 0.5) * x_iter + start_coord[0], (y as f64 + 0.5) * y_iter + start_coord[1]];
+                let evaluated_point = [
+                    (x as f64 + 0.5) * x_iter + start_coord[0],
+                    (y as f64 + 0.5) * y_iter + start_coord[1],
+                ];
                 // let xdiff = x.abs_diff(xindex)  as f64 * x_iter;
                 // let ydiff = y.abs_diff(y_iter)  as f64 * y_iter;
                 let score = calculate_score(&evaluated_point, elem);

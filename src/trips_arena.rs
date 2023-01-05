@@ -13,12 +13,10 @@ pub struct TripsArena {
     // TripID -> stop sequence number of boarding
     trips_already_taken: HashMap<IdType, u16>,
 
-
     // StopID -> Earliest Arrival time
     stop_arrival_times: HashMap<IdType, u32>,
     arena: Arena<InProgressTrip>,
 }
-
 
 impl TripsArena {
     pub fn should_explore(&mut self, bu: &BusPickupInfo) -> bool {
@@ -28,9 +26,9 @@ impl TripsArena {
                 return false;
             }
         }
-        self.trips_already_taken.insert(bu.trip_id, bu.stop_sequence_no);
+        self.trips_already_taken
+            .insert(bu.trip_id, bu.stop_sequence_no);
         return true;
-
     }
     pub(crate) fn add_to_explore(&mut self, item: InProgressTrip) {
         if let Some(arrival_time) = self.stop_arrival_times.get(&item.get_off_stop_id) {
@@ -39,7 +37,8 @@ impl TripsArena {
                 return;
             }
         } else {
-            self.stop_arrival_times.insert(item.get_off_stop_id, item.exit_time);
+            self.stop_arrival_times
+                .insert(item.get_off_stop_id, item.exit_time);
         }
         let id = self.arena.alloc(item);
         self.explore_queue.push_back(id);

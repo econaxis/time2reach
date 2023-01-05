@@ -5,11 +5,12 @@ mod formatter;
 mod gtfs_setup;
 mod gtfs_wrapper;
 mod projection;
+mod road_structure;
 mod serialization;
 mod time_to_reach;
 mod trips_arena;
 
-use gtfs_structures::{DirectionType};
+use gtfs_structures::DirectionType;
 use id_arena::{Arena, Id};
 
 use proj::Proj;
@@ -19,23 +20,25 @@ use serde::Serialize;
 
 use bson::to_bson;
 use formatter::InProgressTripsFormatter;
+use gdal::raster::{Buffer, ColorInterpretation};
+use gdal::spatial_ref::SpatialRef;
+use gdal::{Dataset, GeoTransformEx};
 use serde_bytes::ByteBuf;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::Write;
-use gdal::{Dataset, GeoTransformEx};
-use gdal::raster::{Buffer, ColorInterpretation};
-use gdal::spatial_ref::SpatialRef;
+use std::time::{Duration, Instant};
 pub use time_to_reach::TimeToReachRTree;
 
-use crate::gtfs_wrapper::{Gtfs0, Gtfs1, StopTime, Trip, Stop};
+use crate::gtfs_wrapper::{Gtfs0, Gtfs1, Stop, StopTime, Trip};
+use crate::projection::{project_lng_lat, PROJSTRING, ZERO_LATLNG};
+use crate::road_structure::RoadStructure;
 use gtfs_wrapper::LibraryGTFS;
 use serialization::{MapSerialize, TimeGrid};
 use trips_arena::TripsArena;
-use crate::projection::{project_lng_lat, PROJSTRING, ZERO_LATLNG};
 
-const WALKING_SPEED: f64 = 1.3;
+const WALKING_SPEED: f64 = 1.15;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (0, 0);
 
@@ -149,14 +152,15 @@ pub struct ReachData {
 }
 
 struct GTiffOutput {
-    dataset: Dataset
+    dataset: Dataset,
 }
 
 impl GTiffOutput {
     fn new(path: &str, size_x: usize, size_y: usize) -> Self {
-
         let driver = gdal::DriverManager::get_driver_by_name("GTiff").unwrap();
-        let mut dataset = driver.create_with_band_type::<i32, _>(path, size_x as isize, size_y as isize, 1).unwrap();
+        let mut dataset = driver
+            .create_with_band_type::<i32, _>(path, size_x as isize, size_y as isize, 1)
+            .unwrap();
 
         let spatial_ref = SpatialRef::from_proj4(&PROJSTRING).unwrap();
         let proj = spatial_ref.to_wkt().unwrap();
@@ -165,9 +169,7 @@ impl GTiffOutput {
         dataset.set_spatial_ref(&spatial_ref).unwrap();
         dataset.set_projection(&proj).unwrap();
 
-        Self {
-            dataset
-        }
+        Self { dataset }
     }
 
     fn write_to_raster(&mut self, tg: &mut TimeGrid) {
@@ -188,30 +190,39 @@ impl GTiffOutput {
 
         let buffer = Buffer {
             size: (tg.x_samples, tg.y_samples),
-            data: tg.map.clone()
+            data: tg.map.clone(),
         };
-        rb.write((0, 0), (tg.x_samples, tg.y_samples),&buffer );
+        rb.write((0, 0), (tg.x_samples, tg.y_samples), &buffer);
         // rb.set_color_interpretation(ColorInterpretation::RedBand).unwrap();
         self.dataset.flush_cache();
     }
 }
 
 fn main() {
-    const MAP_RESOLUTION: usize = 12000;
-    let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
+    // const MAP_RESOLUTION: usize = 12000;
+    // let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
 
     let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/gtfs-2");
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/GO_GTFS"));
-    // let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/GO_GTFS");
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry/Downloads/GO_GTFS",
+    ));
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
-    let answer = time_to_reach::generate_reach_times(&gtfs, &data);
+    let mut rs = RoadStructure::new();
 
-    dbg!(answer.tree.size());
+    let time = Instant::now();
+    let answer = time_to_reach::generate_reach_times(&gtfs, &data, &mut rs);
 
-    let mut tg = TimeGrid::new(&answer, MAP_RESOLUTION, MAP_RESOLUTION);
-    tg.process(&answer);
-    gt.write_to_raster(&mut tg);
+    rs.save((13.7 * 3600.0) as u32);
+
+    println!("Elapsed: {}", time.elapsed().as_secs_f32());
+    return;
+
+    // dbg!(answer.tree.size());
+    //
+    // let mut tg = TimeGrid::new(&answer, MAP_RESOLUTION, MAP_RESOLUTION);
+    // tg.process(&answer);
+    // gt.write_to_raster(&mut tg);
     // let mut file = File::create("observations.rmp").unwrap();
     // file.write(
     //     &rmp_serde::to_vec_named(&MapSerialize {
@@ -222,6 +233,4 @@ fn main() {
     //     .unwrap(),
     // )
     // .unwrap();
-
 }
-
