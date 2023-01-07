@@ -1,19 +1,17 @@
 use crate::road_structure::RoadStructure;
-use crate::{
-    projection, BusPickupInfo, Gtfs1, IdType, InProgressTrip, ReachData, RouteStopSequence,
-    SpatialStopsWithTrips, TripsArena, NULL_ID, WALKING_SPEED,
-};
+use crate::{BusPickupInfo, Gtfs1, IdType, InProgressTrip, NULL_ID, projection, ReachData, RouteStopSequence, SpatialStopsWithTrips, TripsArena, WALKING_SPEED};
 use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::HashSet;
+use crate::time::Time;
 
 #[derive(Debug, Default)]
 pub struct TimeToReachRTree {
     pub(crate) tree: RTree<GeomWithData<[f64; 2], ReachData>>,
 }
-pub fn calculate_score(original_point: &[f64; 2], obs: &GeomWithData<[f64; 2], ReachData>) -> u32 {
-    let distance = obs.distance_2(&original_point).sqrt();
+pub fn calculate_score(original_point: &[f64; 2], obs: &GeomWithData<[f64; 2], ReachData>) -> Time {
+    let distance = obs.distance_2(original_point).sqrt();
 
     let time_to_reach = distance / WALKING_SPEED;
     let mut penalty = 10.0;
@@ -32,8 +30,7 @@ pub fn calculate_score(original_point: &[f64; 2], obs: &GeomWithData<[f64; 2], R
         penalty += (obs.data.transfers as u32 - 1) as f64 * 20.0
     }
 
-    let mut time_to_reach = time_to_reach + obs.data.timestamp as f64 + penalty;
-    let mut time_to_reach = time_to_reach as u32;
+    let mut time_to_reach = obs.data.timestamp + penalty + time_to_reach;
     if time_to_reach < obs.data.timestamp {
         time_to_reach = obs.data.timestamp;
     }
@@ -54,8 +51,7 @@ impl TimeToReachRTree {
     }
     pub(crate) fn add_observation(&mut self, point: [f64; 2], mut data: ReachData) {
         for near in self.tree.drain_within_distance(point, 15.0 * 15.0) {
-            let time_to_walk_here =
-                (near.distance_2(&point) / WALKING_SPEED) as u32 + near.data.timestamp;
+            let time_to_walk_here = near.data.timestamp + near.distance_2(&point) / WALKING_SPEED;
             if time_to_walk_here < data.timestamp {
                 data.timestamp = time_to_walk_here;
             }
@@ -64,20 +60,20 @@ impl TimeToReachRTree {
         self.tree.insert(GeomWithData::new(point, data));
     }
 
-    pub(crate) fn sample_fastest_time(&self, point: [f64; 2]) -> Option<u32> {
-        self.sample_fastest_time_within_distance(point, 600.0)
-            .or_else(|| self.sample_fastest_time_within_distance(point, 1500.0))
-    }
+    // pub(crate) fn sample_fastest_time(&self, point: [f64; 2]) -> Option<u32> {
+    //     self.sample_fastest_time_within_distance(point, 600.0)
+    //         .or_else(|| self.sample_fastest_time_within_distance(point, 1500.0))
+    // }
 
-    fn sample_fastest_time_within_distance(&self, point: [f64; 2], distance: f64) -> Option<u32> {
-        let best_time1 = self
-            .tree
-            .locate_within_distance(point, distance * distance)
-            .map(|obs| calculate_score(&point, obs))
-            .min();
-
-        best_time1
-    }
+    // fn sample_fastest_time_within_distance(&self, point: [f64; 2], distance: f64) -> Option<u32> {
+    //     let best_time1 = self
+    //         .tree
+    //         .locate_within_distance(point, distance * distance)
+    //         .map(|obs| calculate_score(&point, obs))
+    //         .min();
+    //
+    //     best_time1
+    // }
 }
 
 pub fn generate_reach_times(
@@ -87,8 +83,8 @@ pub fn generate_reach_times(
 ) -> TimeToReachRTree {
     let mut trips_arena = TripsArena::default();
     trips_arena.add_to_explore(InProgressTrip {
-        boarding_time: 13 * 3600,
-        exit_time: 13 * 3600,
+        boarding_time: Time(13.0 * 3600.0),
+        exit_time: Time(13.0 * 3600.0),
         point: projection::project_lng_lat(-79.450641, 43.657628),
         current_route: RouteStopSequence::default(),
         get_off_stop_id: NULL_ID,
@@ -103,7 +99,7 @@ pub fn generate_reach_times(
         if !rs.is_first_reacher(&item.point, item.exit_time) {
             continue;
         }
-        if item.exit_time > (13.5 * 3600.0) as u32 {
+        if item.exit_time > Time(13.6 * 3600.0) {
             continue;
         }
         if item.total_transfers >= 5 {
@@ -127,7 +123,7 @@ pub fn generate_reach_times(
             },
         );
 
-        explore_from_point(&gtfs, &data, item, id, &mut trips_arena);
+        explore_from_point(gtfs, data, item, id, &mut trips_arena);
     }
     answer
 }
@@ -150,8 +146,8 @@ fn all_stops_along_trip(
         let timestamp = st.arrival_time.unwrap();
 
         explore_queue.add_to_explore(InProgressTrip {
-            boarding_time: boarding_stop.arrival_time.unwrap(),
-            exit_time: timestamp,
+            boarding_time: Time(boarding_stop.arrival_time.unwrap() as f64),
+            exit_time: Time(timestamp as f64),
             point,
             current_route: route_info.clone(),
             get_off_stop_id: st.stop_id,
@@ -179,8 +175,8 @@ fn explore_from_point(
 
         let stop_d = &stop.data;
 
-        let time_to_stop = (distance.sqrt() / WALKING_SPEED) as u32;
-        const MIN_TRANSFER_SECONDS: u32 = 15;
+        let time_to_stop = distance.sqrt() / WALKING_SPEED;
+        const MIN_TRANSFER_SECONDS: f64 = 15.0;
         let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
         for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
             // Search for route pickup on or after the starting_timestamp
@@ -214,13 +210,13 @@ fn explore_from_point(
     }
 }
 
-#[inline(never)]
-fn is_first_reacher(answer: &TimeToReachRTree, point: &[f64; 2], this_timestamp: u32) -> bool {
-    for already_reached in answer.tree.locate_within_distance(*point, 75.0 * 75.0) {
-        let time_to_walk_there = (already_reached.distance_2(point).sqrt() / WALKING_SPEED) as u32;
-        if already_reached.data.timestamp + time_to_walk_there <= this_timestamp {
-            return false;
-        }
-    }
-    true
-}
+// #[inline(never)]
+// fn is_first_reacher(answer: &TimeToReachRTree, point: &[f64; 2], this_timestamp: u32) -> bool {
+//     for already_reached in answer.tree.locate_within_distance(*point, 75.0 * 75.0) {
+//         let time_to_walk_there = (already_reached.distance_2(point).sqrt() / WALKING_SPEED) as u32;
+//         if already_reached.data.timestamp + time_to_walk_there <= this_timestamp {
+//             return false;
+//         }
+//     }
+//     true
+// }

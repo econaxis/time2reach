@@ -1,6 +1,7 @@
-use crate::{BusPickupInfo, IdType, InProgressTrip, RouteStopSequence};
+use crate::{BusPickupInfo, IdType, InProgressTrip};
 use id_arena::{Arena, Id};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
+use crate::time::Time;
 
 //
 // #[derive(Hash, Debug, PartialEq, Eq)]
@@ -14,7 +15,7 @@ pub struct TripsArena {
     trips_already_taken: HashMap<IdType, u16>,
 
     // StopID -> Earliest Arrival time
-    stop_arrival_times: HashMap<IdType, u32>,
+    stop_arrival_times: HashMap<IdType, Time>,
     arena: Arena<InProgressTrip>,
 }
 
@@ -28,7 +29,7 @@ impl TripsArena {
         }
         self.trips_already_taken
             .insert(bu.trip_id, bu.stop_sequence_no);
-        return true;
+        true
     }
     pub(crate) fn add_to_explore(&mut self, item: InProgressTrip) {
         if let Some(arrival_time) = self.stop_arrival_times.get(&item.get_off_stop_id) {

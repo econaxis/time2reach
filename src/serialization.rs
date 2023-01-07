@@ -1,9 +1,9 @@
-use crate::projection::inverse_project_lng_lat;
+
 use crate::time_to_reach::calculate_score;
-use crate::{project_lng_lat, TimeToReachRTree, WALKING_SPEED};
+use crate::{project_lng_lat, TimeToReachRTree};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
-use std::cmp::min;
+
 
 #[derive(Serialize)]
 pub struct MapSerialize {
@@ -33,8 +33,8 @@ impl TimeGrid {
     pub fn test() -> Self {
         let mut m = Vec::new();
 
-        for i in 0..1000 * 1000 {
-            m.push(15 as i32);
+        for _i in 0..1000 * 1000 {
+            m.push(15_i32);
         }
 
         let clarkson = project_lng_lat(-79.65209, 43.56631);
@@ -119,44 +119,44 @@ impl TimeGrid {
         }
     }
 
-    #[inline(never)]
-    pub(crate) fn process(&mut self, data: &TimeToReachRTree) {
-        // Size of each x or y coordinate in meters
-        let start_coord = self.start_coord;
-
-        let x_iter = (self.end_coord[0] - self.start_coord[0]) / self.x_samples as f64;
-        let y_iter = (self.end_coord[1] - self.start_coord[1]) / self.y_samples as f64;
-
-        for elem in data.tree.iter() {
-            let point = elem.geom();
-            let xindex = ((point[0] - self.start_coord[0]) / x_iter).floor() as usize;
-            let yindex = ((point[1] - self.start_coord[1]) / y_iter).floor() as usize;
-
-            self.mark_circle([xindex, yindex], 40, |x, y| {
-                let evaluated_point = [
-                    (x as f64 + 0.5) * x_iter + start_coord[0],
-                    (y as f64 + 0.5) * y_iter + start_coord[1],
-                ];
-                // let xdiff = x.abs_diff(xindex)  as f64 * x_iter;
-                // let ydiff = y.abs_diff(y_iter)  as f64 * y_iter;
-                let score = calculate_score(&evaluated_point, elem);
-                score as i32
-
-                // ((xdiff * xdiff + ydiff * ydiff).sqrt() / WALKING_SPEED) as i32 + elem.data.timestamp as i32
-            })
-            // *self.at(xindex, yindex) = elem.data.timestamp as i32;
-        }
-
-        // for x in 0..self.x_samples {
-        //     for y in 0..self.y_samples {
-        //         let xcoord = x as f64 * x_iter + self.start_coord[0];
-        //         let ycoord = y as f64 * y_iter + self.start_coord[1];
-        //
-        //         let time = data.sample_fastest_time([xcoord, ycoord]);
-        //         *self.at(x as usize, y as usize) = time.map(|a|{
-        //             255 - ((255 * (a - time_range[0])) / (time_range[1] - time_range[0])) as i32
-        //         }).unwrap_or(-1);
-        //     }
-        // }
-    }
+    // #[inline(never)]
+    // pub(crate) fn process(&mut self, data: &TimeToReachRTree) {
+    //     // Size of each x or y coordinate in meters
+    //     let start_coord = self.start_coord;
+    //
+    //     let x_iter = (self.end_coord[0] - self.start_coord[0]) / self.x_samples as f64;
+    //     let y_iter = (self.end_coord[1] - self.start_coord[1]) / self.y_samples as f64;
+    //
+    //     for elem in data.tree.iter() {
+    //         let point = elem.geom();
+    //         let xindex = ((point[0] - self.start_coord[0]) / x_iter).floor() as usize;
+    //         let yindex = ((point[1] - self.start_coord[1]) / y_iter).floor() as usize;
+    //
+    //         self.mark_circle([xindex, yindex], 40, |x, y| {
+    //             let evaluated_point = [
+    //                 (x as f64 + 0.5) * x_iter + start_coord[0],
+    //                 (y as f64 + 0.5) * y_iter + start_coord[1],
+    //             ];
+    //             // let xdiff = x.abs_diff(xindex)  as f64 * x_iter;
+    //             // let ydiff = y.abs_diff(y_iter)  as f64 * y_iter;
+    //             let score = calculate_score(&evaluated_point, elem);
+    //             score as i32
+    //
+    //             // ((xdiff * xdiff + ydiff * ydiff).sqrt() / WALKING_SPEED) as i32 + elem.data.timestamp as i32
+    //         })
+    //         // *self.at(xindex, yindex) = elem.data.timestamp as i32;
+    //     }
+    //
+    //     // for x in 0..self.x_samples {
+    //     //     for y in 0..self.y_samples {
+    //     //         let xcoord = x as f64 * x_iter + self.start_coord[0];
+    //     //         let ycoord = y as f64 * y_iter + self.start_coord[1];
+    //     //
+    //     //         let time = data.sample_fastest_time([xcoord, ycoord]);
+    //     //         *self.at(x as usize, y as usize) = time.map(|a|{
+    //     //             255 - ((255 * (a - time_range[0])) / (time_range[1] - time_range[0])) as i32
+    //     //         }).unwrap_or(-1);
+    //     //     }
+    //     // }
+    // }
 }

@@ -1,6 +1,6 @@
 use crate::IdType;
 use gtfs_structures::{
-    Availability, BikesAllowedType, DirectionType, Frequency, Id, RawTrip, RouteType,
+    Availability, BikesAllowedType, DirectionType, Frequency, RawTrip, RouteType,
 };
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -199,11 +199,11 @@ pub struct Gtfs0 {
     pub agency_id: u8,
 }
 
-impl Gtfs0 {
-    fn convert<F, T: FromWithAgencyId<F>>(&self, f: F) -> T {
-        T::from_with_agency_id(self.agency_id, f)
-    }
-}
+// impl Gtfs0 {
+//     fn convert<F, T: FromWithAgencyId<F>>(&self, f: F) -> T {
+//         T::from_with_agency_id(self.agency_id, f)
+//     }
+// }
 
 #[derive(Debug)]
 pub struct Gtfs1 {

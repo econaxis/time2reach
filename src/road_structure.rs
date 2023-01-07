@@ -1,14 +1,17 @@
-use crate::{project_lng_lat, ReachData, PROJSTRING, WALKING_SPEED};
+use crate::{project_lng_lat, PROJSTRING, ReachData, WALKING_SPEED};
 use gdal::vector::{FieldDefn, Layer, LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
-use geo_types::{LineString, Point};
+use geo_types::LineString;
 use proj::Proj;
 use rstar::primitives::GeomWithData;
 use rstar::RTree;
 use std::collections::{HashMap, VecDeque};
-use std::slice::IterMut;
+
 
 use gdal::vector::OGRFieldType;
+use gdal::vector::sql::Dialect;
+use crate::time::Time;
+
 type EdgeId = u64;
 
 #[derive(Clone)]
@@ -63,7 +66,7 @@ impl Default for NodeEdges {
 
 impl NodeEdges {
     fn iter(&self) -> NodeEdgesIteratorMut<'_> {
-        NodeEdgesIteratorMut { n: &self, idx: 0 }
+        NodeEdgesIteratorMut { n: self, idx: 0 }
     }
     fn add_edge(&mut self, edge: EdgeId) {
         self.0.push(edge);
@@ -79,25 +82,29 @@ struct RoadStructureInner {
     edges: HashMap<EdgeId, EdgeData>,
 }
 
-pub type NodeBestTimes = HashMap<NodeId, u32>;
+pub type NodeBestTimes = HashMap<NodeId, Time>;
 pub struct RoadStructure {
     rs: RoadStructureInner,
     nb: NodeBestTimes,
 }
 
-impl RoadStructure {
-    pub fn is_first_reacher(&self, point: &[f64; 2], time: u32) -> bool {
-        let edge = &self.rs.edges[&self.rs.nearest_edge_to_point(point)];
 
-        for nodeid in [edge.to_node, edge.from_node] {
-            if self.nb.get(&nodeid).unwrap_or(&u32::MAX) <= &time {
-                return false;
-            }
+fn is_first_reacher(rs: &RoadStructureInner, nb: &NodeBestTimes, point: &[f64; 2], time: Time) -> bool {
+    let edge = &rs.edges[&rs.nearest_edge_to_point(point)];
+
+    for nodeid in [edge.to_node, edge.from_node] {
+        if nb.get(&nodeid).unwrap_or(&Time::MAX) <= &time {
+            return false;
         }
-        return true;
+    }
+    true
+}
+impl RoadStructure {
+    pub fn is_first_reacher(&self, point: &[f64; 2], time: Time) -> bool {
+        is_first_reacher(&self.rs, &self.nb, point, time)
     }
 
-    pub fn add_observation(&mut self, point: &[f64; 2], mut data: ReachData) {
+    pub fn add_observation(&mut self, point: &[f64; 2], data: ReachData) {
         self.rs
             .explore_from_point(point, data.timestamp, &mut self.nb);
     }
@@ -134,12 +141,12 @@ impl RoadStructureInner {
         self.nodes[&id].iter()
     }
 
-    fn set_best_time(node_best_times: &mut NodeBestTimes, node: NodeId, time: u32) -> bool {
-        let l = node_best_times.len();
+    fn set_best_time(node_best_times: &mut NodeBestTimes, node: NodeId, time: Time) -> bool {
+        let _l = node_best_times.len();
         match node_best_times.get_mut(&node) {
             Some(x) if *x > time => {
                 // Only return true if the difference is sufficient enough
-                if *x - time > 50 {
+                if *x - time > Time(60.0) {
                     *x = time;
                     true
                 } else {
@@ -157,18 +164,18 @@ impl RoadStructureInner {
     fn explore_from_node(
         &self,
         node: NodeId,
-        base_time: u32,
-        to_explore: &mut VecDeque<NodeId>,
+        base_time: Time,
+        to_explore: &mut VecDeque<(NodeId, Time)>,
         node_best_times: &mut NodeBestTimes,
     ) {
         for edge_ in self.all_edges_from_node(node) {
-            let edge = &self.edges[&edge_];
+            let edge = &self.edges[edge_];
 
             let other_node = edge.get_other_node(node);
-            let time_to_other_node = (edge.length / WALKING_SPEED) as u32 + base_time;
+            let time_to_other_node = base_time + edge.length / WALKING_SPEED;
             if Self::set_best_time(node_best_times, other_node, time_to_other_node) {
                 // This node has it's best time beat.
-                to_explore.push_back(other_node);
+                to_explore.push_back((other_node, time_to_other_node));
             }
         }
     }
@@ -180,7 +187,7 @@ impl RoadStructureInner {
     pub fn explore_from_point(
         &self,
         point: &[f64; 2],
-        base_time: u32,
+        base_time: Time,
         node_best_times: &mut NodeBestTimes,
     ) {
         // Explore all reachable roads from a particular point
@@ -202,14 +209,18 @@ impl RoadStructureInner {
             node_best_times,
         );
 
-        while let Some(item) = queue.pop_back() {
+        while let Some((item, set_time)) = queue.pop_back() {
             let time = node_best_times[&item];
-
-            if time - base_time >= 14 * 60 {
+            if time != set_time {
+                assert!(time < set_time);
                 continue;
             }
+
+            if time - base_time >= Time(3600.0 * 0.75) {
+                continue;
+            }
+
             self.explore_from_node(item, time, &mut queue, node_best_times);
-            // iterations.
         }
     }
 
@@ -220,7 +231,8 @@ impl RoadStructureInner {
             open_options: None,
             sibling_files: None,
         };
-        let dataset = gdal::Dataset::open_ex("toronto1.gpkg", options).unwrap();
+        let dataset = gdal::Dataset::open_ex("web/public/toronto2.gpkg", options).unwrap();
+
 
         let mut s = Self {
             dataset,
@@ -231,6 +243,11 @@ impl RoadStructureInner {
 
         let mut edges_layer = s.dataset.layer_by_name("edges").unwrap();
         let mut nodes_layer = s.dataset.layer_by_name("nodes").unwrap();
+
+        let field = FieldDefn::new("test_field1", OGRFieldType::OFTInteger).unwrap();
+        field.add_to_layer(&edges_layer);
+        s.dataset.execute_sql("UPDATE edges SET test_field1=-1", None, Dialect::SQLITE).unwrap();
+
         let spatialref = edges_layer.spatial_ref().unwrap();
 
         let proj = Proj::new_known_crs(&spatialref.to_proj4().unwrap(), PROJSTRING, None).unwrap();
@@ -247,8 +264,7 @@ impl RoadStructureInner {
             );
         }
 
-        let field = FieldDefn::new("test_field1", OGRFieldType::OFTInteger).unwrap();
-        field.add_to_layer(&edges_layer);
+
 
         for feature in edges_layer.features() {
             let geo = feature.geometry().unwrap().to_geo().unwrap();
@@ -294,6 +310,7 @@ impl RoadStructureInner {
     }
     pub fn calculate_best_times(&self, b: &NodeBestTimes, null_value: u32) {
         let mut edges = self.dataset.layer_by_name("edges").unwrap();
+        let mut max_time = Time(0.0);
         for feature_fid in feature_fids(&mut edges) {
             let feature = edges.feature(feature_fid).unwrap();
 
@@ -304,7 +321,7 @@ impl RoadStructureInner {
                 .into_int64()
                 .unwrap() as u64;
             let to_node = feature.field("to").unwrap().unwrap().into_int64().unwrap() as u64;
-            let length = feature
+            let _length = feature
                 .field("length")
                 .unwrap()
                 .unwrap()
@@ -315,17 +332,20 @@ impl RoadStructureInner {
             let to_time = b.get(&to_node).copied();
 
             if from_time.and(to_time).is_some() {
-                let average_time = (from_time.unwrap() + to_time.unwrap()) as f64 / 2.0;
+                let average_time = (from_time.unwrap() + to_time.unwrap()) / 2.0;
+                max_time = max_time.max(average_time);
                 feature
-                    .set_field_integer("test_field1", average_time as i32)
+                    .set_field_integer("test_field1", average_time.as_u32() as i32)
                     .unwrap();
-            } else {
-                feature
-                    .set_field_integer("test_field1", null_value as i32)
-                    .unwrap();
+                edges.set_feature(feature);
             }
-            edges.set_feature(feature);
+            // } else {
+            //     feature
+            //         .set_field_integer("test_field1", null_value as i32)
+            //         .unwrap();
+            // }
         }
+        self.dataset.execute_sql(format!("UPDATE edges SET test_field1=NULL WHERE test_field1=-1"), None, Dialect::SQLITE).unwrap();
         // edges
     }
     pub fn test(&mut self) -> NodeBestTimes {
@@ -333,7 +353,7 @@ impl RoadStructureInner {
         let point = project_lng_lat(point[1], point[0]);
 
         let mut nb = HashMap::new();
-        self.explore_from_point(&point, 0, &mut nb);
+        self.explore_from_point(&point, Time(0.0), &mut nb);
         nb
     }
 }
