@@ -2,24 +2,9 @@
 use crate::time_to_reach::calculate_score;
 use crate::{project_lng_lat, TimeToReachRTree};
 use serde::Serialize;
-use serde_bytes::ByteBuf;
 
 
-#[derive(Serialize)]
-pub struct MapSerialize {
-    pub(crate) map: ByteBuf,
-    pub(crate) x: usize,
-    pub(crate) y: usize,
-}
 
-pub unsafe fn to_bytebuf(v: Vec<i32>) -> ByteBuf {
-    let (ptr, len, cap) = v.into_raw_parts();
-    let len = len * 4;
-    let cap = cap * 4;
-    let ptr = ptr as *mut u8;
-    let v1 = Vec::from_raw_parts(ptr, len, cap);
-    ByteBuf::from(v1)
-}
 
 pub struct TimeGrid {
     pub start_coord: [f64; 2],

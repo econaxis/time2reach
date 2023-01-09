@@ -4,7 +4,9 @@ use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::HashSet;
+use crate::projection::inverse_project_lng_lat;
 use crate::time::Time;
+use crate::web::LatLng;
 
 #[derive(Debug, Default)]
 pub struct TimeToReachRTree {
@@ -76,16 +78,25 @@ impl TimeToReachRTree {
     // }
 }
 
+pub struct Configuration {
+    pub start_time: Time,
+    pub duration_secs: f64,
+    pub location: LatLng
+}
+
 pub fn generate_reach_times(
     gtfs: &Gtfs1,
     data: &SpatialStopsWithTrips,
     rs: &mut RoadStructure,
+    config: Configuration
 ) -> TimeToReachRTree {
     let mut trips_arena = TripsArena::default();
+
+    let location = config.location;
     trips_arena.add_to_explore(InProgressTrip {
-        boarding_time: Time(13.0 * 3600.0),
-        exit_time: Time(13.0 * 3600.0),
-        point: projection::project_lng_lat(-79.450641, 43.657628),
+        boarding_time: config.start_time,
+        exit_time: config.start_time,
+        point: projection::project_lng_lat(location.longitude, location.latitude),
         current_route: RouteStopSequence::default(),
         get_off_stop_id: NULL_ID,
         total_transfers: 0,
@@ -99,29 +110,32 @@ pub fn generate_reach_times(
         if !rs.is_first_reacher(&item.point, item.exit_time) {
             continue;
         }
-        if item.exit_time > Time(13.6 * 3600.0) {
+        if item.exit_time > config.start_time + config.duration_secs {
             continue;
         }
         if item.total_transfers >= 5 {
             continue;
         }
 
-        rs.add_observation(
-            &item.point,
-            ReachData {
-                timestamp: item.exit_time,
-                progress_trip_id: id,
-                transfers: item.total_transfers,
-            },
-        );
-        answer.add_observation(
-            item.point,
-            ReachData {
-                timestamp: item.exit_time,
-                progress_trip_id: id,
-                transfers: item.total_transfers,
-            },
-        );
+        if item.get_off_stop_id != NULL_ID {
+            rs.add_observation(
+                &item.point,
+                ReachData {
+                    timestamp: item.exit_time,
+                    progress_trip_id: id,
+                    transfers: item.total_transfers,
+                },
+            );
+        }
+
+        // answer.add_observation(
+        //     item.point,
+        //     ReachData {
+        //         timestamp: item.exit_time,
+        //         progress_trip_id: id,
+        //         transfers: item.total_transfers,
+        //     },
+        // );
 
         explore_from_point(gtfs, data, item, id, &mut trips_arena);
     }

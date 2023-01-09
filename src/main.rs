@@ -10,6 +10,7 @@ mod serialization;
 mod time_to_reach;
 mod trips_arena;
 mod time;
+mod web;
 
 use std::cmp::Ordering;
 use gtfs_structures::DirectionType;
@@ -41,10 +42,12 @@ use gtfs_wrapper::LibraryGTFS;
 use serialization::TimeGrid;
 use time::Time;
 use trips_arena::TripsArena;
+use crate::time_to_reach::Configuration;
+use crate::web::LatLng;
 
 const WALKING_SPEED: f64 = 1.05;
 type IdType = (u8, u64);
-const NULL_ID: (u8, u64) = (0, 0);
+const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
 #[derive(Default, Debug)]
 pub struct RoutePickupTimes(HashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
@@ -99,13 +102,12 @@ struct Pickup {
     time: Time,
 }
 #[derive(Debug)]
-struct StopsData<'a> {
-    stop: &'a Stop,
+struct StopsData {
     trips_with_time: RoutePickupTimes,
 }
 
 #[derive(Debug)]
-pub struct SpatialStopsWithTrips<'a>(rstar::RTree<GeomWithData<[f64; 2], StopsData<'a>>>);
+pub struct SpatialStopsWithTrips(rstar::RTree<GeomWithData<[f64; 2], StopsData>>);
 
 impl StopsWithTrips {
     fn add_stop(&mut self, stop_time: &StopTime, trip: &Trip) {
@@ -117,7 +119,7 @@ impl StopsWithTrips {
             self.0.insert(stop_time.stop_id, rp);
         }
     }
-    fn to_spatial(self, gtfs: &Gtfs1) -> SpatialStopsWithTrips<'_> {
+    fn to_spatial(self, gtfs: &Gtfs1) -> SpatialStopsWithTrips {
         let mut points_data = Vec::new();
 
         for (stop_id, trips_with_time) in self.0 {
@@ -125,7 +127,6 @@ impl StopsWithTrips {
             let stop_coords = projection::project_stop(stop);
 
             let stops_data = StopsData {
-                stop,
                 trips_with_time,
             };
             points_data.push(GeomWithData::new(stop_coords, stops_data));
@@ -203,7 +204,7 @@ impl GTiffOutput {
     }
 }
 
-fn main() {
+fn main1() {
     // const MAP_RESOLUTION: usize = 12000;
     // let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
 
@@ -216,12 +217,19 @@ fn main() {
     let mut rs = RoadStructure::new();
 
     let time = Instant::now();
-    let _answer = time_to_reach::generate_reach_times(&gtfs, &data, &mut rs);
-
-    rs.save((13.7 * 3600.0) as u32);
-
+    for _ in 0..5 {
+        let _answer = time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
+            start_time: Time(3600.0 * 13.0),
+            duration_secs: 3600.0,
+            location: LatLng {
+                latitude: 43.70058,
+                longitude: -79.51355
+            }
+        });
+        // rs.save();
+    }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
-    
+
 
     // dbg!(answer.tree.size());
     //
@@ -238,4 +246,15 @@ fn main() {
     //     .unwrap(),
     // )
     // .unwrap();
+}
+
+
+fn main() {
+    // main1();
+    // return;
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        web::main().await;
+    });
+
 }

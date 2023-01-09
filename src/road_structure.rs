@@ -1,15 +1,19 @@
 use crate::{project_lng_lat, PROJSTRING, ReachData, WALKING_SPEED};
+use serde::{Serialize, Serializer};
 use gdal::vector::{FieldDefn, Layer, LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
-use geo_types::LineString;
+use geo_types::{LineString, Point};
 use proj::Proj;
 use rstar::primitives::GeomWithData;
 use rstar::RTree;
 use std::collections::{HashMap, VecDeque};
+use std::rc::Rc;
+use std::sync::Arc;
 
 
 use gdal::vector::OGRFieldType;
 use gdal::vector::sql::Dialect;
+use serde::ser::SerializeTuple;
 use crate::time::Time;
 
 type EdgeId = u64;
@@ -75,27 +79,28 @@ impl NodeEdges {
 
 type NodeId = u64;
 
-struct RoadStructureInner {
+pub struct RoadStructureInner {
     dataset: Dataset,
-    edges_rtree: RTree<GeomWithData<rstar::primitives::Line<[f64; 2]>, EdgeId>>,
+    nodes_rtree: RTree<GeomWithData<[f64; 2], NodeId>>,
     nodes: HashMap<NodeId, NodeEdges>,
     edges: HashMap<EdgeId, EdgeData>,
 }
+unsafe impl Send for RoadStructureInner {}
+unsafe impl Sync for RoadStructureInner {}
+
 
 pub type NodeBestTimes = HashMap<NodeId, Time>;
 pub struct RoadStructure {
-    rs: RoadStructureInner,
-    nb: NodeBestTimes,
+    pub rs: Arc<RoadStructureInner>,
+    pub nb: NodeBestTimes,
 }
 
 
 fn is_first_reacher(rs: &RoadStructureInner, nb: &NodeBestTimes, point: &[f64; 2], time: Time) -> bool {
-    let edge = &rs.edges[&rs.nearest_edge_to_point(point)];
+    let nodeid = &rs.nearest_edge_to_point(point);
 
-    for nodeid in [edge.to_node, edge.from_node] {
-        if nb.get(&nodeid).unwrap_or(&Time::MAX) <= &time {
-            return false;
-        }
+    if nb.get(&nodeid).unwrap_or(&Time::MAX) <= &time {
+        return false;
     }
     true
 }
@@ -110,13 +115,20 @@ impl RoadStructure {
     }
     pub fn new() -> Self {
         Self {
-            rs: RoadStructureInner::new(),
+            rs: Arc::new(RoadStructureInner::new()),
             nb: NodeBestTimes::new(),
         }
     }
 
-    pub fn save(&self, null_value: u32) {
-        self.rs.calculate_best_times(&self.nb, null_value);
+    pub fn new_from_road_structure(rs: Arc<RoadStructureInner>) -> Self {
+        Self {
+            rs: rs.clone(),
+            nb: NodeBestTimes::new()
+        }
+    }
+
+    pub fn save(&self) -> Vec<EdgeTime> {
+        self.rs.calculate_best_times(&self.nb)
     }
 }
 
@@ -126,6 +138,27 @@ fn one() {
     let nb = r.test();
     r.calculate_best_times(&nb);
     // r.test();
+}
+
+#[derive(Debug)]
+pub struct EdgeTime {
+    pub edge_id: EdgeId,
+    pub time: f64
+}
+
+#[derive(Debug)]
+pub struct NodeTime {
+    pub node_id: NodeId,
+    pub time: f64
+}
+
+impl Serialize for NodeTime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        let mut tuple = serializer.serialize_tuple(2).unwrap();
+        tuple.serialize_element(&self.node_id).unwrap();
+        tuple.serialize_element(&self.time).unwrap();
+        tuple.end()
+    }
 }
 
 fn geo_line_to_rstar_line(l: geo_types::Line) -> rstar::primitives::Line<[f64; 2]> {
@@ -145,14 +178,8 @@ impl RoadStructureInner {
         let _l = node_best_times.len();
         match node_best_times.get_mut(&node) {
             Some(x) if *x > time => {
-                // Only return true if the difference is sufficient enough
-                if *x - time > Time(60.0) {
-                    *x = time;
-                    true
-                } else {
-                    *x = time;
-                    false
-                }
+                *x = time;
+                true
             }
             None => {
                 node_best_times.insert(node, time);
@@ -168,6 +195,9 @@ impl RoadStructureInner {
         to_explore: &mut VecDeque<(NodeId, Time)>,
         node_best_times: &mut NodeBestTimes,
     ) {
+        if node == 10289171644 {
+            let wtf = 5;
+        }
         for edge_ in self.all_edges_from_node(node) {
             let edge = &self.edges[edge_];
 
@@ -176,12 +206,13 @@ impl RoadStructureInner {
             if Self::set_best_time(node_best_times, other_node, time_to_other_node) {
                 // This node has it's best time beat.
                 to_explore.push_back((other_node, time_to_other_node));
+            } else {
             }
         }
     }
 
-    fn nearest_edge_to_point(&self, point: &[f64; 2]) -> EdgeId {
-        let starting_edge_geom = self.edges_rtree.nearest_neighbor(point).unwrap();
+    fn nearest_edge_to_point(&self, point: &[f64; 2]) -> NodeId {
+        let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
         starting_edge_geom.data
     }
     pub fn explore_from_point(
@@ -191,25 +222,21 @@ impl RoadStructureInner {
         node_best_times: &mut NodeBestTimes,
     ) {
         // Explore all reachable roads from a particular point
-        let starting_edge = &self.edges[&self.nearest_edge_to_point(point)];
+        let starting_node = self.nearest_edge_to_point(point);
 
+        // TODO: add time to starting node here
         let mut queue = VecDeque::new();
-        // TODO: assuming that time to edge == time to the node.
-        // TODO: fix this, base_time + time to the edge
         self.explore_from_node(
-            starting_edge.from_node,
-            base_time,
-            &mut queue,
-            node_best_times,
-        );
-        self.explore_from_node(
-            starting_edge.to_node,
+            starting_node,
             base_time,
             &mut queue,
             node_best_times,
         );
 
         while let Some((item, set_time)) = queue.pop_back() {
+            if item == 10289171644 {
+                let wtf = 5;
+            }
             let time = node_best_times[&item];
             if time != set_time {
                 assert!(time < set_time);
@@ -232,11 +259,12 @@ impl RoadStructureInner {
             sibling_files: None,
         };
         let dataset = gdal::Dataset::open_ex("web/public/toronto2.gpkg", options).unwrap();
+        println!("Loading toronto2.gpkg dataset");
 
 
         let mut s = Self {
             dataset,
-            edges_rtree: Default::default(),
+            nodes_rtree: Default::default(),
             nodes: Default::default(),
             edges: Default::default(),
         };
@@ -244,30 +272,33 @@ impl RoadStructureInner {
         let mut edges_layer = s.dataset.layer_by_name("edges").unwrap();
         let mut nodes_layer = s.dataset.layer_by_name("nodes").unwrap();
 
-        let field = FieldDefn::new("test_field1", OGRFieldType::OFTInteger).unwrap();
-        field.add_to_layer(&edges_layer);
-        s.dataset.execute_sql("UPDATE edges SET test_field1=-1", None, Dialect::SQLITE).unwrap();
+        // let field = FieldDefn::new("test_field1", OGRFieldType::OFTInteger).unwrap();
+        // field.add_to_layer(&edges_layer);
 
         let spatialref = edges_layer.spatial_ref().unwrap();
 
         let proj = Proj::new_known_crs(&spatialref.to_proj4().unwrap(), PROJSTRING, None).unwrap();
 
         for feature in nodes_layer.features() {
+            let osmid = feature
+                .field("osmid")
+                .unwrap()
+                .unwrap()
+                .into_int64()
+                .unwrap() as u64;
             s.nodes.insert(
-                feature
-                    .field("osmid")
-                    .unwrap()
-                    .unwrap()
-                    .into_int64()
-                    .unwrap() as u64,
+                osmid,
                 NodeEdges::default(),
             );
+
+            let geo = feature.geometry().unwrap().to_geo().unwrap();
+            let point: Point = geo.try_into().unwrap();
+
+            let point = proj.project(point, false).unwrap();
+            s.nodes_rtree.insert(GeomWithData::new([point.x(), point.y()],osmid ));
         }
 
-
-
         for feature in edges_layer.features() {
-            let geo = feature.geometry().unwrap().to_geo().unwrap();
             let from_node = feature
                 .field("from")
                 .unwrap()
@@ -292,25 +323,14 @@ impl RoadStructureInner {
 
             s.nodes.get_mut(&from_node).unwrap().add_edge(id);
             s.nodes.get_mut(&to_node).unwrap().add_edge(id);
-            let line_string: LineString = geo.try_into().unwrap();
-            for line in line_string.lines() {
-                let start = proj.project(line.start, false).unwrap();
-                let end = proj.project(line.end, false).unwrap();
-                let line1 = rstar::primitives::Line::new(start.into(), end.into());
-                s.edges_rtree.insert(GeomWithData::new(line1, id));
-            }
         }
-        // dbg!(max_len.sqrt());
-        s.dataset.flush_cache();
-        // dbg!(spatialref.to_proj4().unwrap());
-        // dbg!(proj.project((-79.5799408_f64, 43.6233548_f64), false).unwrap());
-        // dbg!(project_lng_lat(-79.5799408, 43.6233548));
-
         s
     }
-    pub fn calculate_best_times(&self, b: &NodeBestTimes, null_value: u32) {
+    pub fn calculate_best_times(&self, b: &NodeBestTimes) -> Vec<EdgeTime> {
         let mut edges = self.dataset.layer_by_name("edges").unwrap();
         let mut max_time = Time(0.0);
+        let mut edge_times = Vec::new();
+
         for feature_fid in feature_fids(&mut edges) {
             let feature = edges.feature(feature_fid).unwrap();
 
@@ -334,26 +354,27 @@ impl RoadStructureInner {
             if from_time.and(to_time).is_some() {
                 let average_time = (from_time.unwrap() + to_time.unwrap()) / 2.0;
                 max_time = max_time.max(average_time);
-                feature
-                    .set_field_integer("test_field1", average_time.as_u32() as i32)
-                    .unwrap();
-                edges.set_feature(feature);
+                edge_times.push(EdgeTime {
+                    edge_id: feature.fid().unwrap(), time: average_time.0
+                });
+                // feature
+                //     .set_field_integer("test_field1", average_time.as_u32() as i32)
+                //     .unwrap();
+                // edges.set_feature(feature);
             }
-            // } else {
-            //     feature
-            //         .set_field_integer("test_field1", null_value as i32)
-            //         .unwrap();
-            // }
         }
-        self.dataset.execute_sql(format!("UPDATE edges SET test_field1=NULL WHERE test_field1=-1"), None, Dialect::SQLITE).unwrap();
-        // edges
+        // self.dataset.execute_sql(format!("UPDATE edges SET test_field1=NULL WHERE test_field1=-1"), None, Dialect::SQLITE).unwrap();
+        edge_times
     }
     pub fn test(&mut self) -> NodeBestTimes {
-        let point = [43.7762291, -79.4889104];
+        let point = [43.70058,-79.51355];
         let point = project_lng_lat(point[1], point[0]);
 
         let mut nb = HashMap::new();
         self.explore_from_point(&point, Time(0.0), &mut nb);
+        let mut s = self.calculate_best_times(&nb);
+        s.sort_by(|a, b| a.time.total_cmp(&b.time));
+        dbg!(&s);
         nb
     }
 }
