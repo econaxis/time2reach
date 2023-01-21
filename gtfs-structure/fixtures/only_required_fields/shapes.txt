@@ -1,0 +1,4 @@
+shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence
+A_shp,37.61956,-122.48161,0
+B_shp,37.64430,-122.41070,6
+C_shp,37.65863,-122.30839,11

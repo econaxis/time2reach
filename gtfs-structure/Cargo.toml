@@ -1,0 +1,31 @@
+[package]
+description = "Read GTFS (public transit timetables) files"
+name = "gtfs-structures"
+version = "0.33.0"
+authors = ["Tristram Gräbener <tristramg@gmail.com>", "Antoine Desbordes <antoine.desbordes@gmail.com>"]
+repository = "https://github.com/rust-transit/gtfs-structure"
+license = "MIT"
+edition = "2018"
+
+[features]
+default = ["read-url"]
+read-url = ["reqwest", "futures"]
+
+[dependencies]
+bytes = "1"
+csv = "1.1"
+derivative = "2.1"
+serde = {version = "1.0", features = ["rc"]}
+serde_derive = "1.0"
+chrono = "0.4"
+itertools = "0.10"
+sha2 = "0.10"
+zip = "0.5"
+thiserror = "1"
+rgb = "0.8"
+
+futures = { version = "0.3", optional = true }
+reqwest = { version = "0.11", optional = true, features = ["blocking"]}
+
+[dev-dependencies]
+serde_json = "1.0"

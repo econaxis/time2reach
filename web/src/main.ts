@@ -185,7 +185,6 @@ let previous_layer = null;
 async function load_gpkg(body) {
     const gpkg = await GeoPackageAPI.open("/toronto2.gpkg");
     const color_data = await get_data(body);
-    window.data = color_data;
     await Canvas.initializeAdapter();
 
     console.log("Feature tables", gpkg.getFeatureTables());

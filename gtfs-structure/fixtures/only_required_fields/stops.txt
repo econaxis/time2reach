@@ -1,0 +1,7 @@
+stop_id,stop_name,stop_lat,stop_lon
+stop1,"Stop Area", 48.796058 ,2.449386
+stop2,"StopPoint",48.796058,2.449386
+stop3,"Stop Point child of 1",48.796058,2.449386
+stop4,"StopPoint2",48.796058,2.449386,,,
+stop5,"Stop Point child of 1 bis",48.796058,2.449386
+stop6,"Generic node",,,3,

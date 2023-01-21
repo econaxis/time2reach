@@ -1,0 +1,2 @@
+feed_publisher_name,feed_publisher_url,feed_lang,feed_version
+SNCF,http://www.sncf.com,fr,0.3
