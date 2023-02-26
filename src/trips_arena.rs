@@ -45,7 +45,7 @@ impl TripsArena {
         self.explore_queue.push_back(id);
     }
 
-    pub(crate) fn get_by_id(&self, id: id_arena::Id<InProgressTrip>) -> &InProgressTrip {
+    pub(crate) fn get_by_id(&self, id: Id<InProgressTrip>) -> &InProgressTrip {
         &self.arena[id]
     }
     pub(crate) fn pop_front(&mut self) -> Option<(InProgressTrip, Id<InProgressTrip>)> {

@@ -20,7 +20,8 @@ fn process_coordinates(gtfs: &Gtfs1, spatial_stops: &SpatialStopsWithTrips,rs: A
     });
 
     // let edge_times = rs.save();
-    warp::reply::json(&rs.nb)
+    // warp::reply::json(&rs.nb)
+    warp::reply()
 }
 
 struct AppData {
@@ -44,6 +45,14 @@ pub struct LatLng {
     pub latitude: f64,
     pub longitude: f64
 }
+impl LatLng {
+    pub fn from_lat_lng(lat: f64, lng: f64) -> Self {
+        Self {
+            latitude: lat,
+            longitude: lng
+        }
+    }
+}
 
 pub async fn main() {
     env_logger::init();
@@ -52,7 +61,6 @@ pub async fn main() {
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
         "/Users/henry/Downloads/GO_GTFS",
     ));
-    //
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
         "/Users/henry/Downloads/gtfs-2"
     ));

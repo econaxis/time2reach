@@ -1,5 +1,5 @@
 use crate::trips_arena::TripsArena;
-use crate::{Gtfs1, gtfs_setup, InProgressTrip, NULL_ID, TimeToReachRTree, WALKING_SPEED};
+use crate::{Gtfs1, gtfs_setup, InProgressTrip, NULL_ID, RoadStructure, TimeToReachRTree, WALKING_SPEED};
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
 use crate::time::Time;
@@ -30,6 +30,8 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
     ) -> std::fmt::Result {
         // For the boarding part
         // Boarding {number} at {stop name}, {time}
+        println!("Trip {:?}", trip);
+        println!("Route id {:?}", trip.current_route);
         let bus_number = &gtfs.routes[&trip.current_route.route_id].short_name;
         let stop_name = &gtfs.stops[&trip.boarding_stop_id].name;
         fmt.write_fmt(format_args!(
@@ -75,43 +77,41 @@ impl<'a, 'b> Display for InProgressTripsFormatter<'a, 'b> {
     }
 }
 
-// fn time_to_point(
-//     data: &TimeToReachRTree,
-//     arena: &TripsArena,
-//     gtfs: &Gtfs1,
-//     point: [f64; 2],
-//     is_lat_lng: bool,
-// ) {
-//     let point = if is_lat_lng {
-//         crate::projection::project_lng_lat(point[1], point[0])
-//     } else {
-//         crate::projection::project_lng_lat(point[0], point[1])
-//     };
-//     let (best_time, obs) = data
-//         .tree
-//         .locate_within_distance(point, 200.0 * 200.0)
-//         .map(|obs| {
-//             let time_to_reach =
-//                 obs.distance_2(&point).sqrt() / WALKING_SPEED + obs.data.timestamp;
-//             (time_to_reach, obs)
-//         })
-//         .min_by_key(|(time, obs)| {
-//             // Penalize time for every transfer performed
-//             *time + obs.data.transfers as Time * 45.0
-//         })
-//         .unwrap();
-//
-//     println!(
-//         "Best Time to reach is {:02}:{:02}",
-//         best_time / 3600,
-//         (best_time % 3600) / 60
-//     );
-//
-//     println!(
-//         "{}",
-//         InProgressTripsFormatter {
-//             trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id),
-//             gtfs
-//         }
-//     );
-// }
+pub fn time_to_point(
+    data: &RoadStructure,
+    arena: &TripsArena,
+    gtfs: &Gtfs1,
+    point: [f64; 2],
+    is_lat_lng: bool,
+) {
+    let point = if is_lat_lng {
+        crate::projection::project_lng_lat(point[1], point[0])
+    } else {
+        crate::projection::project_lng_lat(point[0], point[1])
+    };
+
+    let (best_time, obs) = data.nearest_times_to_point(&point).map(|obs| {
+        let time_to_reach =
+            obs.data.timestamp + obs.distance_2(&point).sqrt() / WALKING_SPEED;
+        (time_to_reach, obs)
+    })
+        .min_by_key(|(time, obs)| {
+            // Penalize time for every transfer performed
+            *time + obs.data.transfers as f64 * 45.0
+        })
+        .unwrap();
+
+    println!(
+        "Best Time to reach is {:02.0}:{:02.0}",
+        (best_time.0 / 3600.0).round(),
+        ((best_time.0 % 3600.0) / 60.0).round()
+    );
+
+    println!(
+        "{}",
+        InProgressTripsFormatter {
+            trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id.unwrap()),
+            gtfs
+        }
+    );
+}

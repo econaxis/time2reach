@@ -1,4 +1,5 @@
-use crate::{project_lng_lat, PROJSTRING, ReachData, WALKING_SPEED};
+use crate::{IdType, project_lng_lat, PROJSTRING, ReachData, TripsArena, WALKING_SPEED};
+use cached::proc_macro::cached;
 use serde::{Serialize, Serializer};
 use gdal::vector::{FieldDefn, Layer, LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
@@ -7,6 +8,7 @@ use proj::Proj;
 use rstar::primitives::GeomWithData;
 use rstar::RTree;
 use std::collections::{HashMap, VecDeque};
+use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -14,7 +16,9 @@ use std::sync::Arc;
 use gdal::vector::OGRFieldType;
 use gdal::vector::sql::Dialect;
 use serde::ser::SerializeTuple;
+use crate::best_times::BestTimes;
 use crate::time::Time;
+use crate::time_to_reach::ReachTimesResult;
 
 type EdgeId = u64;
 
@@ -84,47 +88,79 @@ pub struct RoadStructureInner {
     nodes_rtree: RTree<GeomWithData<[f64; 2], NodeId>>,
     nodes: HashMap<NodeId, NodeEdges>,
     edges: HashMap<EdgeId, EdgeData>,
+    nearest_node_to_point_cache: HashMap<>
 }
+
 unsafe impl Send for RoadStructureInner {}
+
 unsafe impl Sync for RoadStructureInner {}
 
 
-pub type NodeBestTimes = HashMap<NodeId, Time>;
 pub struct RoadStructure {
     pub rs: Arc<RoadStructureInner>,
-    pub nb: NodeBestTimes,
+    pub nb: BestTimes<NodeId>,
+    pub stop_best_times: BestTimes<IdType>,
+    pub trips_arena: TripsArena,
 }
 
 
-fn is_first_reacher(rs: &RoadStructureInner, nb: &NodeBestTimes, point: &[f64; 2], time: Time) -> bool {
-    let nodeid = &rs.nearest_edge_to_point(point);
-
-    if nb.get(&nodeid).unwrap_or(&Time::MAX) <= &time {
-        return false;
-    }
-    true
-}
 impl RoadStructure {
-    pub fn is_first_reacher(&self, point: &[f64; 2], time: Time) -> bool {
-        is_first_reacher(&self.rs, &self.nb, point, time)
+    pub fn clear_data(&mut self) {
+        self.nb.clear();
+        self.stop_best_times.clear();
+        self.trips_arena = TripsArena::default();
     }
 
-    pub fn add_observation(&mut self, point: &[f64; 2], data: ReachData) {
+
+    pub fn is_first_reacher_to_stop(&self, stop_id: IdType, point: &[f64; 2], time: Time) -> bool {
+        WORK ON CACHING self.rs.nearest_node_to_point
+        let nodeid = &self.rs.nearest_node_to_point(point);
+
+        let answer_v1 = if self.nb.get(&nodeid).map(|a| a.timestamp).unwrap_or(Time::MAX) <= time {
+            false
+        } else {
+            true
+        };
+
+        let answer_v2 = if self.stop_best_times.get(&stop_id).map(|a| a.timestamp).unwrap_or(Time::MAX) <= time {
+            false
+        } else {
+            true
+        };
+        assert_eq!(answer_v1, answer_v2);
+
+        answer_v2
+    }
+
+    pub fn add_observation(&mut self, get_off_stop_id: IdType, point: &[f64; 2], data: ReachData) {
+        self.stop_best_times.set_best_time(get_off_stop_id, data.clone());
         self.rs
-            .explore_from_point(point, data.timestamp, &mut self.nb);
+            .explore_from_point(point, data, &mut self.nb);
     }
     pub fn new() -> Self {
         Self {
             rs: Arc::new(RoadStructureInner::new()),
-            nb: NodeBestTimes::new(),
+            nb: BestTimes::new(),
+            trips_arena: TripsArena::default(),
+            stop_best_times: BestTimes::new()
         }
     }
 
     pub fn new_from_road_structure(rs: Arc<RoadStructureInner>) -> Self {
         Self {
             rs: rs.clone(),
-            nb: NodeBestTimes::new()
+            nb: BestTimes::new(),
+            trips_arena: TripsArena::default(),
+            stop_best_times: BestTimes::new()
         }
+    }
+
+    pub fn nearest_times_to_point(&self, point: &[f64; 2]) -> impl Iterator<Item=GeomWithData<[f64; 2], &ReachData>> + '_ {
+        self.rs.n_nearest_nodes_to_point(point, 5).filter_map(|geom| {
+            self.nb.get(&geom.data).map(|reachdata| {
+                GeomWithData::new(*geom.geom(), reachdata)
+            })
+        })
     }
 
     pub fn save(&self) -> Vec<EdgeTime> {
@@ -143,13 +179,13 @@ fn one() {
 #[derive(Debug)]
 pub struct EdgeTime {
     pub edge_id: EdgeId,
-    pub time: f64
+    pub time: f64,
 }
 
 #[derive(Debug)]
 pub struct NodeTime {
     pub node_id: NodeId,
-    pub time: f64
+    pub time: f64,
 }
 
 impl Serialize for NodeTime {
@@ -169,85 +205,71 @@ fn feature_fids(feat: &mut Layer) -> Vec<u64> {
     let feature_fids: Vec<u64> = feat.features().map(|f| f.fid().unwrap()).collect();
     feature_fids
 }
+
 impl RoadStructureInner {
     fn all_edges_from_node(&self, id: NodeId) -> NodeEdgesIteratorMut<'_> {
         self.nodes[&id].iter()
     }
 
-    fn set_best_time(node_best_times: &mut NodeBestTimes, node: NodeId, time: Time) -> bool {
-        let _l = node_best_times.len();
-        match node_best_times.get_mut(&node) {
-            Some(x) if *x > time => {
-                *x = time;
-                true
-            }
-            None => {
-                node_best_times.insert(node, time);
-                true
-            }
-            _ => false,
-        }
-    }
     fn explore_from_node(
         &self,
         node: NodeId,
-        base_time: Time,
+        base_time: &ReachData,
         to_explore: &mut VecDeque<(NodeId, Time)>,
-        node_best_times: &mut NodeBestTimes,
+        node_best_times: &mut BestTimes<NodeId>,
     ) {
-        if node == 10289171644 {
-            let wtf = 5;
-        }
         for edge_ in self.all_edges_from_node(node) {
             let edge = &self.edges[edge_];
 
             let other_node = edge.get_other_node(node);
-            let time_to_other_node = base_time + edge.length / WALKING_SPEED;
-            if Self::set_best_time(node_best_times, other_node, time_to_other_node) {
+            let time_to_other_node = base_time.with_time(base_time.timestamp + edge.length / WALKING_SPEED);
+            let time_to_other_node_timestamp = time_to_other_node.timestamp;
+            if(node_best_times.set_best_time(other_node, time_to_other_node)) {
                 // This node has it's best time beat.
-                to_explore.push_back((other_node, time_to_other_node));
-            } else {
-            }
+                to_explore.push_back((other_node, time_to_other_node_timestamp));
+            } else {}
         }
     }
 
-    fn nearest_edge_to_point(&self, point: &[f64; 2]) -> NodeId {
+    fn nearest_node_to_point(&self, cache_key: IdType, point: &[f64; 2]) -> NodeId {
         let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
         starting_edge_geom.data
     }
+
+    pub fn n_nearest_nodes_to_point(&self, point: &[f64; 2], number: usize) -> impl Iterator<Item=&GeomWithData<[f64; 2], NodeId>> + '_ {
+        self.nodes_rtree.nearest_neighbor_iter(point).take(number)
+    }
+    #[inline(never)]
     pub fn explore_from_point(
         &self,
         point: &[f64; 2],
-        base_time: Time,
-        node_best_times: &mut NodeBestTimes,
+        base_time: ReachData,
+        node_best_times: &mut BestTimes<NodeId>,
     ) {
         // Explore all reachable roads from a particular point
-        let starting_node = self.nearest_edge_to_point(point);
+        let starting_node = self.nearest_node_to_point(point);
 
         // TODO: add time to starting node here
         let mut queue = VecDeque::new();
         self.explore_from_node(
             starting_node,
-            base_time,
+            &base_time,
             &mut queue,
             node_best_times,
         );
 
         while let Some((item, set_time)) = queue.pop_back() {
-            if item == 10289171644 {
-                let wtf = 5;
-            }
-            let time = node_best_times[&item];
+            let time = node_best_times.get(&item).unwrap().timestamp;
             if time != set_time {
                 assert!(time < set_time);
                 continue;
             }
 
-            if time - base_time >= Time(3600.0 * 0.75) {
+            if time - base_time.timestamp >= Time(3600.0 * 0.20) {
                 continue;
             }
 
-            self.explore_from_node(item, time, &mut queue, node_best_times);
+            self.explore_from_node(item, &base_time.with_time(time), &mut queue, node_best_times);
         }
     }
 
@@ -258,7 +280,7 @@ impl RoadStructureInner {
             open_options: None,
             sibling_files: None,
         };
-        let dataset = gdal::Dataset::open_ex("web/public/toronto2.gpkg", options).unwrap();
+        let dataset = Dataset::open_ex("web/public/toronto2.gpkg", options).unwrap();
         println!("Loading toronto2.gpkg dataset");
 
 
@@ -295,7 +317,7 @@ impl RoadStructureInner {
             let point: Point = geo.try_into().unwrap();
 
             let point = proj.project(point, false).unwrap();
-            s.nodes_rtree.insert(GeomWithData::new([point.x(), point.y()],osmid ));
+            s.nodes_rtree.insert(GeomWithData::new([point.x(), point.y()], osmid));
         }
 
         for feature in edges_layer.features() {
@@ -326,7 +348,7 @@ impl RoadStructureInner {
         }
         s
     }
-    pub fn calculate_best_times(&self, b: &NodeBestTimes) -> Vec<EdgeTime> {
+    pub fn calculate_best_times(&self, b: &BestTimes<NodeId>) -> Vec<EdgeTime> {
         let mut edges = self.dataset.layer_by_name("edges").unwrap();
         let mut max_time = Time(0.0);
         let mut edge_times = Vec::new();
@@ -348,14 +370,15 @@ impl RoadStructureInner {
                 .into_real()
                 .unwrap();
 
-            let from_time = b.get(&from_node).copied();
-            let to_time = b.get(&to_node).copied();
+            let from_time = b.get(&from_node);
+            let to_time = b.get(&to_node);
 
             if from_time.and(to_time).is_some() {
-                let average_time = (from_time.unwrap() + to_time.unwrap()) / 2.0;
+                let average_time = (from_time.unwrap().timestamp + to_time.unwrap().timestamp) / 2.0;
                 max_time = max_time.max(average_time);
                 edge_times.push(EdgeTime {
-                    edge_id: feature.fid().unwrap(), time: average_time.0
+                    edge_id: feature.fid().unwrap(),
+                    time: average_time.0,
                 });
                 // feature
                 //     .set_field_integer("test_field1", average_time.as_u32() as i32)
@@ -366,12 +389,12 @@ impl RoadStructureInner {
         // self.dataset.execute_sql(format!("UPDATE edges SET test_field1=NULL WHERE test_field1=-1"), None, Dialect::SQLITE).unwrap();
         edge_times
     }
-    pub fn test(&mut self) -> NodeBestTimes {
-        let point = [43.70058,-79.51355];
+    pub fn test(&mut self) -> BestTimes<NodeId> {
+        let point = [43.70058, -79.51355];
         let point = project_lng_lat(point[1], point[0]);
 
-        let mut nb = HashMap::new();
-        self.explore_from_point(&point, Time(0.0), &mut nb);
+        let mut nb = BestTimes::new();
+        self.explore_from_point(&point, ReachData::new_with_time(Time(0.0)), &mut nb);
         let mut s = self.calculate_best_times(&nb);
         s.sort_by(|a, b| a.time.total_cmp(&b.time));
         dbg!(&s);

@@ -11,6 +11,7 @@ mod time_to_reach;
 mod trips_arena;
 mod time;
 mod web;
+mod best_times;
 
 use std::cmp::Ordering;
 use gtfs_structures::DirectionType;
@@ -42,7 +43,8 @@ use gtfs_wrapper::LibraryGTFS;
 use serialization::TimeGrid;
 use time::Time;
 use trips_arena::TripsArena;
-use crate::time_to_reach::Configuration;
+use crate::formatter::{InProgressTripsFormatter, time_to_point};
+use crate::time_to_reach::{Configuration, ReachTimesResult};
 use crate::web::LatLng;
 
 const WALKING_SPEED: f64 = 1.05;
@@ -52,10 +54,19 @@ const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 #[derive(Default, Debug)]
 pub struct RoutePickupTimes(HashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
 
-#[derive(Eq, PartialEq, Hash, Debug, Clone, Default)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct RouteStopSequence {
     route_id: IdType,
     direction: bool,
+}
+
+impl Default for RouteStopSequence {
+    fn default() -> Self {
+        Self {
+            route_id: NULL_ID,
+            direction: false
+        }
+    }
 }
 
 #[derive(Debug,Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -148,13 +159,30 @@ pub struct InProgressTrip {
     previous_transfer: Option<Id<InProgressTrip>>,
 }
 
-#[derive(PartialOrd, PartialEq, Eq, Debug, Serialize)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Serialize, Clone)]
 pub struct ReachData {
     timestamp: Time,
 
     #[serde(skip)]
-    progress_trip_id: Id<InProgressTrip>,
+    progress_trip_id: Option<Id<InProgressTrip>>,
     transfers: u8,
+}
+
+impl ReachData {
+    pub fn new_with_time(time: Time) -> Self {
+        Self {
+            timestamp: time,
+            progress_trip_id: None,
+            transfers: 0
+        }
+    }
+    pub fn with_time(&self, time: Time) -> Self {
+        ReachData {
+            timestamp: time,
+            progress_trip_id: self.progress_trip_id,
+            transfers: self.transfers
+        }
+    }
 }
 
 struct GTiffOutput {
@@ -214,18 +242,25 @@ fn main1() {
     ));
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
-    let mut rs = RoadStructure::new();
 
+    println!("Done initializing");
+    let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..5 {
-        let _answer = time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
+    for _ in 0..50 {
+        rs.clear_data();
+        time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
             start_time: Time(3600.0 * 13.0),
-            duration_secs: 3600.0,
+            duration_secs: 3600.0 * 1.0,
             location: LatLng {
                 latitude: 43.70058,
                 longitude: -79.51355
             }
         });
+        time_to_point(&rs, &rs.trips_arena, &gtfs, [43.720751,-79.508915], true);
+        // InProgressTripsFormatter {
+        //     trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id),
+        //     gtfs
+        // }
         // rs.save();
     }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
@@ -250,11 +285,14 @@ fn main1() {
 
 
 fn main() {
-    // main1();
-    // return;
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        web::main().await;
-    });
+    if true {
+        main1();
+        return;
+    } else {
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            web::main().await;
+        });
+    }
 
 }
