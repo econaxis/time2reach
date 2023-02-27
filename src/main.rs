@@ -246,7 +246,7 @@ fn main1() {
     println!("Done initializing");
     let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..50 {
+    for _ in 0..1 {
         rs.clear_data();
         time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
             start_time: Time(3600.0 * 13.0),

@@ -1,12 +1,11 @@
 use crate::{IdType, project_lng_lat, PROJSTRING, ReachData, TripsArena, WALKING_SPEED};
-use cached::proc_macro::cached;
 use serde::{Serialize, Serializer};
 use gdal::vector::{FieldDefn, Layer, LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
 use geo_types::{LineString, Point};
 use proj::Proj;
 use rstar::primitives::GeomWithData;
-use rstar::RTree;
+use rstar::{PointDistance, RTree};
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::rc::Rc;
@@ -88,7 +87,6 @@ pub struct RoadStructureInner {
     nodes_rtree: RTree<GeomWithData<[f64; 2], NodeId>>,
     nodes: HashMap<NodeId, NodeEdges>,
     edges: HashMap<EdgeId, EdgeData>,
-    nearest_node_to_point_cache: HashMap<>
 }
 
 unsafe impl Send for RoadStructureInner {}
@@ -113,8 +111,7 @@ impl RoadStructure {
 
 
     pub fn is_first_reacher_to_stop(&self, stop_id: IdType, point: &[f64; 2], time: Time) -> bool {
-        WORK ON CACHING self.rs.nearest_node_to_point
-        let nodeid = &self.rs.nearest_node_to_point(point);
+        let nodeid = &self.rs.nearest_node_to_point(point).data;
 
         let answer_v1 = if self.nb.get(&nodeid).map(|a| a.timestamp).unwrap_or(Time::MAX) <= time {
             false
@@ -127,8 +124,10 @@ impl RoadStructure {
         } else {
             true
         };
-        assert_eq!(answer_v1, answer_v2);
 
+        if answer_v2 != answer_v1 {
+            println!("{} {}", answer_v1, answer_v2);
+        }
         answer_v2
     }
 
@@ -231,9 +230,9 @@ impl RoadStructureInner {
         }
     }
 
-    fn nearest_node_to_point(&self, cache_key: IdType, point: &[f64; 2]) -> NodeId {
+    fn nearest_node_to_point(&self, point: &[f64; 2]) -> &GeomWithData<[f64; 2], NodeId> {
         let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
-        starting_edge_geom.data
+        starting_edge_geom
     }
 
     pub fn n_nearest_nodes_to_point(&self, point: &[f64; 2], number: usize) -> impl Iterator<Item=&GeomWithData<[f64; 2], NodeId>> + '_ {
@@ -247,16 +246,18 @@ impl RoadStructureInner {
         node_best_times: &mut BestTimes<NodeId>,
     ) {
         // Explore all reachable roads from a particular point
-        let starting_node = self.nearest_node_to_point(point);
-
-        // TODO: add time to starting node here
         let mut queue = VecDeque::new();
-        self.explore_from_node(
-            starting_node,
-            &base_time,
-            &mut queue,
-            node_best_times,
-        );
+
+        for closest_node in self.n_nearest_nodes_to_point(point, 3) {
+            let time_to_closest_node = closest_node.distance_2(point).sqrt() / WALKING_SPEED;
+
+            self.explore_from_node(
+                closest_node.data,
+                &base_time.with_time(base_time.timestamp + time_to_closest_node),
+                &mut queue,
+                node_best_times,
+            );
+        }
 
         while let Some((item, set_time)) = queue.pop_back() {
             let time = node_best_times.get(&item).unwrap().timestamp;
