@@ -24,6 +24,7 @@ pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs1 {
         println!("GTFS created");
         gtfs.into()
     } else {
+        // TODO: parallelize this somehow?
         let file = File::open(format!("{path}.bson")).unwrap();
         bson::from_reader::<File, Gtfs0>(file).unwrap().into()
     }

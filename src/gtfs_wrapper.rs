@@ -199,12 +199,6 @@ pub struct Gtfs0 {
     pub agency_id: u8,
 }
 
-// impl Gtfs0 {
-//     fn convert<F, T: FromWithAgencyId<F>>(&self, f: F) -> T {
-//         T::from_with_agency_id(self.agency_id, f)
-//     }
-// }
-
 #[derive(Debug)]
 pub struct Gtfs1 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]

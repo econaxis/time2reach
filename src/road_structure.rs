@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use crate::{IdType, project_lng_lat, PROJSTRING, ReachData, TripsArena, WALKING_SPEED};
 use serde::{Serialize, Serializer};
 use gdal::vector::{FieldDefn, Layer, LayerAccess};
@@ -85,6 +86,7 @@ type NodeId = u64;
 pub struct RoadStructureInner {
     dataset: Dataset,
     nodes_rtree: RTree<GeomWithData<[f64; 2], NodeId>>,
+    nodes_rtree_cache: UnsafeCell<HashMap<IdType, NodeId>>,
     nodes: HashMap<NodeId, NodeEdges>,
     edges: HashMap<EdgeId, EdgeData>,
 }
@@ -97,7 +99,6 @@ unsafe impl Sync for RoadStructureInner {}
 pub struct RoadStructure {
     pub rs: Arc<RoadStructureInner>,
     pub nb: BestTimes<NodeId>,
-    pub stop_best_times: BestTimes<IdType>,
     pub trips_arena: TripsArena,
 }
 
@@ -105,34 +106,17 @@ pub struct RoadStructure {
 impl RoadStructure {
     pub fn clear_data(&mut self) {
         self.nb.clear();
-        self.stop_best_times.clear();
         self.trips_arena = TripsArena::default();
     }
 
 
     pub fn is_first_reacher_to_stop(&self, stop_id: IdType, point: &[f64; 2], time: Time) -> bool {
-        let nodeid = &self.rs.nearest_node_to_point(point).data;
+        let nodeid = &self.rs.nearest_node_to_point(point, Some(stop_id));
 
-        let answer_v1 = if self.nb.get(&nodeid).map(|a| a.timestamp).unwrap_or(Time::MAX) <= time {
-            false
-        } else {
-            true
-        };
-
-        let answer_v2 = if self.stop_best_times.get(&stop_id).map(|a| a.timestamp).unwrap_or(Time::MAX) <= time {
-            false
-        } else {
-            true
-        };
-
-        if answer_v2 != answer_v1 {
-            println!("{} {}", answer_v1, answer_v2);
-        }
-        answer_v2
+        self.nb.get(&nodeid).map(|a| a.timestamp).unwrap_or(Time::MAX) > time
     }
 
-    pub fn add_observation(&mut self, get_off_stop_id: IdType, point: &[f64; 2], data: ReachData) {
-        self.stop_best_times.set_best_time(get_off_stop_id, data.clone());
+    pub fn add_observation(&mut self, point: &[f64; 2], data: ReachData) {
         self.rs
             .explore_from_point(point, data, &mut self.nb);
     }
@@ -141,7 +125,6 @@ impl RoadStructure {
             rs: Arc::new(RoadStructureInner::new()),
             nb: BestTimes::new(),
             trips_arena: TripsArena::default(),
-            stop_best_times: BestTimes::new()
         }
     }
 
@@ -150,7 +133,6 @@ impl RoadStructure {
             rs: rs.clone(),
             nb: BestTimes::new(),
             trips_arena: TripsArena::default(),
-            stop_best_times: BestTimes::new()
         }
     }
 
@@ -223,16 +205,25 @@ impl RoadStructureInner {
             let other_node = edge.get_other_node(node);
             let time_to_other_node = base_time.with_time(base_time.timestamp + edge.length / WALKING_SPEED);
             let time_to_other_node_timestamp = time_to_other_node.timestamp;
-            if(node_best_times.set_best_time(other_node, time_to_other_node)) {
+            if (node_best_times.set_best_time(other_node, time_to_other_node)) {
                 // This node has it's best time beat.
                 to_explore.push_back((other_node, time_to_other_node_timestamp));
             } else {}
         }
     }
 
-    fn nearest_node_to_point(&self, point: &[f64; 2]) -> &GeomWithData<[f64; 2], NodeId> {
-        let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
-        starting_edge_geom
+    fn nearest_node_to_point(&self, point: &[f64; 2], cache_key: Option<IdType>) -> &NodeId {
+        if let Some(cache_key) = cache_key {
+            let cache = unsafe { &mut *self.nodes_rtree_cache.get() };
+
+            let nodeid = cache.entry(cache_key).or_insert_with(|| {
+                self.nodes_rtree.nearest_neighbor(point).unwrap().data
+            });
+            nodeid
+        } else {
+            let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
+            starting_edge_geom.data
+        }
     }
 
     pub fn n_nearest_nodes_to_point(&self, point: &[f64; 2], number: usize) -> impl Iterator<Item=&GeomWithData<[f64; 2], NodeId>> + '_ {
@@ -288,6 +279,7 @@ impl RoadStructureInner {
         let mut s = Self {
             dataset,
             nodes_rtree: Default::default(),
+            nodes_rtree_cache: UnsafeCell::new(HashMap::new()),
             nodes: Default::default(),
             edges: Default::default(),
         };

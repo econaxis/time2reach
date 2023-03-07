@@ -236,7 +236,7 @@ fn main1() {
     // const MAP_RESOLUTION: usize = 12000;
     // let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
 
-    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/gtfs-2");
+    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/gtfs");
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
         "/Users/henry/Downloads/GO_GTFS",
     ));
