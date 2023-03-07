@@ -236,17 +236,17 @@ fn main1() {
     // const MAP_RESOLUTION: usize = 12000;
     // let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
 
-    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/gtfs");
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry/Downloads/GO_GTFS",
-    ));
+    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry/Downloads/GO_GTFS",
+    // ));
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
 
     println!("Done initializing");
     let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..1 {
+    for _ in 0..30 {
         rs.clear_data();
         time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
             start_time: Time(3600.0 * 13.0),

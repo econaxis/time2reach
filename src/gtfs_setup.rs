@@ -16,7 +16,8 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
 
 #[inline(never)]
 pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs1 {
-    if let Ok(file) = File::create_new(format!("{path}.bson")) {
+    let file = File::create_new(format!("{path}-1.bson"));
+    if let Ok(file) = file {
         println!("GTFS not detected! Creating new");
         let gtfs = Gtfs0::from(LibraryGTFS::from_path(path).unwrap());
         let document = bson::to_document(&gtfs).unwrap();
@@ -25,7 +26,7 @@ pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs1 {
         gtfs.into()
     } else {
         // TODO: parallelize this somehow?
-        let file = File::open(format!("{path}.bson")).unwrap();
+        let file = File::open(format!("{path}-1.bson")).unwrap();
         bson::from_reader::<File, Gtfs0>(file).unwrap().into()
     }
 }

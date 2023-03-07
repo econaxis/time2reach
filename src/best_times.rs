@@ -28,7 +28,6 @@ impl<T: Hash + Copy + PartialEq + Eq> BestTimes<T> {
         self.inner.clear()
     }
     pub fn set_best_time(&mut self, node: T, reach_data: ReachData) -> bool {
-        let _l = self.inner.len();
         match self.get_mut(&node) {
             Some(x) if x.timestamp > reach_data.timestamp => {
                 x.timestamp = reach_data.timestamp;

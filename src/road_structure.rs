@@ -222,7 +222,7 @@ impl RoadStructureInner {
             nodeid
         } else {
             let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
-            starting_edge_geom.data
+            &starting_edge_geom.data
         }
     }
 

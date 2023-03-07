@@ -122,7 +122,6 @@ pub fn generate_reach_times(
 
         if item.get_off_stop_id != NULL_ID {
             rs.add_observation(
-                item.get_off_stop_id,
                 &item.point,
                 ReachData {
                     timestamp: item.exit_time,
