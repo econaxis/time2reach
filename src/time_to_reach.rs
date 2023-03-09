@@ -1,10 +1,10 @@
 use crate::road_structure::RoadStructure;
-use crate::{BusPickupInfo, Gtfs1, IdType, InProgressTrip, NULL_ID, projection, ReachData, RouteStopSequence, SpatialStopsWithTrips, STRAIGHT_WALKING_SPEED, Trip, TripsArena, WALKING_SPEED};
+use crate::{BusPickupInfo, Gtfs1, IdType, InProgressTrip, NULL_ID, projection, ReachData, RouteStopSequence, SpatialStopsWithTrips, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
 use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::HashSet;
-use crate::projection::inverse_project_lng_lat;
+
 use crate::time::Time;
 use crate::web::LatLng;
 

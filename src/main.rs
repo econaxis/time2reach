@@ -13,7 +13,7 @@ mod time;
 mod web;
 mod best_times;
 
-use std::cmp::Ordering;
+
 use gtfs_structures::DirectionType;
 use id_arena::Id;
 
@@ -30,21 +30,21 @@ use gdal::Dataset;
 
 use std::collections::{BTreeSet, HashMap};
 use std::hash::{Hash, Hasher};
-use std::ops::{Add, Div, Sub};
+
 
 
 use std::time::Instant;
 pub use time_to_reach::TimeToReachRTree;
 
-use crate::gtfs_wrapper::{Gtfs0, Gtfs1, Stop, StopTime, Trip};
+use crate::gtfs_wrapper::{Gtfs0, Gtfs1, StopTime, Trip};
 use crate::projection::{project_lng_lat, PROJSTRING};
 use crate::road_structure::RoadStructure;
 use gtfs_wrapper::LibraryGTFS;
 use serialization::TimeGrid;
 use time::Time;
 use trips_arena::TripsArena;
-use crate::formatter::{InProgressTripsFormatter, time_to_point};
-use crate::time_to_reach::{Configuration, ReachTimesResult};
+use crate::formatter::{time_to_point};
+use crate::time_to_reach::{Configuration};
 use crate::web::LatLng;
 
 const WALKING_SPEED: f64 = 1.05;
@@ -237,7 +237,7 @@ fn main1() {
     // const MAP_RESOLUTION: usize = 12000;
     // let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
 
-    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
+    let gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
     // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
     //     "/Users/henry/Downloads/GO_GTFS",
     // ));
@@ -284,7 +284,7 @@ fn main() {
         main1();
         return;
     } else {
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             web::main().await;
         });

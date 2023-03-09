@@ -1,5 +1,5 @@
 use crate::trips_arena::TripsArena;
-use crate::{Gtfs1, gtfs_setup, InProgressTrip, NULL_ID, RoadStructure, TimeToReachRTree, WALKING_SPEED};
+use crate::{Gtfs1, gtfs_setup, InProgressTrip, NULL_ID, RoadStructure, WALKING_SPEED};
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
 use crate::time::Time;

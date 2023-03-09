@@ -1,24 +1,24 @@
 use std::cell::UnsafeCell;
 use crate::{IdType, project_lng_lat, PROJSTRING, ReachData, TripsArena, WALKING_SPEED};
 use serde::{Serialize, Serializer};
-use gdal::vector::{FieldDefn, Layer, LayerAccess};
+use gdal::vector::{Layer, LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
-use geo_types::{LineString, Point};
+use geo_types::{Point};
 use proj::Proj;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::{HashMap, VecDeque};
-use std::hash::Hash;
-use std::rc::Rc;
+
+
 use std::sync::Arc;
 
 
-use gdal::vector::OGRFieldType;
-use gdal::vector::sql::Dialect;
+
+
 use serde::ser::SerializeTuple;
 use crate::best_times::BestTimes;
 use crate::time::Time;
-use crate::time_to_reach::ReachTimesResult;
+
 
 type EdgeId = u64;
 
@@ -205,7 +205,7 @@ impl RoadStructureInner {
             let other_node = edge.get_other_node(node);
             let time_to_other_node = base_time.with_time(base_time.timestamp + edge.length / WALKING_SPEED);
             let time_to_other_node_timestamp = time_to_other_node.timestamp;
-            if (node_best_times.set_best_time(other_node, time_to_other_node)) {
+            if node_best_times.set_best_time(other_node, time_to_other_node) {
                 // This node has it's best time beat.
                 to_explore.push_back((other_node, time_to_other_node_timestamp));
             } else {}
