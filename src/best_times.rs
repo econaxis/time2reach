@@ -30,7 +30,7 @@ impl<T: Hash + Copy + PartialEq + Eq> BestTimes<T> {
     pub fn set_best_time(&mut self, node: T, reach_data: ReachData) -> bool {
         match self.get_mut(&node) {
             Some(x) if x.timestamp > reach_data.timestamp => {
-                x.timestamp = reach_data.timestamp;
+                *x = reach_data;
                 true
             }
             None => {

@@ -31,11 +31,14 @@ impl TripsArena {
             .insert(bu.trip_id, bu.stop_sequence_no);
         true
     }
-    pub(crate) fn add_to_explore(&mut self, item: InProgressTrip) {
-        if let Some(arrival_time) = self.stop_arrival_times.get(&item.get_off_stop_id) {
+    pub(crate) fn add_to_explore(&mut self, item: InProgressTrip) -> Option<Id<InProgressTrip>> {
+        if let Some(arrival_time) = self.stop_arrival_times.get_mut(&item.get_off_stop_id) {
             if *arrival_time <= item.exit_time {
                 // Someone arrived at this stop before us. Don't explore further.
-                return;
+                return None;
+            } else {
+                // We arrived at the stop before them. Set our best time instead
+                *arrival_time = item.exit_time;
             }
         } else {
             self.stop_arrival_times
@@ -43,6 +46,7 @@ impl TripsArena {
         }
         let id = self.arena.alloc(item);
         self.explore_queue.push_back(id);
+        Some(id)
     }
 
     pub(crate) fn get_by_id(&self, id: Id<InProgressTrip>) -> &InProgressTrip {

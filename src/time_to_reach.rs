@@ -1,5 +1,5 @@
 use crate::road_structure::RoadStructure;
-use crate::{BusPickupInfo, Gtfs1, IdType, InProgressTrip, NULL_ID, projection, ReachData, RouteStopSequence, SpatialStopsWithTrips, Trip, TripsArena, WALKING_SPEED};
+use crate::{BusPickupInfo, Gtfs1, IdType, InProgressTrip, NULL_ID, projection, ReachData, RouteStopSequence, SpatialStopsWithTrips, STRAIGHT_WALKING_SPEED, Trip, TripsArena, WALKING_SPEED};
 use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
@@ -151,7 +151,7 @@ fn all_stops_along_trip(
         let point = projection::project_stop(&gtfs.stops[&st.stop_id]);
         let timestamp = st.arrival_time.unwrap();
 
-        explore_queue.add_to_explore(InProgressTrip {
+        let id = explore_queue.add_to_explore(InProgressTrip {
             boarding_time: Time(boarding_stop.arrival_time.unwrap() as f64),
             exit_time: Time(timestamp as f64),
             point,
@@ -161,6 +161,11 @@ fn all_stops_along_trip(
             total_transfers: transfers_remaining,
             previous_transfer: Some(previous_transfer),
         });
+
+        if id.is_none() {
+            break
+        }
+
     }
 }
 
@@ -181,7 +186,7 @@ fn explore_from_point(
 
         let stop_d = &stop.data;
 
-        let time_to_stop = distance.sqrt() / WALKING_SPEED;
+        let time_to_stop = distance.sqrt() / STRAIGHT_WALKING_SPEED;
         const MIN_TRANSFER_SECONDS: f64 = 15.0;
         let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
         for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
@@ -214,6 +219,7 @@ fn explore_from_point(
             }
         }
     }
+
 }
 
 // #[inline(never)]

@@ -239,7 +239,7 @@ impl RoadStructureInner {
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
 
-        for closest_node in self.n_nearest_nodes_to_point(point, 3) {
+        for closest_node in self.n_nearest_nodes_to_point(point, 5) {
             let time_to_closest_node = closest_node.distance_2(point).sqrt() / WALKING_SPEED;
 
             self.explore_from_node(

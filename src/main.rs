@@ -48,6 +48,7 @@ use crate::time_to_reach::{Configuration, ReachTimesResult};
 use crate::web::LatLng;
 
 const WALKING_SPEED: f64 = 1.05;
+const STRAIGHT_WALKING_SPEED: f64 = 0.75;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
@@ -246,21 +247,15 @@ fn main1() {
     println!("Done initializing");
     let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..30 {
+    for _ in 0..1 {
         rs.clear_data();
         time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
-            start_time: Time(3600.0 * 13.0),
-            duration_secs: 3600.0 * 1.0,
-            location: LatLng {
-                latitude: 43.70058,
-                longitude: -79.51355
-            }
+            // start_time: Time(3600.0 * 13.0),
+            start_time: Time(47137.0),
+            duration_secs: 3600.0 * 2.0,
+            location: LatLng::from_lat_lng(43.671881063610094, -79.47735697219166)
         });
-        time_to_point(&rs, &rs.trips_arena, &gtfs, [43.720751,-79.508915], true);
-        // InProgressTripsFormatter {
-        //     trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id),
-        //     gtfs
-        // }
+        time_to_point(&rs, &rs.trips_arena, &gtfs, [43.66488519767868, -79.41274118324554], true);
         // rs.save();
     }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());

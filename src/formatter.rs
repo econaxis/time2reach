@@ -5,8 +5,8 @@ use std::fmt::{Display, Formatter};
 use crate::time::Time;
 
 pub struct InProgressTripsFormatter<'a, 'b> {
-    trips: Vec<&'a InProgressTrip>,
-    gtfs: &'b Gtfs1,
+    pub(crate) trips: Vec<&'a InProgressTrip>,
+    pub(crate) gtfs: &'b Gtfs1,
 }
 
 struct TimeFormatter {
@@ -15,10 +15,12 @@ struct TimeFormatter {
 
 impl Display for TimeFormatter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let hours = self.secs.as_u32() / 3600;
-        let minutes = (self.secs.as_u32() % 3600) / 60;
+        let secs = self.secs.as_u32();
+        let hours = secs / 3600;
+        let minutes = (secs % 3600) / 60;
+        let seconds = secs % 60;
 
-        f.write_fmt(format_args!("{:02}:{:02}", hours, minutes))
+        f.write_fmt(format_args!("{:02}:{:02}:{:02}", hours, minutes, seconds))
     }
 }
 
@@ -30,8 +32,8 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
     ) -> std::fmt::Result {
         // For the boarding part
         // Boarding {number} at {stop name}, {time}
-        println!("Trip {:?}", trip);
-        println!("Route id {:?}", trip.current_route);
+        // println!("Trip {:?}", trip);
+        // println!("Route id {:?}", trip.current_route);
         let bus_number = &gtfs.routes[&trip.current_route.route_id].short_name;
         let stop_name = &gtfs.stops[&trip.boarding_stop_id].name;
         fmt.write_fmt(format_args!(
