@@ -187,7 +187,7 @@ fn explore_from_point(
         let stop_d = &stop.data;
 
         let time_to_stop = distance.sqrt() / STRAIGHT_WALKING_SPEED;
-        const MIN_TRANSFER_SECONDS: f64 = 15.0;
+        const MIN_TRANSFER_SECONDS: f64 = 10.0;
         let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
         for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
             // Search for route pickup on or after the starting_timestamp

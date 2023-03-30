@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use id_arena::{Arena, Id};
 use serde::Deserialize;
 use serde_json::json;
-
+use log::info;
 use warp::{Filter, Reply};
 use gtfs_structures::TimepointType::Approximate;
 use crate::{Gtfs1, gtfs_setup, RoadStructure, SpatialStopsWithTrips, Time, time_to_reach};
@@ -90,7 +90,7 @@ fn with_appdata(ad: Arc<Mutex<AppData>>) -> impl Filter<Extract=(Arc<Mutex<AppDa
 }
 pub async fn main() {
     env_logger::init();
-    println!("Loading...");
+    info!("Loading...");
 
     let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
@@ -102,6 +102,12 @@ pub async fn main() {
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
         "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt",
     ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton",
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/miway",
+    ));
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
     let appdata = AppData::new(gtfs, data);
@@ -110,7 +116,7 @@ pub async fn main() {
         .allow_headers(vec!["Access-Control-Allow-Origin", "Origin", "Accept", "X-Requested-With", "Content-Type"])
         .allow_methods(["POST", "GET"]);
 
-    println!("Setup done");
+    info!("Setup done");
 
     let log = warp::log("warp");
     let hello = warp::post()

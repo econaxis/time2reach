@@ -3532,6 +3532,7 @@ dependencies = [
  "gtfs-structures",
  "id-arena",
  "lazy_static",
+ "log",
  "proj",
  "rstar",
  "serde",

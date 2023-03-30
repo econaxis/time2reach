@@ -1,4 +1,5 @@
 import createColorMap from "colormap";
+import mapboxgl from "mapbox-gl";
 
 const NSHADES = 300
 export const cmap = createColorMap({
@@ -29,6 +30,48 @@ export class TimeColorMapper {
         this.max = -this.min;
         this.raw = {}
         this.request_id = 0;
+    }
+
+    static async fetch(latlng: mapboxgl.LngLat) {
+        const body = {
+            latitude: latlng.lat,
+            longitude: latlng.lng
+        }
+        console.log('getting new data', body)
+        const data = await fetch("http://localhost:3030/hello", {
+            method: "POST",
+            mode: "cors",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+        });
+        const js = await data.json();
+
+        const {request_id, edge_times} = js;
+
+        const colors = new TimeColorMapper();
+
+        for (const nodeid in edge_times) {
+            colors.raw[nodeid.toString()] = edge_times[nodeid]
+            const time = edge_times[nodeid];
+            colors.min = Math.min(colors.min, time);
+            colors.max = Math.max(colors.max, time);
+        }
+
+        const spread = colors.max - colors.min
+
+        for (const id in colors.raw) {
+            colors.m[id] = colors.raw[id] - colors.min
+            colors.m[id] /= spread
+
+            colors.m[id] = get_color_0_1(colors.m[id])
+
+        }
+        colors.request_id = request_id;
+        window.colors = colors.m;
+        return colors;
     }
 
     get_color(from_node: number, to_node: number): string {

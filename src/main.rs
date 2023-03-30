@@ -47,8 +47,8 @@ use crate::formatter::{time_to_point};
 use crate::time_to_reach::{Configuration};
 use crate::web::LatLng;
 
-const WALKING_SPEED: f64 = 1.00;
-const STRAIGHT_WALKING_SPEED: f64 = 0.65;
+const WALKING_SPEED: f64 = 1.30;
+const STRAIGHT_WALKING_SPEED: f64 = 0.85;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 

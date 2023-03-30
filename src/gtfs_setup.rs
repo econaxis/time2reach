@@ -2,6 +2,7 @@ use crate::trips_arena::TripsArena;
 use crate::{Gtfs0, Gtfs1, InProgressTrip, LibraryGTFS, StopsWithTrips};
 use id_arena::Id;
 use std::fs::File;
+use log::info;
 
 #[inline(never)]
 pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
@@ -16,14 +17,14 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
 
 #[inline(never)]
 pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs1 {
-    println!("For file {path}");
+    info!("For file {path}");
     let file = File::create_new(format!("{path}-1.bson"));
     if let Ok(file) = file {
-        println!("GTFS not detected! Creating new");
+        info!("GTFS not detected! Creating new");
         let gtfs = Gtfs0::from(LibraryGTFS::from_path(path).unwrap());
         let document = bson::to_document(&gtfs).unwrap();
         document.to_writer(file).unwrap();
-        println!("GTFS created");
+        info!("GTFS created");
         gtfs.into()
     } else {
         // TODO: parallelize this somehow?
