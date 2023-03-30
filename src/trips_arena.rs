@@ -1,7 +1,7 @@
+use crate::time::Time;
 use crate::{BusPickupInfo, IdType, InProgressTrip};
 use id_arena::{Arena, Id};
 use std::collections::{HashMap, VecDeque};
-use crate::time::Time;
 
 //
 // #[derive(Hash, Debug, PartialEq, Eq)]

@@ -309,8 +309,4 @@ impl Gtfs1 {
         self.routes.extend(other.routes);
         self.trips.extend(other.trips);
     }
-
-    pub fn route_name(&self, route_id: IdType) -> &Route {
-        &self.routes[&route_id]
-    }
 }

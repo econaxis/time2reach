@@ -1,10 +1,4 @@
-
-
 use crate::{project_lng_lat, TimeToReachRTree};
-
-
-
-
 
 pub struct TimeGrid {
     pub start_coord: [f64; 2],

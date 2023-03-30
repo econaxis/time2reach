@@ -1,5 +1,8 @@
 use crate::road_structure::RoadStructure;
-use crate::{BusPickupInfo, Gtfs1, IdType, InProgressTrip, NULL_ID, projection, ReachData, RouteStopSequence, SpatialStopsWithTrips, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
+use crate::{
+    projection, BusPickupInfo, Gtfs1, IdType, InProgressTrip, ReachData, RouteStopSequence,
+    SpatialStopsWithTrips, TripsArena, NULL_ID, STRAIGHT_WALKING_SPEED, WALKING_SPEED,
+};
 use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
@@ -81,22 +84,19 @@ impl TimeToReachRTree {
 pub struct Configuration {
     pub start_time: Time,
     pub duration_secs: f64,
-    pub location: LatLng
+    pub location: LatLng,
 }
-
 
 pub struct ReachTimesResult {
-    pub trips_arena: TripsArena
+    pub trips_arena: TripsArena,
 }
-
 
 pub fn generate_reach_times(
     gtfs: &Gtfs1,
     data: &SpatialStopsWithTrips,
     rs: &mut RoadStructure,
-    config: Configuration
-)  {
-
+    config: Configuration,
+) {
     let location = config.location;
     rs.trips_arena.add_to_explore(InProgressTrip {
         boarding_time: config.start_time,
@@ -116,7 +116,7 @@ pub fn generate_reach_times(
         if item.total_transfers >= 6 {
             continue;
         }
-        if !rs.is_first_reacher_to_stop(item.get_off_stop_id, &item.point,item.exit_time) {
+        if !rs.is_first_reacher_to_stop(item.get_off_stop_id, &item.point, item.exit_time) {
             continue;
         }
 
@@ -163,9 +163,8 @@ fn all_stops_along_trip(
         });
 
         if id.is_none() {
-            break
+            break;
         }
-
     }
 }
 
@@ -219,7 +218,6 @@ fn explore_from_point(
             }
         }
     }
-
 }
 
 // #[inline(never)]

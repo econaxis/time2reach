@@ -1,8 +1,8 @@
+use crate::time::Time;
 use crate::trips_arena::TripsArena;
-use crate::{Gtfs1, gtfs_setup, InProgressTrip, NULL_ID, RoadStructure, WALKING_SPEED};
+use crate::{gtfs_setup, Gtfs1, InProgressTrip, RoadStructure, NULL_ID, WALKING_SPEED};
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
-use crate::time::Time;
 
 pub struct InProgressTripsFormatter<'a, 'b> {
     pub(crate) trips: Vec<&'a InProgressTrip>,
@@ -92,16 +92,16 @@ pub fn time_to_point<'a, 'b>(
         crate::projection::project_lng_lat(point[0], point[1])
     };
 
-    let (_best_time, obs) = data.nearest_times_to_point(&point).map(|obs| {
-        let time_to_reach =
-            obs.data.timestamp + obs.distance_2(&point).sqrt() / WALKING_SPEED;
-        (time_to_reach, obs)
-    })
+    let (_best_time, obs) = data
+        .nearest_times_to_point(&point)
+        .map(|obs| {
+            let time_to_reach = obs.data.timestamp + obs.distance_2(&point).sqrt() / WALKING_SPEED;
+            (time_to_reach, obs)
+        })
         .min_by_key(|(time, obs)| {
             // Penalize time for every transfer performed
             *time + obs.data.transfers as f64 * 150.0
         })?;
-
 
     Some(InProgressTripsFormatter {
         trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id.unwrap()),

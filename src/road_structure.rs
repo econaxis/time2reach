@@ -1,24 +1,19 @@
-use std::cell::UnsafeCell;
-use crate::{IdType, project_lng_lat, PROJSTRING, ReachData, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
-use serde::{Serialize, Serializer};
+use crate::{IdType, ReachData, TripsArena, PROJSTRING, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
 use gdal::vector::{Layer, LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
-use geo_types::{Point};
+use geo_types::Point;
 use proj::Proj;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
+use serde::{Serialize, Serializer};
+use std::cell::UnsafeCell;
 use std::collections::{HashMap, VecDeque};
-
 
 use std::sync::Arc;
 
-
-
-
-use serde::ser::SerializeTuple;
 use crate::best_times::BestTimes;
 use crate::time::Time;
-
+use serde::ser::SerializeTuple;
 
 pub type EdgeId = u64;
 
@@ -95,13 +90,11 @@ unsafe impl Send for RoadStructureInner {}
 
 unsafe impl Sync for RoadStructureInner {}
 
-
 pub struct RoadStructure {
     pub rs: Arc<RoadStructureInner>,
     pub nb: BestTimes<NodeId>,
     pub trips_arena: TripsArena,
 }
-
 
 impl RoadStructure {
     pub fn clear_data(&mut self) {
@@ -109,16 +102,18 @@ impl RoadStructure {
         self.trips_arena = TripsArena::default();
     }
 
-
     pub fn is_first_reacher_to_stop(&self, stop_id: IdType, point: &[f64; 2], time: Time) -> bool {
         let nodeid = &self.rs.nearest_node_to_point(point, Some(stop_id));
 
-        self.nb.get(&nodeid).map(|a| a.timestamp).unwrap_or(Time::MAX) > time
+        self.nb
+            .get(&nodeid)
+            .map(|a| a.timestamp)
+            .unwrap_or(Time::MAX)
+            > time
     }
 
     pub fn add_observation(&mut self, point: &[f64; 2], data: ReachData) {
-        self.rs
-            .explore_from_point(point, data, &mut self.nb);
+        self.rs.explore_from_point(point, data, &mut self.nb);
     }
     pub fn new() -> Self {
         Self {
@@ -136,20 +131,23 @@ impl RoadStructure {
         }
     }
 
-    pub fn nearest_times_to_point(&self, point: &[f64; 2]) -> impl Iterator<Item=GeomWithData<[f64; 2], &ReachData>> + '_ {
-        self.rs.n_nearest_nodes_to_point(point, 5).filter_map(|geom| {
-            self.nb.get(&geom.data).map(|reachdata| {
-                GeomWithData::new(*geom.geom(), reachdata)
+    pub fn nearest_times_to_point(
+        &self,
+        point: &[f64; 2],
+    ) -> impl Iterator<Item = GeomWithData<[f64; 2], &ReachData>> + '_ {
+        self.rs
+            .n_nearest_nodes_to_point(point, 5)
+            .filter_map(|geom| {
+                self.nb
+                    .get(&geom.data)
+                    .map(|reachdata| GeomWithData::new(*geom.geom(), reachdata))
             })
-        })
     }
 
     pub fn save(&self) -> Vec<EdgeTime> {
         self.rs.calculate_best_times(&self.nb)
     }
 }
-
-
 
 #[derive(Debug)]
 pub struct EdgeTime {
@@ -164,21 +162,15 @@ pub struct NodeTime {
 }
 
 impl Serialize for NodeTime {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         let mut tuple = serializer.serialize_tuple(2).unwrap();
         tuple.serialize_element(&self.node_id).unwrap();
         tuple.serialize_element(&self.time).unwrap();
         tuple.end()
     }
-}
-
-fn geo_line_to_rstar_line(l: geo_types::Line) -> rstar::primitives::Line<[f64; 2]> {
-    rstar::primitives::Line::new(l.start.into(), l.end.into())
-}
-
-fn feature_fids(feat: &mut Layer) -> Vec<u64> {
-    let feature_fids: Vec<u64> = feat.features().map(|f| f.fid().unwrap()).collect();
-    feature_fids
 }
 
 impl RoadStructureInner {
@@ -193,7 +185,11 @@ impl RoadStructureInner {
         to_explore: &mut VecDeque<(NodeId, Time)>,
         node_best_times: &mut BestTimes<NodeId>,
     ) {
-        if node_best_times.get(&node).map(|a| a.timestamp < base_time.timestamp).unwrap_or(false) {
+        if node_best_times
+            .get(&node)
+            .map(|a| a.timestamp < base_time.timestamp)
+            .unwrap_or(false)
+        {
             return;
         }
 
@@ -201,7 +197,8 @@ impl RoadStructureInner {
             let edge = &self.edges[edge_];
 
             let other_node = edge.get_other_node(node);
-            let time_to_other_node = base_time.with_time(base_time.timestamp + edge.length / WALKING_SPEED);
+            let time_to_other_node =
+                base_time.with_time(base_time.timestamp + edge.length / WALKING_SPEED);
             let time_to_other_node_timestamp = time_to_other_node.timestamp;
             if node_best_times.set_best_time(other_node, time_to_other_node) {
                 // This node has it's best time beat.
@@ -214,9 +211,9 @@ impl RoadStructureInner {
         if let Some(cache_key) = cache_key {
             let cache = unsafe { &mut *self.nodes_rtree_cache.get() };
 
-            let nodeid = cache.entry(cache_key).or_insert_with(|| {
-                self.nodes_rtree.nearest_neighbor(point).unwrap().data
-            });
+            let nodeid = cache
+                .entry(cache_key)
+                .or_insert_with(|| self.nodes_rtree.nearest_neighbor(point).unwrap().data);
             nodeid
         } else {
             let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
@@ -224,7 +221,11 @@ impl RoadStructureInner {
         }
     }
 
-    pub fn n_nearest_nodes_to_point(&self, point: &[f64; 2], number: usize) -> impl Iterator<Item=&GeomWithData<[f64; 2], NodeId>> + '_ {
+    pub fn n_nearest_nodes_to_point(
+        &self,
+        point: &[f64; 2],
+        number: usize,
+    ) -> impl Iterator<Item = &GeomWithData<[f64; 2], NodeId>> + '_ {
         self.nodes_rtree.nearest_neighbor_iter(point).take(number)
     }
     #[inline(never)]
@@ -238,7 +239,8 @@ impl RoadStructureInner {
         let mut queue = VecDeque::new();
 
         for closest_node in self.n_nearest_nodes_to_point(point, 6) {
-            let time_to_closest_node = closest_node.distance_2(point).sqrt() / STRAIGHT_WALKING_SPEED;
+            let time_to_closest_node =
+                closest_node.distance_2(point).sqrt() / STRAIGHT_WALKING_SPEED;
 
             self.explore_from_node(
                 closest_node.data,
@@ -259,7 +261,12 @@ impl RoadStructureInner {
                 continue;
             }
 
-            self.explore_from_node(item, &base_time.with_time(time), &mut queue, node_best_times);
+            self.explore_from_node(
+                item,
+                &base_time.with_time(time),
+                &mut queue,
+                node_best_times,
+            );
         }
     }
 
@@ -272,7 +279,6 @@ impl RoadStructureInner {
         };
         let dataset = Dataset::open_ex("web/public/toronto2.gpkg", options).unwrap();
         println!("Loading toronto2.gpkg dataset");
-
 
         let mut s = Self {
             dataset,
@@ -299,16 +305,14 @@ impl RoadStructureInner {
                 .unwrap()
                 .into_int64()
                 .unwrap() as u64;
-            s.nodes.insert(
-                osmid,
-                NodeEdges::default(),
-            );
+            s.nodes.insert(osmid, NodeEdges::default());
 
             let geo = feature.geometry().to_geo().unwrap();
             let point: Point = geo.try_into().unwrap();
 
             let point = proj.project(point, false).unwrap();
-            s.nodes_rtree.insert(GeomWithData::new([point.x(), point.y()], osmid));
+            s.nodes_rtree
+                .insert(GeomWithData::new([point.x(), point.y()], osmid));
         }
 
         for feature in edges_layer.features() {
@@ -352,7 +356,8 @@ impl RoadStructureInner {
             let to_time = b.get(&to_node);
 
             if from_time.and(to_time).is_some() {
-                let average_time = (from_time.unwrap().timestamp + to_time.unwrap().timestamp) / 2.0;
+                let average_time =
+                    (from_time.unwrap().timestamp + to_time.unwrap().timestamp) / 2.0;
                 max_time = max_time.max(average_time);
                 edge_times.push(EdgeTime {
                     edge_id: *edge_id,

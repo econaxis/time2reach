@@ -1,51 +1,45 @@
 #![feature(file_create_new)]
 #![feature(vec_into_raw_parts)]
 
+mod best_times;
 mod formatter;
 mod gtfs_setup;
 mod gtfs_wrapper;
 mod projection;
 mod road_structure;
 mod serialization;
+mod time;
 mod time_to_reach;
 mod trips_arena;
-mod time;
 mod web;
-mod best_times;
-
 
 use gtfs_structures::DirectionType;
 use id_arena::Id;
 
-
 use rstar::primitives::GeomWithData;
 use rstar::RTree;
 use serde::Serialize;
-
-
 
 use gdal::raster::Buffer;
 use gdal::spatial_ref::SpatialRef;
 use gdal::Dataset;
 
 use std::collections::{BTreeSet, HashMap};
-use std::hash::{Hash, Hasher};
-
-
+use std::hash::Hash;
 
 use std::time::Instant;
 pub use time_to_reach::TimeToReachRTree;
 
+use crate::formatter::time_to_point;
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1, StopTime, Trip};
 use crate::projection::{project_lng_lat, PROJSTRING};
 use crate::road_structure::RoadStructure;
+use crate::time_to_reach::Configuration;
+use crate::web::LatLng;
 use gtfs_wrapper::LibraryGTFS;
 use serialization::TimeGrid;
 use time::Time;
 use trips_arena::TripsArena;
-use crate::formatter::{time_to_point};
-use crate::time_to_reach::{Configuration};
-use crate::web::LatLng;
 
 const WALKING_SPEED: f64 = 1.30;
 const STRAIGHT_WALKING_SPEED: f64 = 0.85;
@@ -65,18 +59,17 @@ impl Default for RouteStopSequence {
     fn default() -> Self {
         Self {
             route_id: NULL_ID,
-            direction: false
+            direction: false,
         }
     }
 }
 
-#[derive(Debug,Ord, PartialOrd, Eq, PartialEq, Clone)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct BusPickupInfo {
     timestamp: Time,
     stop_sequence_no: u16,
     trip_id: IdType,
 }
-
 
 fn direction_to_bool(d: &DirectionType) -> bool {
     match d {
@@ -109,17 +102,12 @@ impl RoutePickupTimes {
 pub struct StopsWithTrips(pub HashMap<IdType, RoutePickupTimes>);
 
 #[derive(Debug)]
-struct Pickup {
-    route_id: IdType,
-    time: Time,
-}
-#[derive(Debug)]
 struct StopsData {
     trips_with_time: RoutePickupTimes,
 }
 
 #[derive(Debug)]
-pub struct SpatialStopsWithTrips(rstar::RTree<GeomWithData<[f64; 2], StopsData>>);
+pub struct SpatialStopsWithTrips(RTree<GeomWithData<[f64; 2], StopsData>>);
 
 impl StopsWithTrips {
     fn add_stop(&mut self, stop_time: &StopTime, trip: &Trip) {
@@ -138,9 +126,7 @@ impl StopsWithTrips {
             let stop = &gtfs.stops[&stop_id];
             let stop_coords = projection::project_stop(stop);
 
-            let stops_data = StopsData {
-                trips_with_time,
-            };
+            let stops_data = StopsData { trips_with_time };
             points_data.push(GeomWithData::new(stop_coords, stops_data));
         }
 
@@ -174,92 +160,47 @@ impl ReachData {
         Self {
             timestamp: time,
             progress_trip_id: None,
-            transfers: 0
+            transfers: 0,
         }
     }
     pub fn with_time(&self, time: Time) -> Self {
         ReachData {
             timestamp: time,
             progress_trip_id: self.progress_trip_id,
-            transfers: self.transfers
+            transfers: self.transfers,
         }
     }
 }
 
-struct GTiffOutput {
-    dataset: Dataset,
-}
-
-impl GTiffOutput {
-    fn new(path: &str, size_x: usize, size_y: usize) -> Self {
-        let driver = gdal::DriverManager::get_driver_by_name("GTiff").unwrap();
-        let mut dataset = driver
-            .create_with_band_type::<i32, _>(path, size_x as isize, size_y as isize, 1)
-            .unwrap();
-
-        let spatial_ref = SpatialRef::from_proj4(PROJSTRING).unwrap();
-        let proj = spatial_ref.to_wkt().unwrap();
-        dbg!(&proj);
-
-        dataset.set_spatial_ref(&spatial_ref).unwrap();
-        dataset.set_projection(&proj).unwrap();
-
-        Self { dataset }
-    }
-
-    fn write_to_raster(&mut self, tg: &mut TimeGrid) {
-        let mut geotransform = [0.0; 6];
-        let start = tg.start_coord;
-        let _end = tg.end_coord;
-
-        geotransform[0] = start[0];
-        geotransform[3] = start[1];
-
-        geotransform[1] = tg.calculate_x_scale();
-        geotransform[5] = tg.calculate_y_scale();
-
-        self.dataset.set_geo_transform(&geotransform).unwrap();
-
-        let mut rb = self.dataset.rasterband(1).unwrap();
-        rb.set_no_data_value(Some(-1.0)).unwrap();
-
-        let buffer = Buffer {
-            size: (tg.x_samples, tg.y_samples),
-            data: tg.map.clone(),
-        };
-        rb.write((0, 0), (tg.x_samples, tg.y_samples), &buffer);
-        // rb.set_color_interpretation(ColorInterpretation::RedBand).unwrap();
-        self.dataset.flush_cache();
-    }
-}
-
 fn main1() {
-    // const MAP_RESOLUTION: usize = 12000;
-    // let mut gt = GTiffOutput::new("fd1sa", MAP_RESOLUTION, MAP_RESOLUTION);
-
-    let gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
-    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-    //     "/Users/henry/Downloads/GO_GTFS",
-    // ));
+    let gtfs = setup_gtfs();
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
-
-    println!("Done initializing");
     let mut rs = RoadStructure::new();
     let time = Instant::now();
     for _ in 0..5 {
         rs.clear_data();
-        time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
-            // start_time: Time(3600.0 * 13.0),
-            start_time: Time(47137.0),
-            duration_secs: 3600.0 * 2.0,
-            location: LatLng::from_lat_lng(43.671881063610094, -79.47735697219166)
-        });
-        time_to_point(&rs, &rs.trips_arena, &gtfs, [43.68208688807143, -79.61316825624802], true);
+        time_to_reach::generate_reach_times(
+            &gtfs,
+            &data,
+            &mut rs,
+            Configuration {
+                // start_time: Time(3600.0 * 13.0),
+                start_time: Time(47137.0),
+                duration_secs: 3600.0 * 2.0,
+                location: LatLng::from_lat_lng(43.671881063610094, -79.47735697219166),
+            },
+        );
+        time_to_point(
+            &rs,
+            &rs.trips_arena,
+            &gtfs,
+            [43.68208688807143, -79.61316825624802],
+            true,
+        );
         // rs.save();
     }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
-
 
     // dbg!(answer.tree.size());
     //
@@ -278,9 +219,8 @@ fn main1() {
     // .unwrap();
 }
 
-
 fn main() {
-    if false {
+    if true {
         main1();
         return;
     } else {
@@ -289,5 +229,25 @@ fn main() {
             web::main().await;
         });
     }
+}
 
+fn setup_gtfs() -> Gtfs1 {
+    let mut gtfs =
+        gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS",
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express",
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt",
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton",
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/miway",
+    ));
+    gtfs
 }

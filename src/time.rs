@@ -1,7 +1,7 @@
-use std::ops::{Add, Div, Mul, Sub};
+use serde::{Serialize, Serializer};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
-use serde::{Serialize, Serializer};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(PartialOrd, PartialEq, Copy, Clone, Debug, Serialize)]
 pub struct Time(pub f64);
@@ -17,10 +17,7 @@ impl Ord for Time {
     }
 }
 
-impl Eq for Time {
-
-}
-
+impl Eq for Time {}
 
 impl Time {
     pub(crate) const MAX: Time = Time(f64::MAX);
