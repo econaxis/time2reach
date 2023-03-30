@@ -1,10 +1,10 @@
-
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use serde::Deserialize;
 
 use warp::{Filter, Reply};
 use crate::{Gtfs1, gtfs_setup, RoadStructure, SpatialStopsWithTrips, Time, time_to_reach};
-use crate::road_structure::RoadStructureInner;
+use crate::road_structure::{EdgeId, RoadStructureInner};
 use crate::time_to_reach::Configuration;
 
 
@@ -13,15 +13,15 @@ fn process_coordinates(gtfs: &Gtfs1, spatial_stops: &SpatialStopsWithTrips,rs: A
 
     let _answer = time_to_reach::generate_reach_times(gtfs, spatial_stops, &mut rs, Configuration {
         start_time: Time(13.0 * 3600.0),
-        duration_secs: 3600.0,
+        duration_secs: 3600.0 * 1.5,
         location: LatLng {
             latitude: lat, longitude: lng
         }
     });
 
-    // let edge_times = rs.save();
-    // warp::reply::json(&rs.nb)
-    warp::reply()
+    let edge_times = rs.save();
+    let edge_times_object: HashMap<EdgeId, u32> = edge_times.into_iter().map(|edge_time| (edge_time.edge_id, edge_time.time as u32)).collect();
+    warp::reply::json(&edge_times_object)
 }
 
 struct AppData {
@@ -36,6 +36,12 @@ impl AppData {
         Arc::new(Mutex::new(AppData {
             gtfs, spatial, rs_template: Arc::new(rs)
         }))
+    }
+    fn new1(gtfs: Gtfs1, spatial: SpatialStopsWithTrips) -> AppData {
+        let rs = RoadStructureInner::new();
+        AppData {
+            gtfs, spatial, rs_template: Arc::new(rs)
+        }
     }
 }
 
@@ -57,13 +63,17 @@ impl LatLng {
 pub async fn main() {
     env_logger::init();
     println!("Loading...");
-    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/UP_Express");
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry/Downloads/GO_GTFS",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry/Downloads/gtfs-2"
-    ));
+    // let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry/Downloads/UP_Express");
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry/Downloads/GO_GTFS",
+    // ));
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry/Downloads/gtfs-2"
+    // ));
+    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS",
+    // ));
     let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
 
     let appdata = AppData::new(gtfs, data);

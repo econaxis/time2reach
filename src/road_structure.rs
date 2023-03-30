@@ -20,7 +20,7 @@ use crate::best_times::BestTimes;
 use crate::time::Time;
 
 
-type EdgeId = u64;
+pub type EdgeId = u64;
 
 #[derive(Clone)]
 struct EdgeData {
@@ -149,13 +149,7 @@ impl RoadStructure {
     }
 }
 
-#[test]
-fn one() {
-    let mut r = RoadStructureInner::new();
-    let nb = r.test();
-    r.calculate_best_times(&nb);
-    // r.test();
-}
+
 
 #[derive(Debug)]
 pub struct EdgeTime {
@@ -199,6 +193,10 @@ impl RoadStructureInner {
         to_explore: &mut VecDeque<(NodeId, Time)>,
         node_best_times: &mut BestTimes<NodeId>,
     ) {
+        if node_best_times.get(&node).map(|a| a.timestamp < base_time.timestamp).unwrap_or(false) {
+            return;
+        }
+
         for edge_ in self.all_edges_from_node(node) {
             let edge = &self.edges[edge_];
 
@@ -239,7 +237,7 @@ impl RoadStructureInner {
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
 
-        for closest_node in self.n_nearest_nodes_to_point(point, 5) {
+        for closest_node in self.n_nearest_nodes_to_point(point, 3) {
             let time_to_closest_node = closest_node.distance_2(point).sqrt() / WALKING_SPEED;
 
             self.explore_from_node(
@@ -257,7 +255,7 @@ impl RoadStructureInner {
                 continue;
             }
 
-            if time - base_time.timestamp >= Time(3600.0 * 0.20) {
+            if time - base_time.timestamp >= Time(3600.0 * 0.10) {
                 continue;
             }
 
@@ -306,7 +304,7 @@ impl RoadStructureInner {
                 NodeEdges::default(),
             );
 
-            let geo = feature.geometry().unwrap().to_geo().unwrap();
+            let geo = feature.geometry().to_geo().unwrap();
             let point: Point = geo.try_into().unwrap();
 
             let point = proj.project(point, false).unwrap();
@@ -346,9 +344,7 @@ impl RoadStructureInner {
         let mut max_time = Time(0.0);
         let mut edge_times = Vec::new();
 
-        for feature_fid in feature_fids(&mut edges) {
-            let feature = edges.feature(feature_fid).unwrap();
-
+        for feature in edges.features() {
             let from_node = feature
                 .field("from")
                 .unwrap()
@@ -373,24 +369,8 @@ impl RoadStructureInner {
                     edge_id: feature.fid().unwrap(),
                     time: average_time.0,
                 });
-                // feature
-                //     .set_field_integer("test_field1", average_time.as_u32() as i32)
-                //     .unwrap();
-                // edges.set_feature(feature);
             }
         }
-        // self.dataset.execute_sql(format!("UPDATE edges SET test_field1=NULL WHERE test_field1=-1"), None, Dialect::SQLITE).unwrap();
         edge_times
-    }
-    pub fn test(&mut self) -> BestTimes<NodeId> {
-        let point = [43.70058, -79.51355];
-        let point = project_lng_lat(point[1], point[0]);
-
-        let mut nb = BestTimes::new();
-        self.explore_from_point(&point, ReachData::new_with_time(Time(0.0)), &mut nb);
-        let mut s = self.calculate_best_times(&nb);
-        s.sort_by(|a, b| a.time.total_cmp(&b.time));
-        dbg!(&s);
-        nb
     }
 }

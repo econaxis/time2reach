@@ -16,6 +16,7 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
 
 #[inline(never)]
 pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs1 {
+    println!("For file {path}");
     let file = File::create_new(format!("{path}-1.bson"));
     if let Ok(file) = file {
         println!("GTFS not detected! Creating new");

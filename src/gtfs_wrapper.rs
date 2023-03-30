@@ -220,6 +220,8 @@ fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<I
 
 impl From<Gtfs0> for Gtfs1 {
     fn from(mut a: Gtfs0) -> Self {
+        AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
+
         let stops = vec_to_hashmap(a.stops, |stop| stop.id);
         let mut trips: HashMap<IdType, Trip> = a
             .trips

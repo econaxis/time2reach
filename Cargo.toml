@@ -13,11 +13,13 @@ lazy_static = "1.4.0"
 serde = {version = "1.0.148", features=["derive"]}
 id-arena = "2.2.1"
 serde_json = "1.0.89"
-gdal = {git="https://github.com/georust/gdal"}
+gdal = {version = "0.14", features = ["bindgen"]}
+gdal-sys = { version = "0.8.0", features = ["bindgen"]}
 geo-types = "0.7.8"
 warp = "0.3.3"
 tokio = {version="1.24.1", features=["full"]}
 bson="2.4.0"
+t-rex-webserver = {path="/Users/henry.nguyen@snapcommerce.com/t-rex/t-rex-webserver"}
 
 env_logger = "0.10.0"
 [workspace]

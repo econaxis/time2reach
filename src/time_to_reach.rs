@@ -113,7 +113,7 @@ pub fn generate_reach_times(
         if item.exit_time > config.start_time + config.duration_secs {
             continue;
         }
-        if item.total_transfers >= 5 {
+        if item.total_transfers >= 6 {
             continue;
         }
         if !rs.is_first_reacher_to_stop(item.get_off_stop_id, &item.point,item.exit_time) {

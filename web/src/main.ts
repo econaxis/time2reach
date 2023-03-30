@@ -7,12 +7,12 @@ import {
     NumberFeaturesTile,
     ProjectionConstants,
     setSqljsWasmLocateFile,
-    TileBoundingBoxUtils,
+    TileBoundingBoxUtils
 } from "@ngageoint/geopackage";
-import L, {Control} from "leaflet";
-import {CrsGeometry} from "@ngageoint/geopackage/dist/lib/types/CrsGeometry";
-import {cmap, TimeColorMapper} from "./colors";
-import Zoom = Control.Zoom;
+import L, { GridLayer } from "leaflet";
+import { CrsGeometry } from "@ngageoint/geopackage/dist/lib/types/CrsGeometry";
+import { TimeColorMapper } from "./colors";
+import { get_data } from "./get_data";
 
 setSqljsWasmLocateFile(
     (filename) =>
@@ -24,8 +24,8 @@ const gpkg = await GeoPackageAPI.open("/toronto2.gpkg");
 
 const tileCache = new Map();
 
-window.tileCache = tileCache;
-window.map = map;
+window["tileCache"] = tileCache;
+window["map"] = map;
 
 map.on("click", (evt) => {
     const body = {
@@ -34,15 +34,17 @@ map.on("click", (evt) => {
     };
     tileCache.clear();
     console.log("Loading...");
+    document.title = "Loading";
     load_gpkg(body).then(() => {
         console.log("Done loading new coords", evt.latlng);
+        document.title = "Time to reach"
     });
 });
 
-load_gpkg({
-    latitude: 43.70734532390574,
-    longitude: -79.40832138061523
-})
+// load_gpkg({
+//     latitude: 43.70734532390574,
+//     longitude: -79.40832138061523
+// })
 
 function gen_key(x, y, z) {
     return `${x}_${y}_${z}`;
@@ -105,7 +107,7 @@ async function drawTile(
         expandedBoundingBox,
         ProjectionConstants.EPSG_3857
     );
-    ft.linePaint.strokeWidth = 4;
+    ft.linePaint.strokeWidth = 2;
     console.log("Feature count", featureCount)
     if (featureCount > 0) {
         if (
@@ -131,14 +133,13 @@ async function drawTile(
                     continue;
                 }
                 if (featureRow.geometry != null) {
-                    let geojson = null;
+                    let geojson: Geometry;
                     if (ft.cacheGeometries) {
                         geojson = ft.geometryCache.getGeometry(featureRow.id);
                     }
                     if (!geojson) {
                         geojson =
-                            featureRow.geometry.geometry.toGeoJSON() as Geometry &
-                                CrsGeometry;
+                            featureRow.geometry.geometry.toGeoJSON() as Geometry & CrsGeometry;
                         ft.geometryCache.setGeometry(featureRow.id, geojson);
                     }
                     const style = ft.getFeatureStyle(featureRow);
@@ -164,29 +165,7 @@ async function drawTile(
     tileCache.set(gen_key(x, y, z), context.getImageData(0, 0, width, height));
 }
 
-async function get_data(body): Promise<TimeColorMapper> {
-    const data = await fetch("http://localhost:3030/hello", {
-        method: "POST",
-        mode: "cors",
-        headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-    });
-    const js = await data.json();
-
-    const colors = new TimeColorMapper();
-    colors.m = js;
-    for (const nodeid in js) {
-        const time = js[nodeid];
-        colors.min = Math.min(colors.min, time);
-        colors.max = Math.max(colors.max, time);
-    }
-    return colors;
-}
-
-let previous_layer = null;
+let previous_layer: GridLayer | null = null;
 
 const TILESIZE = 512;
 
@@ -205,7 +184,7 @@ async function load_gpkg(body) {
     ft.maxFeaturesPerTile = 100000;
     ft.maxFeaturesTileDraw = new NumberFeaturesTile();
 
-    tableLayer.createTile = function (tilePoint, done) {
+    tableLayer.createTile = function (coords, done) {
         const canvas = L.DomUtil.create("canvas", "leaflet-tile");
         canvas.width = TILESIZE;
         canvas.height = TILESIZE;
@@ -218,14 +197,14 @@ async function load_gpkg(body) {
 
         drawTile(
             ft,
-            tilePoint.x,
-            tilePoint.y,
-            tilePoint.z - zoom_diff,
+            coords.x,
+            coords.y,
+            coords.z - zoom_diff,
             canvas,
             color_data
         ).then(() => {
             console.log("Done");
-            done(null, canvas);
+            done(undefined, canvas);
         });
         return canvas;
     };
@@ -237,8 +216,8 @@ async function load_gpkg(body) {
     map.addLayer(tableLayer);
 }
 
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    opacity: 0.35,
-}).addTo(map);
+// L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+//     attribution:
+//         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+//     opacity: 0.35,
+// }).addTo(map);
