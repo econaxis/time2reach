@@ -48,7 +48,7 @@ use crate::time_to_reach::{Configuration};
 use crate::web::LatLng;
 
 const WALKING_SPEED: f64 = 1.00;
-const STRAIGHT_WALKING_SPEED: f64 = 0.75;
+const STRAIGHT_WALKING_SPEED: f64 = 0.65;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
@@ -247,7 +247,7 @@ fn main1() {
     println!("Done initializing");
     let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..50 {
+    for _ in 0..5 {
         rs.clear_data();
         time_to_reach::generate_reach_times(&gtfs, &data, &mut rs, Configuration {
             // start_time: Time(3600.0 * 13.0),

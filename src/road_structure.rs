@@ -1,5 +1,5 @@
 use std::cell::UnsafeCell;
-use crate::{IdType, project_lng_lat, PROJSTRING, ReachData, TripsArena, WALKING_SPEED};
+use crate::{IdType, project_lng_lat, PROJSTRING, ReachData, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
 use serde::{Serialize, Serializer};
 use gdal::vector::{Layer, LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
@@ -206,7 +206,7 @@ impl RoadStructureInner {
             if node_best_times.set_best_time(other_node, time_to_other_node) {
                 // This node has it's best time beat.
                 to_explore.push_back((other_node, time_to_other_node_timestamp));
-            } else {}
+            }
         }
     }
 
@@ -237,8 +237,8 @@ impl RoadStructureInner {
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
 
-        for closest_node in self.n_nearest_nodes_to_point(point, 3) {
-            let time_to_closest_node = closest_node.distance_2(point).sqrt() / WALKING_SPEED;
+        for closest_node in self.n_nearest_nodes_to_point(point, 6) {
+            let time_to_closest_node = closest_node.distance_2(point).sqrt() / STRAIGHT_WALKING_SPEED;
 
             self.explore_from_node(
                 closest_node.data,
@@ -255,7 +255,7 @@ impl RoadStructureInner {
                 continue;
             }
 
-            if time - base_time.timestamp >= Time(3600.0 * 0.10) {
+            if time - base_time.timestamp >= Time(3600.0 * 0.30) {
                 continue;
             }
 
@@ -339,25 +339,14 @@ impl RoadStructureInner {
         }
         s
     }
+
     pub fn calculate_best_times(&self, b: &BestTimes<NodeId>) -> Vec<EdgeTime> {
-        let mut edges = self.dataset.layer_by_name("edges").unwrap();
         let mut max_time = Time(0.0);
         let mut edge_times = Vec::new();
 
-        for feature in edges.features() {
-            let from_node = feature
-                .field("from")
-                .unwrap()
-                .unwrap()
-                .into_int64()
-                .unwrap() as u64;
-            let to_node = feature.field("to").unwrap().unwrap().into_int64().unwrap() as u64;
-            let _length = feature
-                .field("length")
-                .unwrap()
-                .unwrap()
-                .into_real()
-                .unwrap();
+        for (edge_id, edge_data) in &self.edges {
+            let from_node = edge_data.from_node;
+            let to_node = edge_data.to_node;
 
             let from_time = b.get(&from_node);
             let to_time = b.get(&to_node);
@@ -366,7 +355,7 @@ impl RoadStructureInner {
                 let average_time = (from_time.unwrap().timestamp + to_time.unwrap().timestamp) / 2.0;
                 max_time = max_time.max(average_time);
                 edge_times.push(EdgeTime {
-                    edge_id: feature.fid().unwrap(),
+                    edge_id: *edge_id,
                     time: average_time.0,
                 });
             }

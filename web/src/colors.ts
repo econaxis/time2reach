@@ -12,17 +12,23 @@ export function get_color_0_1(value: number): string {
     if (value < 0 || value > 1) {
         console.log('invalid value', value)
     }
+
+    value = Math.sqrt(value)
     return cmap[Math.trunc(value * NSHADES)]
 }
 export class TimeColorMapper {
     m: Record<number, any>;
+    raw: Record<number, any>;
     min: number;
     max: number;
+    request_id: number;
 
     constructor() {
         this.m = {};
         this.min = 9999999999999;
         this.max = -this.min;
+        this.raw = {}
+        this.request_id = 0;
     }
 
     get_color(from_node: number, to_node: number): string {

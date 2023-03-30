@@ -1,6 +1,6 @@
 import mapboxgl from "mapbox-gl";
 
-import { get_data } from "./get_data";
+import { get_data, get_details } from "./get_data";
 
 mapboxgl.accessToken = "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
 const map = new mapboxgl.Map({
@@ -13,7 +13,7 @@ const map = new mapboxgl.Map({
 
 
 map.on('load', async () => {
-    const data_promise = await get_data({
+    let data_promise = await get_data({
         latitude: 43.70734532390574,
         longitude: -79.40832138061523
     })
@@ -23,7 +23,7 @@ map.on('load', async () => {
         tiles: ["http://127.0.0.1:6767/edges/{z}/{x}/{y}.pbf"]
     });
 
-    map.addLayer(
+    const layer = map.addLayer(
         {
             'id': 'somed', // Layer ID
             'type': 'line',
@@ -44,6 +44,36 @@ map.on('load', async () => {
             }
         },
     );
+
+    map.on('dblclick', async (e) => {
+        console.log('features', map.queryRenderedFeatures(e.point))
+        e.preventDefault()
+        data_promise = await get_data({
+            latitude: e.lngLat.lat,
+            longitude: e.lngLat.lng
+        })
+        map.setPaintProperty('somed', 'line-color', ['get', ["to-string", ['id']], ['literal', data_promise.m]])
+    })
+
+    const popup = new mapboxgl.Popup()
+    map.on('mouseover', 'somed', async (e) => {
+        const feature1 = map.queryRenderedFeatures(e.point)
+        if(feature1.length) {
+            popup.setLngLat(e.lngLat)
+            const seconds = data_promise.raw[feature1[0].id]
+
+            if(!seconds) return;
+
+            const text = new Date(seconds * 1000).toISOString().substring(11, 19)
+            popup.setText(text)
+            popup.addTo(map)
+
+            console.log(await get_details(data_promise, { latitude: e.lngLat.lat, longitude: e.lngLat.lng }))
+        }
+    })
+    map.on('mouseleave', 'somed', (e) => {
+        popup.remove()
+    })
 
 })
 

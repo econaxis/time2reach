@@ -79,13 +79,13 @@ impl<'a, 'b> Display for InProgressTripsFormatter<'a, 'b> {
     }
 }
 
-pub fn time_to_point(
+pub fn time_to_point<'a, 'b>(
     data: &RoadStructure,
-    arena: &TripsArena,
-    gtfs: &Gtfs1,
+    arena: &'a TripsArena,
+    gtfs: &'b Gtfs1,
     point: [f64; 2],
     is_lat_lng: bool,
-) {
+) -> Option<InProgressTripsFormatter<'a, 'b>> {
     let point = if is_lat_lng {
         crate::projection::project_lng_lat(point[1], point[0])
     } else {
@@ -99,21 +99,12 @@ pub fn time_to_point(
     })
         .min_by_key(|(time, obs)| {
             // Penalize time for every transfer performed
-            *time + obs.data.transfers as f64 * 45.0
-        })
-        .unwrap();
+            *time + obs.data.transfers as f64 * 120.0
+        })?;
 
-    println!(
-        "Best Time to reach is {:02.0}:{:02.0}",
-        (best_time.0 / 3600.0).round(),
-        ((best_time.0 % 3600.0) / 60.0).round()
-    );
 
-    println!(
-        "{}",
-        InProgressTripsFormatter {
-            trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id.unwrap()),
-            gtfs
-        }
-    );
+    Some(InProgressTripsFormatter {
+        trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id.unwrap()),
+        gtfs,
+    })
 }
