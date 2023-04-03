@@ -1,14 +1,110 @@
 use crate::IdType;
 use gtfs_structures::{
-    Availability, BikesAllowedType, DirectionType, Frequency, RawTrip, RouteType,
+    Availability, BikesAllowedType, Frequency, RawTrip,
 };
-use serde::{Deserialize, Serialize};
+use rkyv::{Serialize, Deserialize, Archive};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
+
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
 static AGENCY_COUNT: AtomicU8 = AtomicU8::new(0);
+
+#[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub enum RouteType {
+    /// Tram, Streetcar, Light rail. Any light rail or street level system within a metropolitan area
+    Tramway,
+    /// Tram, Streetcar, Light rail. Any light rail or street level system within a metropolitan area
+    Subway,
+    /// Used for intercity or long-distance travel
+    Rail,
+    /// Used for short- and long-distance bus routes
+    #[default]
+    Bus,
+    /// Used for short- and long-distance boat service
+    Ferry,
+    /// Used for street-level rail cars where the cable runs beneath the vehicle, e.g., cable car in San Francisco
+    CableCar,
+    /// Aerial lift, suspended cable car (e.g., gondola lift, aerial tramway). Cable transport where cabins, cars, gondolas or open chairs are suspended by means of one or more cables
+    Gondola,
+    /// Any rail system designed for steep inclines
+    Funicular,
+    /// (extended) Used for intercity bus services
+    Coach,
+    /// (extended) Airplanes
+    Air,
+    /// (extended) Taxi, Cab
+    Taxi,
+    /// (extended) any other value
+    Other(i32),
+}
+
+impl From<gtfs_structures::RouteType> for RouteType {
+    fn from(value: gtfs_structures::RouteType) -> Self {
+        match value {
+            gtfs_structures::RouteType::Tramway => RouteType::Tramway,
+            gtfs_structures::RouteType::Subway => RouteType::Subway,
+            gtfs_structures::RouteType::Rail => RouteType::Rail,
+            gtfs_structures::RouteType::Bus => RouteType::Bus,
+            gtfs_structures::RouteType::Ferry => RouteType::Ferry,
+            gtfs_structures::RouteType::CableCar => RouteType::CableCar,
+            gtfs_structures::RouteType::Gondola => RouteType::Gondola,
+            gtfs_structures::RouteType::Funicular => RouteType::Funicular,
+            gtfs_structures::RouteType::Coach => RouteType::Coach,
+            gtfs_structures::RouteType::Air => RouteType::Air,
+            gtfs_structures::RouteType::Taxi => RouteType::Taxi,
+            gtfs_structures::RouteType::Other(i32) => RouteType::Other(i32),
+        }
+    }
+}
+
+#[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Default, Copy)]
+pub enum DirectionType {
+    /// Travel in one direction (e.g. outbound travel).
+    #[default]
+    Outbound,
+    /// Travel in the opposite direction (e.g. inbound travel).
+    Inbound,
+}
+
+impl From<gtfs_structures::DirectionType> for DirectionType {
+    fn from(value: gtfs_structures::DirectionType) -> Self {
+        match value {
+            gtfs_structures::DirectionType::Outbound => DirectionType::Outbound,
+            gtfs_structures::DirectionType::Inbound => DirectionType::Inbound,
+        }
+    }
+}
+#[derive(Debug, Archive, Serialize, Deserialize, Clone, PartialEq, Default)]
+pub enum LocationType {
+    /// Stop (or Platform). A location where passengers board or disembark from a transit vehicle. Is called a platform when defined within a parent_station
+    #[default]
+    StopPoint,
+    /// Station. A physical structure or area that contains one or more platform
+    StopArea,
+    /// A location where passengers can enter or exit a station from the street. If an entrance/exit belongs to multiple stations, it can be linked by pathways to both, but the data provider must pick one of them as parent
+    StationEntrance,
+    /// A location within a station, not matching any other [Stop::location_type], which can be used to link together pathways define in pathways.txt.
+    GenericNode,
+    /// A specific location on a platform, where passengers can board and/or alight vehicles
+    BoardingArea,
+    /// An unknown value
+    Unknown(i32),
+}
+
+impl From<gtfs_structures::LocationType> for LocationType {
+    fn from(value: gtfs_structures::LocationType) -> Self {
+        match value {
+            gtfs_structures::LocationType::StopPoint => LocationType::StopPoint,
+            gtfs_structures::LocationType::StopArea => LocationType::StopArea,
+            gtfs_structures::LocationType::StationEntrance => LocationType::StationEntrance,
+            gtfs_structures::LocationType::GenericNode => LocationType::GenericNode,
+            gtfs_structures::LocationType::BoardingArea => LocationType::BoardingArea,
+            gtfs_structures::LocationType::Unknown(i32) => LocationType::Unknown(i32),
+        }
+    }
+}
 
 trait FromWithAgencyId<From> {
     fn from_with_agency_id(agency_id: u8, f: From) -> Self
@@ -34,44 +130,37 @@ fn try_parse_id(a: &str) -> u64 {
     })
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Archive)]
 pub struct StopTime {
     /// Arrival time of the stop time.
     /// It's an option since the intermediate stops can have have no arrival
     /// and this arrival needs to be interpolated
-    #[serde(rename = "a")]
     pub arrival_time: Option<u32>,
     /// Order of stops for a particular trip. The values must increase along the trip but do not need to be consecutive
-    #[serde(rename = "b")]
     pub stop_sequence: u16,
     /// Text that appears on signage identifying the trip's destination to riders
-    #[serde(rename = "c")]
     pub stop_id: IdType,
 
-    #[serde(rename = "d")]
     pub trip_id: IdType,
 
-    #[serde(skip)]
     pub index_of_stop_time: usize,
 }
 
 /// A physical stop, station or area. See <https://gtfs.org/reference/static/#stopstxt>
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, Archive)]
 pub struct Stop {
     /// Unique technical identifier (not for the traveller) of the stop
-    #[serde(rename = "stop_id")]
     pub id: IdType,
     /// Short text or a number that identifies the location for riders
-    #[serde(rename = "stop_code")]
     pub code: Option<String>,
     ///Name of the location. Use a name that people will understand in the local and tourist vernacular
-    #[serde(rename = "stop_name")]
     pub name: String,
     /// Type of the location
     pub longitude: Option<f64>,
     /// Latitude of the stop
     pub latitude: Option<f64>,
-    pub wheelchair_boarding: Availability,
+    pub location_type: LocationType,
+    pub parent_station: Option<String>,
 }
 
 impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
@@ -85,12 +174,13 @@ impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
             name: f.name,
             longitude: f.longitude,
             latitude: f.latitude,
-            wheelchair_boarding: f.wheelchair_boarding,
+            location_type: f.location_type.into(),
+            parent_station: f.parent_station,
         }
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, Archive)]
 pub enum Availability1 {
     /// No information if the service is available
     #[default]
@@ -103,7 +193,7 @@ pub enum Availability1 {
     Unknown(i32),
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Archive)]
 pub struct Trip {
     /// Unique technical identifier (not for the traveller) for the Trip
     pub id: IdType,
@@ -123,21 +213,11 @@ pub struct Trip {
     pub direction_id: Option<DirectionType>,
     /// Identifies the block to which the trip belongs. A block consists of a single trip or many sequential trips made using the same vehicle, defined by shared service days and block_id. A block_id can have trips with different service days, making distinct blocks
     pub block_id: Option<String>,
-    /// Indicates wheelchair accessibility
-    // #[serde(skip)]
-    pub wheelchair_accessible: Availability,
-    /// Indicates whether bikes are allowed
-    #[serde(skip)]
-    pub bikes_allowed: BikesAllowedType,
-    /// During which periods the trip runs by frequency and not by fixed timetable
-    #[serde(skip)]
-    pub frequencies: Vec<Frequency>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Archive)]
 pub struct Route {
     /// Unique technical (not for the traveller) identifier for the route
-    #[serde(rename = "route_id")]
     pub id: IdType,
     /// Short name of a route. This will often be a short, abstract identifier like "32", "100X", or "Green" that riders use to identify a route, but which doesn't give any indication of what places the route serves
     pub short_name: String,
@@ -150,7 +230,6 @@ pub struct Route {
     /// URL of a web page about the particular route
     pub url: Option<String>,
     /// Orders the routes in a way which is ideal for presentation to customers. Routes with smaller route_sort_order values should be displayed first.
-    #[serde(rename = "route_sort_order")]
     pub order: Option<u32>,
 }
 
@@ -161,7 +240,7 @@ impl FromWithAgencyId<gtfs_structures::Route> for Route {
             short_name: a.short_name,
             long_name: a.long_name,
             desc: a.desc,
-            route_type: a.route_type,
+            route_type: a.route_type.into(),
             url: a.url,
             order: a.order,
         }
@@ -178,16 +257,12 @@ impl FromWithAgencyId<RawTrip> for Trip {
             shape_id: a.shape_id.map(|a| (agency_id, try_parse_id(&a))),
             trip_headsign: a.trip_headsign,
             trip_short_name: a.trip_short_name,
-            direction_id: a.direction_id,
+            direction_id: a.direction_id.map(Into::into),
             block_id: a.block_id,
-            // wheelchair_accessible: a.wheelchair_accessible,
-            wheelchair_accessible: Availability::Available,
-            bikes_allowed: a.bikes_allowed,
-            frequencies: Default::default(),
         }
     }
 }
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Archive)]
 pub struct Gtfs0 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: Vec<Stop>,
@@ -238,10 +313,7 @@ impl From<Gtfs0> for Gtfs1 {
                         trip_short_name: a.trip_short_name,
                         direction_id: a.direction_id,
                         block_id: a.block_id,
-                        wheelchair_accessible: a.wheelchair_accessible,
-                        bikes_allowed: a.bikes_allowed,
                         stop_times: Default::default(),
-                        frequencies: Default::default(),
                     },
                 )
             })

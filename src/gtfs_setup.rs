@@ -3,6 +3,7 @@ use crate::{Gtfs0, Gtfs1, InProgressTrip, LibraryGTFS, StopsWithTrips};
 use id_arena::Id;
 use log::info;
 use std::fs::File;
+use std::io::{Read, Write};
 
 #[inline(never)]
 pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
@@ -18,18 +19,19 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
 #[inline(never)]
 pub fn initialize_gtfs_as_bson(path: &str) -> Gtfs1 {
     info!("For file {path}");
-    let file = File::create_new(format!("{path}-1.bson"));
-    if let Ok(file) = file {
+    let file = File::create_new(format!("{path}-1.rkyv"));
+    if let Ok(mut file) = file {
         info!("GTFS not detected! Creating new");
         let gtfs = Gtfs0::from(LibraryGTFS::from_path(path).unwrap());
-        let document = bson::to_document(&gtfs).unwrap();
-        document.to_writer(file).unwrap();
+        let bytes = rkyv::to_bytes::<_, 1024>(&gtfs).unwrap();
+        file.write_all(&bytes).unwrap();
         info!("GTFS created");
         gtfs.into()
     } else {
-        // TODO: parallelize this somehow?
-        let file = File::open(format!("{path}-1.bson")).unwrap();
-        bson::from_reader::<File, Gtfs0>(file).unwrap().into()
+        let mut file = File::open(format!("{path}-1.rkyv")).unwrap();
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes).unwrap();
+        unsafe { rkyv::from_bytes_unchecked::<Gtfs0>(&bytes) }.unwrap().into()
     }
 }
 

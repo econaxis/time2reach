@@ -13,7 +13,7 @@ mod time_to_reach;
 mod trips_arena;
 mod web;
 
-use gtfs_structures::DirectionType;
+use crate::gtfs_wrapper::DirectionType;
 use id_arena::Id;
 
 use rstar::primitives::GeomWithData;
@@ -41,8 +41,8 @@ use serialization::TimeGrid;
 use time::Time;
 use trips_arena::TripsArena;
 
-const WALKING_SPEED: f64 = 1.30;
-const STRAIGHT_WALKING_SPEED: f64 = 0.85;
+const WALKING_SPEED: f64 = 1.35;
+const STRAIGHT_WALKING_SPEED: f64 = 0.95;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
@@ -220,7 +220,7 @@ fn main1() {
 }
 
 fn main() {
-    if true {
+    if false {
         main1();
         return;
     } else {

@@ -1,6 +1,7 @@
 use crate::time::Time;
 use crate::trips_arena::TripsArena;
 use crate::{gtfs_setup, Gtfs1, InProgressTrip, RoadStructure, NULL_ID, WALKING_SPEED};
+use crate::gtfs_wrapper::RouteType;
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
 
@@ -34,15 +35,26 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
         // Boarding {number} at {stop name}, {time}
         // println!("Trip {:?}", trip);
         // println!("Route id {:?}", trip.current_route);
-        let bus_number = &gtfs.routes[&trip.current_route.route_id].short_name;
-        let stop_name = &gtfs.stops[&trip.boarding_stop_id].name;
+        let route_id = trip.current_route.route_id;
+        let route = &gtfs.routes[&route_id];
+        let route_type = match route.route_type {
+            RouteType::Bus => "bus",
+            RouteType::Tramway => "tram",
+            RouteType::Subway | RouteType::Rail => "train",
+            _ => "",
+        };
+        let bus_number = &route.short_name;
+        let stop = &gtfs.stops[&trip.boarding_stop_id];
         fmt.write_fmt(format_args!(
-            "Boarding {} at {}, {}\n",
+            "Get on {} #{} at {}, {} {:?} {:?}\n",
+            route_type,
             bus_number,
-            stop_name,
+            &stop.name,
             TimeFormatter {
                 secs: trip.boarding_time
-            }
+            },
+            stop.location_type,
+            stop.parent_station,
         ))
     }
 
@@ -55,8 +67,7 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
         let bus_number = &gtfs.routes[&trip.current_route.route_id].short_name;
         let stop_name = &gtfs.stops[&trip.get_off_stop_id].name;
         fmt.write_fmt(format_args!(
-            "Get off {} at {}, {}\n",
-            bus_number,
+            "Get off at {}, {}\n",
             stop_name,
             TimeFormatter {
                 secs: trip.exit_time

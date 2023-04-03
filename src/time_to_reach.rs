@@ -43,17 +43,7 @@ pub fn calculate_score(original_point: &[f64; 2], obs: &GeomWithData<[f64; 2], R
 }
 
 impl TimeToReachRTree {
-    fn serialize_to_json(&self) -> Vec<serde_json::Value> {
-        self.tree
-            .iter()
-            .map(|doc| {
-                serde_json::json! ({
-                    "point": doc.geom().as_slice(),
-                    "data": bson::to_bson(&doc.data).unwrap()
-                })
-            })
-            .collect()
-    }
+
     pub(crate) fn add_observation(&mut self, point: [f64; 2], mut data: ReachData) {
         for near in self.tree.drain_within_distance(point, 15.0 * 15.0) {
             let time_to_walk_here = near.data.timestamp + near.distance_2(&point) / WALKING_SPEED;
