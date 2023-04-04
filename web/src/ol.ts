@@ -3,24 +3,23 @@ import mapboxgl from "mapbox-gl";
 import { get_details } from "./get_data";
 import { TimeColorMapper } from "./colors";
 
+import "../tailwind.css";
+import { format_popup_html, TripDetails } from "./format-details";
+
 mapboxgl.accessToken = "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
 const map = new mapboxgl.Map({
     container: "map", // container ID
     style: "mapbox://styles/mapbox/dark-v11", // style URL
     center: [-79.43113401487446, 43.650685085905365], // starting position [lng, lat]
-    zoom: 15 // starting zoom
+    zoom: 13 // starting zoom
 });
-
-function format_popup_html(arrival_time: string, details: string) {
-    return `<strong>${arrival_time}</strong><p>${details}</p>`;
-}
 
 
 map.on("load", async () => {
 
     let data_promise = await TimeColorMapper.fetch(new mapboxgl.LngLat(
-        -79.40832138061523,
-        43.70734532390574
+        -79.61142287490227,
+        43.68355164972115
     ));
 
     map.addSource("some id", {
@@ -56,7 +55,7 @@ map.on("load", async () => {
     });
 
     const popup = new mapboxgl.Popup({
-        className: "popup"
+        maxWidth: "none"
     });
 
     let currentTask = undefined;
@@ -73,13 +72,12 @@ map.on("load", async () => {
 
                 if (!seconds) return;
 
-                const arrival_time = new Date(seconds * 1000).toISOString().substring(11, 19);
-                const detail_text = await get_details(data_promise, {
+                const details: Array<TripDetails> = await get_details(data_promise, {
                     latitude: e.lngLat.lat,
                     longitude: e.lngLat.lng
                 });
 
-                popup.setHTML(format_popup_html(arrival_time, detail_text));
+                popup.setHTML(format_popup_html(seconds, details));
                 popup.addTo(map);
             }
         }, 600);
@@ -88,7 +86,7 @@ map.on("load", async () => {
     });
     map.on("mouseleave", "somed", (e) => {
         map.getCanvas().style.cursor = "";
-        popup.remove();
+        // popup.remove();
         clearTimeout(currentTask);
         currentTask = undefined;
     });

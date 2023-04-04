@@ -1,16 +1,28 @@
+use std::cmp::Ordering;
 use crate::time::Time;
 use crate::{BusPickupInfo, IdType, InProgressTrip};
 use id_arena::{Arena, Id};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BinaryHeap, HashMap, VecDeque};
 
-//
-// #[derive(Hash, Debug, PartialEq, Eq)]
-// struct TripsAlreadyTakenCache {
-//     trip_id
-// }
+#[derive(PartialEq, Eq, Debug)]
+struct HeapIdTrip {
+    inner: Id<InProgressTrip>,
+    compare: Time
+}
+
+impl PartialOrd for HeapIdTrip {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.compare.partial_cmp(&other.compare)?.reverse())
+    }
+}
+impl Ord for HeapIdTrip {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.compare.cmp(&other.compare).reverse()
+    }
+}
 #[derive(Debug, Default)]
 pub struct TripsArena {
-    explore_queue: VecDeque<id_arena::Id<InProgressTrip>>,
+    explore_queue: BinaryHeap<HeapIdTrip>,
     // TripID -> stop sequence number of boarding
     trips_already_taken: HashMap<IdType, u16>,
 
@@ -44,8 +56,13 @@ impl TripsArena {
             self.stop_arrival_times
                 .insert(item.get_off_stop_id, item.exit_time);
         }
+        let item_exit_time = item.exit_time;
         let id = self.arena.alloc(item);
-        self.explore_queue.push_back(id);
+        let heap_struct = HeapIdTrip {
+            compare: item_exit_time,
+            inner: id
+        };
+        self.explore_queue.push(heap_struct);
         Some(id)
     }
 
@@ -53,7 +70,9 @@ impl TripsArena {
         &self.arena[id]
     }
     pub(crate) fn pop_front(&mut self) -> Option<(InProgressTrip, Id<InProgressTrip>)> {
-        let id = self.explore_queue.pop_front()?;
+        let heap_item = self.explore_queue.pop()?;
+        let id = heap_item.inner;
+
         Some((self.get_by_id(id).clone(), id))
     }
 }

@@ -7,6 +7,7 @@ use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::HashSet;
+use crate::gtfs_wrapper::StopTime;
 
 use crate::time::Time;
 use crate::web::LatLng;
@@ -75,6 +76,7 @@ pub struct Configuration {
     pub start_time: Time,
     pub duration_secs: f64,
     pub location: LatLng,
+    pub agency_ids: HashSet<u8>,
 }
 
 pub struct ReachTimesResult {
@@ -110,7 +112,8 @@ pub fn generate_reach_times(
             continue;
         }
 
-        if item.get_off_stop_id != NULL_ID {
+        if item.get_off_stop_id != NULL_ID || true {
+            println!("Adding observation {:?}", item.current_route.route_id);
             rs.add_observation(
                 &item.point,
                 ReachData {
@@ -120,11 +123,20 @@ pub fn generate_reach_times(
                 },
             );
         }
-        explore_from_point(gtfs, data, item, id, &mut rs.trips_arena);
+        explore_from_point(gtfs, data, item, id, &mut rs.trips_arena, &config);
     }
 }
 
-#[inline(never)]
+fn get_stop_from_stop_seq_no(stop_times: &[StopTime], stop_sequence_no: u16) -> (&StopTime, usize) {
+    for i in 0..stop_sequence_no as usize {
+        if stop_times[i].stop_sequence == stop_sequence_no {
+            return (&stop_times[i], i)
+        }
+    }
+    println!("{:?} {:?}", stop_times, stop_sequence_no);
+    unreachable!()
+}
+
 fn all_stops_along_trip(
     gtfs: &Gtfs1,
     trip_id: IdType,
@@ -135,9 +147,9 @@ fn all_stops_along_trip(
     explore_queue: &mut TripsArena,
 ) {
     let stop_times = &gtfs.trips[&trip_id].stop_times;
-    let boarding_stop = &stop_times[start_sequence_no as usize];
+    let (boarding_stop, stop_time_index) = get_stop_from_stop_seq_no(&stop_times, start_sequence_no);
 
-    for (_stops_travelled, st) in stop_times[start_sequence_no as usize..].iter().enumerate() {
+    for (_stops_travelled, st) in stop_times[stop_time_index as usize + 1..].iter().enumerate() {
         let point = projection::project_stop(&gtfs.stops[&st.stop_id]);
         let timestamp = st.arrival_time.unwrap();
 
@@ -164,6 +176,7 @@ fn explore_from_point(
     ip: InProgressTrip,
     ip_id: Id<InProgressTrip>,
     explore_queue: &mut TripsArena,
+    config: &Configuration,
 ) {
     let mut routes_already_taken = HashSet::from([ip.current_route.clone()]);
 
@@ -176,7 +189,7 @@ fn explore_from_point(
         let stop_d = &stop.data;
 
         let time_to_stop = distance.sqrt() / STRAIGHT_WALKING_SPEED;
-        const MIN_TRANSFER_SECONDS: f64 = 10.0;
+        const MIN_TRANSFER_SECONDS: f64 = 4.0;
         let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
         for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
             // Search for route pickup on or after the starting_timestamp
@@ -191,8 +204,11 @@ fn explore_from_point(
             if let Some(next_bus) = route_pickup.range(starting_buspickup..).next() {
                 // For all next stops on the line...push into explore_queue to force a transfer
                 assert!(next_bus.timestamp >= this_timestamp);
+                println!("Next bus: {:?}", next_bus);
 
-                if explore_queue.should_explore(next_bus) {
+                let is_valid_agency = config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
+
+                if is_valid_agency && explore_queue.should_explore(next_bus) {
                     all_stops_along_trip(
                         gtfs,
                         next_bus.trip_id,

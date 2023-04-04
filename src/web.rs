@@ -1,16 +1,17 @@
 use crate::formatter::time_to_point;
 use crate::road_structure::{EdgeId, RoadStructureInner};
 use crate::time_to_reach::Configuration;
-use crate::{gtfs_setup, time_to_reach, Gtfs1, RoadStructure, SpatialStopsWithTrips, Time};
+use crate::{gtfs_setup, time_to_reach, Gtfs1, RoadStructure, SpatialStopsWithTrips, Time, NULL_ID};
 use log::info;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use warp::{Filter, Reply};
+use crate::gtfs_setup::get_agency_id_from_short_name;
 
-fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64) -> impl Reply {
+fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64, include_agencies: Vec<String>) -> impl Reply {
     let gtfs = &ad.gtfs;
     let spatial_stops = &ad.spatial;
     let rs_template = ad.rs_template.clone();
@@ -18,6 +19,8 @@ fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64) -> impl Reply {
 
     ad.rs_list.push(rs);
     let mut rs = ad.rs_list.last_mut().unwrap();
+
+    let agency_ids: HashSet<u8> = include_agencies.iter().map(|ag| get_agency_id_from_short_name(ag)).collect();
 
     let _answer = time_to_reach::generate_reach_times(
         gtfs,
@@ -30,6 +33,7 @@ fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64) -> impl Reply {
                 latitude: lat,
                 longitude: lng,
             },
+            agency_ids,
         },
     );
 
@@ -68,10 +72,18 @@ impl AppData {
 }
 
 #[derive(Deserialize)]
+pub struct CalculateRequest {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub agencies: Vec<String>,
+}
+
+#[derive(Deserialize, Clone, Copy)]
 pub struct LatLng {
     pub latitude: f64,
     pub longitude: f64,
 }
+
 impl LatLng {
     pub fn from_lat_lng(lat: f64, lng: f64) -> Self {
         Self {
@@ -79,6 +91,19 @@ impl LatLng {
             longitude: lng,
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+struct TripDetailsInner {
+    time: f64,
+    line: String,
+    stop: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TripDetails {
+    boarding: TripDetailsInner,
+    exit: TripDetailsInner,
 }
 
 fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
@@ -94,19 +119,45 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
         true,
     );
 
-    let format_string = formatter
-        .map(|format| format!("{}", format))
-        .unwrap_or("".to_string());
-    warp::reply::json(&format_string)
+    if formatter.is_none() {
+        return warp::reply::json(&"None");
+    }
+
+    let mut details_list = Vec::new();
+    for trip in formatter.unwrap().trips.iter().rev() {
+        if trip.current_route.route_id == NULL_ID {
+            // Begin of trip. Skip here.
+            continue;
+        }
+
+        let route = &ad.gtfs.routes[&trip.current_route.route_id];
+        let boarding_stop = &ad.gtfs.stops[&trip.boarding_stop_id];
+        let exit_stop = &ad.gtfs.stops[&trip.get_off_stop_id];
+        details_list.push(TripDetails {
+            boarding: TripDetailsInner {
+                time: trip.boarding_time.0,
+                line: route.short_name.clone(),
+                stop: boarding_stop.name.clone()
+            },
+            exit: TripDetailsInner {
+                time: trip.exit_time.0,
+                line: route.short_name.clone(),
+                stop: exit_stop.name.clone()
+            }
+        });
+    }
+
+
+    warp::reply::json(&details_list)
 }
 
 fn with_appdata(
     ad: Arc<Mutex<AppData>>,
-) -> impl Filter<Extract = (Arc<Mutex<AppData>>,), Error = Infallible> + Clone {
+) -> impl Filter<Extract=(Arc<Mutex<AppData>>, ), Error=Infallible> + Clone {
     warp::any().map(move || ad.clone())
 }
+
 pub async fn main() {
-    env_logger::init();
     info!("Loading...");
 
     let gtfs = crate::setup_gtfs();
@@ -132,9 +183,9 @@ pub async fn main() {
         .and(with_appdata(appdata.clone()))
         .and(warp::path("hello"))
         .and(warp::body::json())
-        .map(|ad: Arc<Mutex<AppData>>, latlng: LatLng| {
+        .map(|ad: Arc<Mutex<AppData>>, req: CalculateRequest| {
             let mut ad = ad.lock().unwrap();
-            process_coordinates(&mut ad, latlng.latitude, latlng.longitude)
+            process_coordinates(&mut ad, req.latitude, req.longitude, req.agencies)
         });
 
     let details = warp::post()

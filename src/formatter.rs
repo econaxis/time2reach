@@ -10,8 +10,14 @@ pub struct InProgressTripsFormatter<'a, 'b> {
     pub(crate) gtfs: &'b Gtfs1,
 }
 
-struct TimeFormatter {
+pub struct TimeFormatter {
     secs: Time,
+}
+
+impl TimeFormatter {
+    pub fn new(secs: Time) -> Self {
+        Self {secs}
+    }
 }
 
 impl Display for TimeFormatter {
@@ -64,7 +70,7 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
         fmt: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         // For disembarking part
-        let bus_number = &gtfs.routes[&trip.current_route.route_id].short_name;
+        let _bus_number = &gtfs.routes[&trip.current_route.route_id].short_name;
         let stop_name = &gtfs.stops[&trip.get_off_stop_id].name;
         fmt.write_fmt(format_args!(
             "Get off at {}, {}\n",

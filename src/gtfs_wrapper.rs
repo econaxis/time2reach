@@ -1,6 +1,6 @@
 use crate::IdType;
 use gtfs_structures::{
-    Availability, BikesAllowedType, Frequency, RawTrip,
+    RawTrip,
 };
 use rkyv::{Serialize, Deserialize, Archive};
 use std::cell::RefCell;
@@ -76,6 +76,7 @@ impl From<gtfs_structures::DirectionType> for DirectionType {
         }
     }
 }
+
 #[derive(Debug, Archive, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub enum LocationType {
     /// Stop (or Platform). A location where passengers board or disembark from a transit vehicle. Is called a platform when defined within a parent_station
@@ -108,8 +109,8 @@ impl From<gtfs_structures::LocationType> for LocationType {
 
 trait FromWithAgencyId<From> {
     fn from_with_agency_id(agency_id: u8, f: From) -> Self
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 thread_local! {
@@ -118,16 +119,19 @@ thread_local! {
     };
 }
 fn try_parse_id(a: &str) -> u64 {
-    ID_MAP.with(|idmap| {
-        let mut idmap = idmap.borrow_mut();
-        if let Some(id) = idmap.get(a) {
-            *id
-        } else {
-            let id = idmap.len() as u64;
-            idmap.insert(a.to_string(), id);
-            id
-        }
-    })
+    match a.parse() {
+        Ok(x) => x,
+        Err(_) => ID_MAP.with(|idmap| {
+            let mut idmap = idmap.borrow_mut();
+            if let Some(id) = idmap.get(a) {
+                *id
+            } else {
+                let id = idmap.len() as u64 + 10000000000;
+                idmap.insert(a.to_string(), id);
+                id
+            }
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Archive)]
@@ -165,8 +169,8 @@ pub struct Stop {
 
 impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
     fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Stop) -> Self
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         Self {
             id: (agency_id, try_parse_id(&f.id)),
@@ -262,6 +266,7 @@ impl FromWithAgencyId<RawTrip> for Trip {
         }
     }
 }
+
 #[derive(Default, Serialize, Deserialize, Archive)]
 pub struct Gtfs0 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
@@ -356,18 +361,26 @@ impl From<LibraryGTFS> for Gtfs0 {
                 .trips
                 .unwrap()
                 .into_iter()
-                .map(|a| Trip::from_with_agency_id(agency_id, a))
+                .map(|a| {
+                    return Trip::from_with_agency_id(agency_id, a);
+                })
                 .collect(),
             stop_times: a
                 .stop_times
                 .unwrap()
                 .into_iter()
-                .map(|st| StopTime {
-                    arrival_time: st.arrival_time,
-                    stop_sequence: st.stop_sequence,
-                    stop_id: (agency_id, try_parse_id(&st.stop_id)),
-                    trip_id: (agency_id, try_parse_id(&st.trip_id)),
-                    index_of_stop_time: 0,
+                .map(|st| {
+                    if st.trip_id == "40813385" && st.stop_sequence == 0 {
+                        println!("wtf 5");
+                        let wtf = 5;
+                    }
+                    StopTime {
+                        arrival_time: st.arrival_time,
+                        stop_sequence: st.stop_sequence,
+                        stop_id: (agency_id, try_parse_id(&st.stop_id)),
+                        trip_id: (agency_id, try_parse_id(&st.trip_id)),
+                        index_of_stop_time: 0,
+                    }
                 })
                 .collect(),
             agency_id,

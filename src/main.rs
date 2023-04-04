@@ -20,11 +20,11 @@ use rstar::primitives::GeomWithData;
 use rstar::RTree;
 use serde::Serialize;
 
-use gdal::raster::Buffer;
-use gdal::spatial_ref::SpatialRef;
-use gdal::Dataset;
 
-use std::collections::{BTreeSet, HashMap};
+
+
+
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
 
 use std::time::Instant;
@@ -37,7 +37,7 @@ use crate::road_structure::RoadStructure;
 use crate::time_to_reach::Configuration;
 use crate::web::LatLng;
 use gtfs_wrapper::LibraryGTFS;
-use serialization::TimeGrid;
+
 use time::Time;
 use trips_arena::TripsArena;
 
@@ -87,7 +87,7 @@ impl RoutePickupTimes {
 
         let bus_pickup = BusPickupInfo {
             timestamp: Time(stop_time.arrival_time.unwrap() as f64),
-            stop_sequence_no: stop_time.index_of_stop_time as u16,
+            stop_sequence_no: stop_time.stop_sequence as u16,
             trip_id: trip.id,
         };
         if let Some(times) = self.0.get_mut(&route_stop_sequence) {
@@ -178,7 +178,7 @@ fn main1() {
 
     let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..5 {
+    for _ in 0..1 {
         rs.clear_data();
         time_to_reach::generate_reach_times(
             &gtfs,
@@ -186,9 +186,10 @@ fn main1() {
             &mut rs,
             Configuration {
                 // start_time: Time(3600.0 * 13.0),
-                start_time: Time(47137.0),
-                duration_secs: 3600.0 * 2.0,
-                location: LatLng::from_lat_lng(43.671881063610094, -79.47735697219166),
+                start_time: Time(3600.0 * 13.0),
+                duration_secs: 3600.0 * 1.5,
+                location: LatLng::from_lat_lng(43.68228522699712, -79.6125297053927),
+                agency_ids: HashSet::new()
             },
         );
         time_to_point(
@@ -220,6 +221,8 @@ fn main1() {
 }
 
 fn main() {
+    env_logger::init();
+
     if false {
         main1();
         return;
@@ -233,21 +236,23 @@ fn main() {
 
 fn setup_gtfs() -> Gtfs1 {
     let mut gtfs =
-        gtfs_setup::initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs");
+        gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express", "UP"
+        );
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS",
+            "/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs", "TTC"
     ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/miway",
-    ));
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS",
+    // ));
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt",
+    // ));
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton",
+    // ));
+    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/miway",
+    // ));
     gtfs
 }

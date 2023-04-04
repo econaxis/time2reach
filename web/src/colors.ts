@@ -9,12 +9,21 @@ export const cmap = createColorMap({
     nshades: NSHADES,
 });
 
+export function mapper(value) {
+    value = 1.1 / (1 + Math.exp(-3 * (2 * value - 1.2))) - 0.05
+    return value
+}
+
+window.mapper = mapper;
+
+
 export function get_color_0_1(value: number): string {
     if (value < 0 || value > 1) {
         console.log('invalid value', value)
     }
 
     value = Math.sqrt(value)
+    value = window.mapper(value)
     return cmap[Math.trunc(value * NSHADES)]
 }
 export class TimeColorMapper {
@@ -35,7 +44,8 @@ export class TimeColorMapper {
     static async fetch(latlng: mapboxgl.LngLat) {
         const body = {
             latitude: latlng.lat,
-            longitude: latlng.lng
+            longitude: latlng.lng,
+            agencies: ["TTC"]
         }
         console.log('getting new data', body)
         const data = await fetch("http://localhost:3030/hello", {

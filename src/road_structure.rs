@@ -1,5 +1,5 @@
 use crate::{IdType, ReachData, TripsArena, PROJSTRING, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
-use gdal::vector::{Layer, LayerAccess};
+use gdal::vector::{LayerAccess};
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
 use geo_types::Point;
 use proj::Proj;
@@ -10,10 +10,12 @@ use std::cell::UnsafeCell;
 use std::collections::{HashMap, VecDeque};
 
 use std::sync::Arc;
+use log::info;
 
 use crate::best_times::BestTimes;
 use crate::time::Time;
 use serde::ser::SerializeTuple;
+use crate::formatter::TimeFormatter;
 
 pub type EdgeId = u64;
 
@@ -185,13 +187,16 @@ impl RoadStructureInner {
         to_explore: &mut VecDeque<(NodeId, Time)>,
         node_best_times: &mut BestTimes<NodeId>,
     ) {
+        println!("Got to node--{:?} {}", node, TimeFormatter::new(base_time.timestamp));
         if node_best_times
             .get(&node)
             .map(|a| a.timestamp < base_time.timestamp)
             .unwrap_or(false)
         {
+            println!("Pruning");
             return;
         }
+        println!("Not pruning");
 
         for edge_ in self.all_edges_from_node(node) {
             let edge = &self.edges[edge_];
@@ -228,7 +233,6 @@ impl RoadStructureInner {
     ) -> impl Iterator<Item = &GeomWithData<[f64; 2], NodeId>> + '_ {
         self.nodes_rtree.nearest_neighbor_iter(point).take(number)
     }
-    #[inline(never)]
     pub fn explore_from_point(
         &self,
         point: &[f64; 2],
@@ -277,8 +281,8 @@ impl RoadStructureInner {
             open_options: None,
             sibling_files: None,
         };
+        info!("Loading toronto2.gpkg dataset");
         let dataset = Dataset::open_ex("web/public/toronto2.gpkg", options).unwrap();
-        println!("Loading toronto2.gpkg dataset");
 
         let mut s = Self {
             dataset,
