@@ -24,8 +24,7 @@ function formatPearsonAirport(str) {
     let match = str.match(regex);
     let station = str;
     if (match) {
-        const airport = str.match(regex)[1];
-        station = airport;
+        station = str.match(regex)[1];
     }
     return station;
 }
@@ -36,7 +35,7 @@ function formatStop(str) {
     let match = str.match(regex);
     let station = str;
     if (match) {
-        const station_name = str.match(regex)[1];
+        const station_name = match[0];
         station = `${station_name} Station`;
     }
 
@@ -45,12 +44,11 @@ function formatStop(str) {
     return toTitleCase(station);
 }
 
-function format_time(secs: number): string {
+export function format_time(secs: number): string {
     return new Date(secs * 1000).toISOString().substring(11, 19);
 }
 
 function format_mode(mode: string, line_number: number, bg_color: string, text_color: string) {
-    console.log('color', bg_color, text_color)
     const icon = {
         bus: '<i class="fa-solid fa-bus-simple"></i>',
         tram: '<i class="fa-solid fa-train-tram"></i>',

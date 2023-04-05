@@ -3,24 +3,38 @@ import mapboxgl from "mapbox-gl";
 import { get_details } from "./get_data";
 import { TimeColorMapper } from "./colors";
 
-import "../tailwind.css";
 import { format_popup_html, TripDetails } from "./format-details";
+import settings_form_setup from "./settings-form"
+export let data_promise: TimeColorMapper;
+
+const starting_location = new mapboxgl.LngLat(
+    -79.61142287490227,
+    43.68355164972115
+)
 
 mapboxgl.accessToken = "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
-const map = new mapboxgl.Map({
+
+const default_color = 'rgba(182,182,182,0.14)';
+export const map = new mapboxgl.Map({
     container: "map", // container ID
     style: "mapbox://styles/mapbox/dark-v11", // style URL
     center: [-79.43113401487446, 43.650685085905365], // starting position [lng, lat]
-    zoom: 13 // starting zoom
+    zoom: 12 // starting zoom
 });
+export async function refetch_data(lngLat?: mapboxgl.LngLat) {
+    data_promise = await TimeColorMapper.fetch(lngLat);
+    map.setPaintProperty("transit-layer", "line-color",
+        ['coalesce',
+            ["get", ["to-string", ["id"]], ["literal", data_promise.m]],
+            default_color]);
+}
 
+
+settings_form_setup()
 
 map.on("load", async () => {
+    const start = TimeColorMapper.fetch(starting_location).then(result => data_promise = result)
 
-    let data_promise = await TimeColorMapper.fetch(new mapboxgl.LngLat(
-        -79.61142287490227,
-        43.68355164972115
-    ));
 
     map.addSource("some id", {
         type: "vector",
@@ -39,19 +53,18 @@ map.on("load", async () => {
                 "line-join": "round"
             },
             "paint": {
-                "line-opacity": 0.4,
-                "line-color":
-                    ["get", ["to-string", ["id"]], ["literal", data_promise.m]],
+                "line-opacity": 0.3,
+                "line-color": default_color,
                 "line-width": 3.3
             }
         }
     );
 
+    start.then(() => refetch_data(starting_location))
+
     map.on("dblclick", async (e) => {
-        console.log("features", map.queryRenderedFeatures(e.point));
         e.preventDefault();
-        data_promise = await TimeColorMapper.fetch(e.lngLat);
-        map.setPaintProperty("transit-layer", "line-color", ["get", ["to-string", ["id"]], ["literal", data_promise.m]]);
+        await refetch_data(e.lngLat)
     });
 
     const popup = new mapboxgl.Popup({
@@ -80,11 +93,11 @@ map.on("load", async () => {
                 popup.setHTML(format_popup_html(seconds, details));
                 popup.addTo(map);
             }
-        }, 600);
+        }, 400);
 
 
     });
-    map.on("mouseleave", "transit-layer", (e) => {
+    map.on("mouseleave", "transit-layer", () => {
         map.getCanvas().style.cursor = "";
         popup.remove();
         clearTimeout(currentTask);

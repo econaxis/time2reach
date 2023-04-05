@@ -1,5 +1,5 @@
 use crate::gtfs_processing::{RouteStopSequence, SpatialStopsWithTrips};
-use crate::gtfs_wrapper::StopTime;
+use crate::gtfs_wrapper::{RouteType, StopTime};
 use crate::in_progress_trip::InProgressTrip;
 use crate::reach_data::ReachData;
 use crate::road_structure::RoadStructure;
@@ -77,6 +77,7 @@ pub struct Configuration {
     pub duration_secs: f64,
     pub location: LatLng,
     pub agency_ids: HashSet<u8>,
+    pub modes: Vec<RouteType>
 }
 
 pub fn generate_reach_times(
@@ -211,20 +212,20 @@ fn explore_from_point(
                 let is_valid_agency =
                     config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
 
+
                 let this_trip = &gtfs.trips[&next_bus.trip_id];
+                let this_route = &gtfs.routes[&this_trip.route_id];
+
+                let is_valid_mode = || {
+                    config.modes.is_empty() || config.modes.contains(&this_route.route_type)
+                };
                 let service_runs_on_day = || {
                     gtfs.calendar
                         .runs_on_date(this_trip.service_id, *PRESENT_DAY)
                 };
 
-                let is_free_tranfer = if this_trip.block_id.is_some()
-                    && this_trip.block_id.as_ref() == current_trip.and_then(|a| a.block_id.as_ref())
-                {
-                    println!("Free transfer detected! {:?} ", this_trip.trip_headsign);
-                    true
-                } else {
-                    false
-                };
+                let is_free_tranfer = this_trip.block_id.is_some()
+                    && this_trip.block_id.as_ref() == current_trip.and_then(|a| a.block_id.as_ref());
 
                 let transfers_remaining = if is_free_tranfer {
                     ip.total_transfers
@@ -234,6 +235,7 @@ fn explore_from_point(
 
                 if is_valid_agency
                     && service_runs_on_day()
+                    && is_valid_mode()
                     && explore_queue.should_explore(next_bus)
                 {
                     all_stops_along_trip(

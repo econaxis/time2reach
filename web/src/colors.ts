@@ -1,20 +1,20 @@
 import createColorMap from "colormap";
 import mapboxgl from "mapbox-gl";
+import fetch_form_data, { fetch_modes_data } from "./fetch-form-data";
+import { duration_range } from "./settings-form";
 
 const NSHADES = 300
 export const cmap = createColorMap({
     alpha: 0.4,
-    colormap: "bluered",
+    colormap: "portland",
     format: "hex",
     nshades: NSHADES,
 });
 
-export function mapper(value) {
+function mapper(value) {
     value = 1.1 / (1 + Math.exp(-3 * (2 * value - 1.2))) - 0.05
     return value
 }
-
-window.mapper = mapper;
 
 
 export function get_color_0_1(value: number): string {
@@ -23,9 +23,11 @@ export function get_color_0_1(value: number): string {
     }
 
     value = Math.sqrt(value)
-    value = window.mapper(value)
+    value = mapper(value)
     return cmap[Math.trunc(value * NSHADES)]
 }
+
+let lastLatLng: mapboxgl.LngLat | undefined = undefined;
 export class TimeColorMapper {
     m: Record<number, any>;
     raw: Record<number, any>;
@@ -41,13 +43,22 @@ export class TimeColorMapper {
         this.request_id = 0;
     }
 
-    static async fetch(latlng: mapboxgl.LngLat) {
+    static async fetch(latlng?: mapboxgl.LngLat) {
+        if (latlng === undefined && lastLatLng) {
+            console.log('using previous latlng');
+            latlng = lastLatLng;
+        } else if (latlng) {
+            lastLatLng = latlng;
+        } else {
+            throw new Error()
+        }
+
         const body = {
             latitude: latlng.lat,
             longitude: latlng.lng,
-            agencies: []
+            agencies: fetch_form_data(),
+            modes: fetch_modes_data()
         }
-        console.log('getting new data', body)
         const data = await fetch("http://localhost:3030/hello", {
             method: "POST",
             mode: "cors",
@@ -59,7 +70,7 @@ export class TimeColorMapper {
         });
         const js = await data.json();
 
-        const {request_id, edge_times} = js;
+        const { request_id, edge_times } = js;
 
         const colors = new TimeColorMapper();
 
@@ -69,19 +80,27 @@ export class TimeColorMapper {
             colors.min = Math.min(colors.min, time);
             colors.max = Math.max(colors.max, time);
         }
-
-        const spread = colors.max - colors.min
-
-        for (const id in colors.raw) {
-            colors.m[id] = colors.raw[id] - colors.min
-            colors.m[id] /= spread
-
-            colors.m[id] = get_color_0_1(colors.m[id])
-
-        }
         colors.request_id = request_id;
-        window.colors = colors.m;
+
+        colors.max = colors.min + parseInt(duration_range.value);
+        colors.calculate_colors();
+        // duration_range.value = String(colors.max - colors.min);
         return colors;
+    }
+    calculate_colors() {
+        const spread = this.max - this.min
+
+        for (const id in this.raw) {
+            this.m[id] = this.raw[id] - this.min
+            this.m[id] /= spread
+
+            if (this.m[id] > 1.0) {
+                delete this.m[id];
+            } else {
+                this.m[id] = get_color_0_1(this.m[id])
+            }
+        }
+
     }
 
     get_color(from_node: number, to_node: number): string {

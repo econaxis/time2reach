@@ -39,7 +39,7 @@ use trips_arena::TripsArena;
 
 const WALKING_SPEED: f64 = 1.25;
 const STRAIGHT_WALKING_SPEED: f64 = 0.90;
-pub const MIN_TRANSFER_SECONDS: f64 = 4.0;
+pub const MIN_TRANSFER_SECONDS: f64 = 5.0;
 
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
@@ -80,6 +80,7 @@ fn main1() {
                 duration_secs: 3600.0 * 1.5,
                 location: LatLng::from_lat_lng(43.68228522699712, -79.6125297053927),
                 agency_ids: HashSet::new(),
+                modes: vec![]
             },
         );
         time_to_point(
@@ -126,7 +127,7 @@ fn main() {
 
 fn setup_gtfs() -> Gtfs1 {
     let mut gtfs = gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs",
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/ttc",
         "TTC",
     );
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(

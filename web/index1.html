@@ -5,21 +5,90 @@
     <title>Time To Reach</title>
 
 
-    <link href='https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css' rel='stylesheet' />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css" rel="stylesheet" />
     <script defer src="node_modules/@fortawesome/fontawesome-free/js/brands.js"></script>
     <script defer src="node_modules/@fortawesome/fontawesome-free/js/solid.js"></script>
     <script defer src="node_modules/@fortawesome/fontawesome-free/js/fontawesome.js"></script>
+    <link rel="stylesheet" href="tailwind.css" />
 
 </head>
 <body style="height: 100%">
-<div id="map" class="map" style="width: 100%; height: 99vh; position: absolute"></div>
+<div id="map" class="map w-full h-screen"></div>
 
 <script type="module" src="/src/ol.ts"></script>
 
-</body>
-</html></title>
-</head>
-<body>
+
+<div class="absolute top-0 right-0 m-8 max-w-sm p-5 bg-white border border-gray-200 rounded-lg shadow">
+    <p class="text-gray-700 text-sm">Double click anywhere to see how far you can get using public transit.</p>
+
+    <div class="mt-2">
+        <h2 class="font-medium text-lg font-bold border-b">Agencies</h2>
+
+        <div class="mt-2">
+            <form id="agency-form">
+                <div>
+                    <input id="ttc" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="ttc" class="ml-1 text-gray-900">Toronto Transit Commission</label></div>
+
+                <div><input id="up" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="up" class="ml-1 text-gray-900">UP Express</label></div>
+
+                <div><input id="go" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="go" class="ml-1 text-gray-900">GO</label></div>
+
+                <div><input id="yrt" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="yrt" class="ml-1 text-gray-900">York Region Transit</label></div>
+
+                <div><input id="brampton" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="brampton" class="ml-1 text-gray-900">Brampton Transit</label></div>
+
+                <div><input id="miway" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="miway" class="ml-1 text-gray-900">Miway</label></div>
+
+                <div><input id="grt" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="grt" class="ml-1 text-gray-900">GRT (Kitchener & Waterloo)</label></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="mt-2">
+        <h2 class="font-medium text-lg font-bold border-b">Modes</h2>
+
+        <div class="mt-2">
+            <form id="modes-form">
+                <div><input id="bus" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="bus" class="ml-1 text-gray-900">Bus</label></div>
+
+                <div><input id="rail" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="rail" class="ml-1 text-gray-900">Rail</label></div>
+
+                <div><input id="subway" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="subway" class="ml-1 text-gray-900">Subway</label></div>
+
+                <div><input id="tram" type="checkbox" checked="checked" class="checkbox" />
+                    <label for="tram" class="ml-1 text-gray-900">Tram</label></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="mt-2">
+        <h2 class="font-medium text-lg font-bold border-b">Time Settings</h2>
+
+        <div class="mt-2">
+            <div>
+                <label for="duration-range" class="float-left mb-1 text-sm font-medium text-gray-900">Maximum duration
+                    of
+                    trip</label>
+                <span id="duration-label"
+                      class="float-right inline-block mb-1 text-sm font-light text-gray-700"></span>
+            </div>
+            <input id="duration-range" type="range" min="1800" max="7200" value="4500"
+                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+        </div>
+    </div>
+</div>
+
 
 </body>
+
 </html>
