@@ -136,7 +136,7 @@ impl RoadStructure {
     pub fn nearest_times_to_point(
         &self,
         point: &[f64; 2],
-    ) -> impl Iterator<Item = GeomWithData<[f64; 2], &ReachData>> + '_ {
+    ) -> impl Iterator<Item=GeomWithData<[f64; 2], &ReachData>> + '_ {
         self.rs
             .n_nearest_nodes_to_point(point, 5)
             .filter_map(|geom| {
@@ -165,8 +165,8 @@ pub struct NodeTime {
 
 impl Serialize for NodeTime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where
+            S: Serializer,
     {
         let mut tuple = serializer.serialize_tuple(2).unwrap();
         tuple.serialize_element(&self.node_id).unwrap();
@@ -187,16 +187,13 @@ impl RoadStructureInner {
         to_explore: &mut VecDeque<(NodeId, Time)>,
         node_best_times: &mut BestTimes<NodeId>,
     ) {
-        println!("Got to node--{:?} {}", node, TimeFormatter::new(base_time.timestamp));
         if node_best_times
             .get(&node)
             .map(|a| a.timestamp < base_time.timestamp)
             .unwrap_or(false)
         {
-            println!("Pruning");
             return;
         }
-        println!("Not pruning");
 
         for edge_ in self.all_edges_from_node(node) {
             let edge = &self.edges[edge_];
@@ -230,7 +227,7 @@ impl RoadStructureInner {
         &self,
         point: &[f64; 2],
         number: usize,
-    ) -> impl Iterator<Item = &GeomWithData<[f64; 2], NodeId>> + '_ {
+    ) -> impl Iterator<Item=&GeomWithData<[f64; 2], NodeId>> + '_ {
         self.nodes_rtree.nearest_neighbor_iter(point).take(number)
     }
     pub fn explore_from_point(

@@ -7,14 +7,6 @@ pub struct BestTimes<T: Hash + Copy + PartialEq + Eq + Serialize> {
     inner: HashMap<T, ReachData>,
 }
 
-impl<T: Hash + Copy + PartialEq + Eq + Serialize> serde::Serialize for BestTimes<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.inner.serialize(serializer)
-    }
-}
 
 impl<T: Hash + Copy + PartialEq + Eq + Serialize> BestTimes<T> {
     pub fn new() -> Self {

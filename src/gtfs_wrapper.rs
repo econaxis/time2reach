@@ -6,6 +6,7 @@ use rkyv::{Serialize, Deserialize, Archive};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
+use crate::calendar::{Calendar, CalendarException, CalendarExceptionList, Service};
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
@@ -107,7 +108,7 @@ impl From<gtfs_structures::LocationType> for LocationType {
     }
 }
 
-trait FromWithAgencyId<From> {
+pub trait FromWithAgencyId<From> {
     fn from_with_agency_id(agency_id: u8, f: From) -> Self
         where
             Self: Sized;
@@ -118,7 +119,7 @@ thread_local! {
         RefCell::new(HashMap::new())
     };
 }
-fn try_parse_id(a: &str) -> u64 {
+pub fn try_parse_id(a: &str) -> u64 {
     match a.parse() {
         Ok(x) => x,
         Err(_) => ID_MAP.with(|idmap| {
@@ -235,6 +236,9 @@ pub struct Route {
     pub url: Option<String>,
     /// Orders the routes in a way which is ideal for presentation to customers. Routes with smaller route_sort_order values should be displayed first.
     pub order: Option<u32>,
+    pub color: String,
+    pub text_color: String,
+
 }
 
 impl FromWithAgencyId<gtfs_structures::Route> for Route {
@@ -247,6 +251,8 @@ impl FromWithAgencyId<gtfs_structures::Route> for Route {
             route_type: a.route_type.into(),
             url: a.url,
             order: a.order,
+            color: a.color.to_string(),
+            text_color: a.text_color.to_string(),
         }
     }
 }
@@ -276,10 +282,11 @@ pub struct Gtfs0 {
     /// All trips by `trip_id`
     pub trips: Vec<Trip>,
     pub stop_times: Vec<StopTime>,
+    pub calendar: Vec<Service>,
+    pub calendar_dates: Vec<CalendarException>,
     pub agency_id: u8,
 }
 
-#[derive(Debug)]
 pub struct Gtfs1 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: HashMap<IdType, Stop>,
@@ -287,9 +294,10 @@ pub struct Gtfs1 {
     pub routes: HashMap<IdType, Route>,
     /// All trips by `trip_id`
     pub trips: HashMap<IdType, Trip>,
+    pub calendar: Calendar,
 }
 
-fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<IdType, T> {
+pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<IdType, T> {
     let mut hashmap = HashMap::new();
     for v in vec {
         let id = accessor(&v);
@@ -333,18 +341,23 @@ impl From<Gtfs0> for Gtfs1 {
             stop_time_vec.push(st);
         }
 
+        let calendar = Calendar::parse(a.calendar, a.calendar_dates);
         Self {
             stops,
             routes: vec_to_hashmap(a.routes, |route| route.id),
             trips,
+            calendar
         }
     }
 }
+
 
 impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
         let agency_id = AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
         Self {
+            calendar: a.calendar.unwrap_or(Ok(vec![])).unwrap_or(vec![]).into_iter().map(|a| Service::from_with_agency_id(agency_id, a)).collect(),
+            calendar_dates: a.calendar_dates.unwrap_or(Ok(vec![])).unwrap_or(vec![]).into_iter().map(|a| CalendarException::from_with_agency_id(agency_id, a)).collect(),
             stops: a
                 .stops
                 .unwrap()

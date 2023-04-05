@@ -28,9 +28,9 @@ map.on("load", async () => {
     });
 
 
-    const layer = map.addLayer(
+    map.addLayer(
         {
-            "id": "somed", // Layer ID
+            "id": "transit-layer", // Layer ID
             "type": "line",
             "source": "some id", // ID of the tile source created above
             "source-layer": "edges",
@@ -51,7 +51,7 @@ map.on("load", async () => {
         console.log("features", map.queryRenderedFeatures(e.point));
         e.preventDefault();
         data_promise = await TimeColorMapper.fetch(e.lngLat);
-        map.setPaintProperty("somed", "line-color", ["get", ["to-string", ["id"]], ["literal", data_promise.m]]);
+        map.setPaintProperty("transit-layer", "line-color", ["get", ["to-string", ["id"]], ["literal", data_promise.m]]);
     });
 
     const popup = new mapboxgl.Popup({
@@ -59,7 +59,7 @@ map.on("load", async () => {
     });
 
     let currentTask = undefined;
-    map.on("mouseover", "somed", async (e) => {
+    map.on("mouseover", "transit-layer", async (e) => {
         if (currentTask) clearTimeout(currentTask);
 
         map.getCanvas().style.cursor = "crosshair";
@@ -84,7 +84,7 @@ map.on("load", async () => {
 
 
     });
-    map.on("mouseleave", "somed", (e) => {
+    map.on("mouseleave", "transit-layer", (e) => {
         map.getCanvas().style.cursor = "";
         // popup.remove();
         clearTimeout(currentTask);

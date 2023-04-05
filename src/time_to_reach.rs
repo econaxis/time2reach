@@ -1,8 +1,5 @@
 use crate::road_structure::RoadStructure;
-use crate::{
-    projection, BusPickupInfo, Gtfs1, IdType, InProgressTrip, ReachData, RouteStopSequence,
-    SpatialStopsWithTrips, TripsArena, NULL_ID, STRAIGHT_WALKING_SPEED, WALKING_SPEED,
-};
+use crate::{projection, BusPickupInfo, Gtfs1, IdType, InProgressTrip, ReachData, RouteStopSequence, SpatialStopsWithTrips, TripsArena, NULL_ID, STRAIGHT_WALKING_SPEED, WALKING_SPEED, PRESENT_DAY, MIN_TRANSFER_SECONDS};
 use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
@@ -113,7 +110,6 @@ pub fn generate_reach_times(
         }
 
         if item.get_off_stop_id != NULL_ID || true {
-            println!("Adding observation {:?}", item.current_route.route_id);
             rs.add_observation(
                 &item.point,
                 ReachData {
@@ -189,7 +185,6 @@ fn explore_from_point(
         let stop_d = &stop.data;
 
         let time_to_stop = distance.sqrt() / STRAIGHT_WALKING_SPEED;
-        const MIN_TRANSFER_SECONDS: f64 = 4.0;
         let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
         for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
             // Search for route pickup on or after the starting_timestamp
@@ -202,13 +197,14 @@ fn explore_from_point(
                 trip_id: NULL_ID,
             };
             if let Some(next_bus) = route_pickup.range(starting_buspickup..).next() {
-                // For all next stops on the line...push into explore_queue to force a transfer
                 assert!(next_bus.timestamp >= this_timestamp);
-                println!("Next bus: {:?}", next_bus);
 
                 let is_valid_agency = config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
 
-                if is_valid_agency && explore_queue.should_explore(next_bus) {
+                let trip = &gtfs.trips[&next_bus.trip_id];
+                let service_runs_on_day = || gtfs.calendar.runs_on_date(trip.service_id, *PRESENT_DAY);
+
+                if is_valid_agency && service_runs_on_day() && explore_queue.should_explore(next_bus) {
                     all_stops_along_trip(
                         gtfs,
                         next_bus.trip_id,

@@ -17,6 +17,7 @@
         "vite": "^4.0.0"
     },
     "dependencies": {
+        "@fortawesome/fontawesome-free": "^6.4.0",
         "@types/colormap": "^2.3.1",
         "@types/mapbox-gl": "^2.7.10",
         "autoprefixer": "^10.4.14",

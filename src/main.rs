@@ -1,3 +1,4 @@
+#![feature(trivial_bounds)]
 #![feature(file_create_new)]
 #![feature(vec_into_raw_parts)]
 
@@ -12,6 +13,7 @@ mod time;
 mod time_to_reach;
 mod trips_arena;
 mod web;
+mod calendar;
 
 use crate::gtfs_wrapper::DirectionType;
 use id_arena::Id;
@@ -28,6 +30,8 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::hash::Hash;
 
 use std::time::Instant;
+use chrono::NaiveDate;
+use lazy_static::lazy_static;
 pub use time_to_reach::TimeToReachRTree;
 
 use crate::formatter::time_to_point;
@@ -43,9 +47,16 @@ use trips_arena::TripsArena;
 
 const WALKING_SPEED: f64 = 1.35;
 const STRAIGHT_WALKING_SPEED: f64 = 0.95;
+pub const MIN_TRANSFER_SECONDS: f64 = 4.0;
+
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
+lazy_static!{
+    pub static ref PRESENT_DAY: NaiveDate = {
+        NaiveDate::from_ymd_opt(2023, 04, 04).unwrap()
+    };
+}
 #[derive(Default, Debug)]
 pub struct RoutePickupTimes(HashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
 
@@ -146,11 +157,10 @@ pub struct InProgressTrip {
     previous_transfer: Option<Id<InProgressTrip>>,
 }
 
-#[derive(PartialOrd, PartialEq, Eq, Debug, Serialize, Clone)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Clone)]
 pub struct ReachData {
     timestamp: Time,
 
-    #[serde(skip)]
     progress_trip_id: Option<Id<InProgressTrip>>,
     transfers: u8,
 }
@@ -242,17 +252,20 @@ fn setup_gtfs() -> Gtfs1 {
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
             "/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs", "TTC"
     ));
-    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS",
-    // ));
-    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt",
-    // ));
-    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton",
-    // ));
-    // gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-    //     "/Users/henry.nguyen@snapcommerce.com/Downloads/miway",
-    // ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/waterloo_grt", "GRT"
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS", "GO"
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt", "YRT"
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton", "BRAMPTON"
+    ));
+    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/miway", "MIWAY"
+    ));
     gtfs
 }

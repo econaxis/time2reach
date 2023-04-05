@@ -45,7 +45,7 @@ export class TimeColorMapper {
         const body = {
             latitude: latlng.lat,
             longitude: latlng.lng,
-            agencies: ["TTC"]
+            agencies: []
         }
         console.log('getting new data', body)
         const data = await fetch("http://localhost:3030/hello", {

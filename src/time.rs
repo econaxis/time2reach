@@ -1,14 +1,13 @@
-use serde::{Serialize, Serializer};
 use std::cmp::Ordering;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Pointer};
 use std::ops::{Add, Div, Mul, Sub};
 
-#[derive(PartialOrd, PartialEq, Copy, Clone, Debug, Serialize)]
+#[derive(PartialOrd, PartialEq, Copy, Clone, Debug)]
 pub struct Time(pub f64);
 
 impl Display for Time {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.serialize_f64(self.0)
+        self.0.fmt(f)
     }
 }
 impl Ord for Time {

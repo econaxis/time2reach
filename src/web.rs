@@ -1,4 +1,4 @@
-use crate::formatter::time_to_point;
+use crate::formatter::{get_route_mode, time_to_point};
 use crate::road_structure::{EdgeId, RoadStructureInner};
 use crate::time_to_reach::Configuration;
 use crate::{gtfs_setup, time_to_reach, Gtfs1, RoadStructure, SpatialStopsWithTrips, Time, NULL_ID};
@@ -102,6 +102,9 @@ struct TripDetailsInner {
 
 #[derive(Serialize, Deserialize)]
 struct TripDetails {
+    background_color: String,
+    text_color: String,
+    mode: &'static str,
     boarding: TripDetailsInner,
     exit: TripDetailsInner,
 }
@@ -134,6 +137,9 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
         let boarding_stop = &ad.gtfs.stops[&trip.boarding_stop_id];
         let exit_stop = &ad.gtfs.stops[&trip.get_off_stop_id];
         details_list.push(TripDetails {
+            mode: get_route_mode(&ad.gtfs, trip),
+            background_color: route.color.clone(),
+            text_color: route.text_color.clone(),
             boarding: TripDetailsInner {
                 time: trip.boarding_time.0,
                 line: route.short_name.clone(),

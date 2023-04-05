@@ -16,7 +16,7 @@ pub struct TimeFormatter {
 
 impl TimeFormatter {
     pub fn new(secs: Time) -> Self {
-        Self {secs}
+        Self { secs }
     }
 }
 
@@ -28,6 +28,19 @@ impl Display for TimeFormatter {
         let seconds = secs % 60;
 
         f.write_fmt(format_args!("{:02}:{:02}:{:02}", hours, minutes, seconds))
+    }
+}
+
+pub fn get_route_mode(gtfs: &Gtfs1,
+                      trip: &InProgressTrip) -> &'static str {
+    let route_id = trip.current_route.route_id;
+    let route = &gtfs.routes[&route_id];
+    match route.route_type {
+        RouteType::Bus => "bus",
+        RouteType::Tramway => "tram",
+        RouteType::Subway  => "subway",
+        RouteType::Rail => "rail",
+        _ => "",
     }
 }
 
