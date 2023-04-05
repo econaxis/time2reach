@@ -1,7 +1,7 @@
-use id_arena::Id;
-use crate::IdType;
 use crate::gtfs_processing::RouteStopSequence;
 use crate::time::Time;
+use crate::IdType;
+use id_arena::Id;
 
 #[derive(Debug, Clone)]
 pub struct InProgressTrip {
@@ -14,5 +14,5 @@ pub struct InProgressTrip {
     pub get_off_stop_id: IdType,
     pub boarding_stop_id: IdType,
     pub previous_transfer: Option<Id<InProgressTrip>>,
-    pub is_free_transfer: bool
+    pub is_free_transfer: bool,
 }

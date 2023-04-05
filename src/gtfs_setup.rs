@@ -1,22 +1,18 @@
 use crate::trips_arena::TripsArena;
 use crate::{Gtfs0, Gtfs1, LibraryGTFS};
 use id_arena::Id;
+use lazy_static::lazy_static;
 use log::info;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
-use lazy_static::lazy_static;
-use std::collections::HashMap;
-use std::cell::RefCell;
 
-use std::sync::Mutex;
 use crate::gtfs_processing::StopsWithTrips;
 use crate::in_progress_trip::InProgressTrip;
+use std::sync::Mutex;
 lazy_static! {
-    static ref AGENCY_MAP: Mutex<HashMap<String, u8>> = {
-        Mutex::new(HashMap::new())
-    };
+    static ref AGENCY_MAP: Mutex<HashMap<String, u8>> = Mutex::new(HashMap::new());
 }
-
 
 #[inline(never)]
 pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
@@ -33,7 +29,6 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
 fn test_1() {
     initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs-test1");
 }
-
 
 pub fn get_agency_id_from_short_name(short_name: &str) -> u8 {
     let map = AGENCY_MAP.lock().unwrap();
@@ -54,7 +49,9 @@ pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
         let mut file = File::open(format!("{path}-1.rkyv")).unwrap();
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes).unwrap();
-        unsafe { rkyv::from_bytes_unchecked::<Gtfs0>(&bytes) }.unwrap().into()
+        unsafe { rkyv::from_bytes_unchecked::<Gtfs0>(&bytes) }
+            .unwrap()
+            .into()
     };
     let sample_id = result.stops.keys().next().unwrap();
     let mut map = AGENCY_MAP.lock().unwrap();

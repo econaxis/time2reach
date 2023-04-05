@@ -1,7 +1,9 @@
 use crate::formatter::{get_route_mode, time_to_point};
+use crate::gtfs_processing::SpatialStopsWithTrips;
+use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::road_structure::{EdgeId, RoadStructureInner};
 use crate::time_to_reach::Configuration;
-use crate::{Gtfs1, gtfs_setup, NULL_ID, RoadStructure, Time, time_to_reach};
+use crate::{gtfs_setup, time_to_reach, Gtfs1, RoadStructure, Time, NULL_ID};
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -9,10 +11,13 @@ use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use warp::{Filter, Reply};
-use crate::gtfs_processing::SpatialStopsWithTrips;
-use crate::gtfs_setup::get_agency_id_from_short_name;
 
-fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64, include_agencies: Vec<String>) -> impl Reply {
+fn process_coordinates(
+    ad: &mut AppData,
+    lat: f64,
+    lng: f64,
+    include_agencies: Vec<String>,
+) -> impl Reply {
     let gtfs = &ad.gtfs;
     let spatial_stops = &ad.spatial;
     let rs_template = ad.rs_template.clone();
@@ -21,7 +26,10 @@ fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64, include_agencies: V
     ad.rs_list.push(rs);
     let mut rs = ad.rs_list.last_mut().unwrap();
 
-    let agency_ids: HashSet<u8> = include_agencies.iter().map(|ag| get_agency_id_from_short_name(ag)).collect();
+    let agency_ids: HashSet<u8> = include_agencies
+        .iter()
+        .map(|ag| get_agency_id_from_short_name(ag))
+        .collect();
 
     let _answer = time_to_reach::generate_reach_times(
         gtfs,
@@ -132,7 +140,6 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
     // Automatically skips
     let mut has_free_transfer_from_prev = false;
     for trip in formatter.unwrap().trips {
-
         if trip.current_route.route_id == NULL_ID {
             // Begin of trip. Skip here.
             continue;
@@ -154,18 +161,17 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
             boarding: TripDetailsInner {
                 time: trip.boarding_time.0,
                 line: route.short_name.clone(),
-                stop: boarding_stop.name.clone()
+                stop: boarding_stop.name.clone(),
             },
             exit: TripDetailsInner {
                 time: trip.exit_time.0,
                 line: route.short_name.clone(),
-                stop: exit_stop_msg
-            }
+                stop: exit_stop_msg,
+            },
         });
 
         has_free_transfer_from_prev = trip.is_free_transfer;
     }
-
 
     details_list.reverse();
     warp::reply::json(&details_list)
@@ -173,7 +179,7 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
 
 fn with_appdata(
     ad: Arc<Mutex<AppData>>,
-) -> impl Filter<Extract=(Arc<Mutex<AppData>>, ), Error=Infallible> + Clone {
+) -> impl Filter<Extract = (Arc<Mutex<AppData>>,), Error = Infallible> + Clone {
     warp::any().map(move || ad.clone())
 }
 

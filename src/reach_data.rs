@@ -1,6 +1,6 @@
-use id_arena::Id;
 use crate::in_progress_trip::InProgressTrip;
 use crate::time::Time;
+use id_arena::Id;
 
 #[derive(PartialOrd, PartialEq, Eq, Debug, Clone)]
 pub struct ReachData {
@@ -10,13 +10,6 @@ pub struct ReachData {
 }
 
 impl ReachData {
-    pub fn new_with_time(time: Time) -> Self {
-        Self {
-            timestamp: time,
-            progress_trip_id: None,
-            transfers: 0,
-        }
-    }
     pub fn with_time(&self, time: Time) -> Self {
         ReachData {
             timestamp: time,

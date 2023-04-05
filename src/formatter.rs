@@ -1,10 +1,10 @@
+use crate::gtfs_wrapper::RouteType;
+use crate::in_progress_trip::InProgressTrip;
 use crate::time::Time;
 use crate::trips_arena::TripsArena;
-use crate::{Gtfs1, gtfs_setup, NULL_ID, RoadStructure, WALKING_SPEED};
-use crate::gtfs_wrapper::RouteType;
+use crate::{gtfs_setup, Gtfs1, RoadStructure, NULL_ID, WALKING_SPEED};
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
-use crate::in_progress_trip::InProgressTrip;
 
 pub struct InProgressTripsFormatter<'a, 'b> {
     pub(crate) trips: Vec<&'a InProgressTrip>,
@@ -32,14 +32,13 @@ impl Display for TimeFormatter {
     }
 }
 
-pub fn get_route_mode(gtfs: &Gtfs1,
-                      trip: &InProgressTrip) -> &'static str {
+pub fn get_route_mode(gtfs: &Gtfs1, trip: &InProgressTrip) -> &'static str {
     let route_id = trip.current_route.route_id;
     let route = &gtfs.routes[&route_id];
     match route.route_type {
         RouteType::Bus => "bus",
         RouteType::Tramway => "tram",
-        RouteType::Subway  => "subway",
+        RouteType::Subway => "subway",
         RouteType::Rail => "rail",
         _ => "",
     }

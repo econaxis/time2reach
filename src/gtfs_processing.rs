@@ -1,9 +1,9 @@
-use std::collections::{BTreeSet, HashMap};
-use rstar::RTree;
-use rstar::primitives::GeomWithData;
-use crate::{BusPickupInfo, IdType, NULL_ID, projection};
 use crate::gtfs_wrapper::{Gtfs1, StopTime, Trip};
 use crate::time::Time;
+use crate::{projection, BusPickupInfo, IdType, NULL_ID};
+use rstar::primitives::GeomWithData;
+use rstar::RTree;
+use std::collections::{BTreeSet, HashMap};
 
 #[derive(Default, Debug)]
 pub struct RoutePickupTimes(pub HashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
@@ -50,7 +50,7 @@ pub struct StopsWithTrips(pub HashMap<IdType, RoutePickupTimes>);
 #[derive(Debug)]
 pub struct StopsData {
     pub trips_with_time: RoutePickupTimes,
-    pub stop_id: IdType
+    pub stop_id: IdType,
 }
 
 #[derive(Debug)]
@@ -73,7 +73,10 @@ impl StopsWithTrips {
             let stop = &gtfs.stops[&stop_id];
             let stop_coords = projection::project_stop(stop);
 
-            let stops_data = StopsData { trips_with_time, stop_id };
+            let stops_data = StopsData {
+                trips_with_time,
+                stop_id,
+            };
             points_data.push(GeomWithData::new(stop_coords, stops_data));
         }
 

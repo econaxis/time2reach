@@ -1,86 +1,82 @@
-use crate::road_structure::RoadStructure;
-use crate::{BusPickupInfo, Gtfs1, IdType, MIN_TRANSFER_SECONDS, NULL_ID, PRESENT_DAY, projection, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
-use id_arena::Id;
-use rstar::primitives::GeomWithData;
-use rstar::{PointDistance, RTree};
-use std::collections::HashSet;
 use crate::gtfs_processing::{RouteStopSequence, SpatialStopsWithTrips};
 use crate::gtfs_wrapper::StopTime;
 use crate::in_progress_trip::InProgressTrip;
 use crate::reach_data::ReachData;
+use crate::road_structure::RoadStructure;
+use crate::{
+    projection, BusPickupInfo, Gtfs1, IdType, TripsArena, MIN_TRANSFER_SECONDS, NULL_ID,
+    PRESENT_DAY, STRAIGHT_WALKING_SPEED,
+};
+use id_arena::Id;
+use std::collections::HashSet;
 
 use crate::time::Time;
 use crate::web::LatLng;
 
-#[derive(Debug, Default)]
-pub struct TimeToReachRTree {
-    pub(crate) tree: RTree<GeomWithData<[f64; 2], ReachData>>,
-}
-pub fn calculate_score(original_point: &[f64; 2], obs: &GeomWithData<[f64; 2], ReachData>) -> Time {
-    let distance = obs.distance_2(original_point).sqrt();
-
-    let time_to_reach = distance / WALKING_SPEED;
-    let mut penalty = 10.0;
-    if time_to_reach >= 25.0 {
-        penalty += 1.5 * time_to_reach;
-    } else {
-        penalty += (time_to_reach - 25.0) * 7.0;
-    }
-
-    if time_to_reach >= 2.0 * 60.0 {
-        penalty += 1.0 * (time_to_reach - 2.0 * 60.0);
-    }
-
-    if obs.data.transfers >= 2 {
-        // Penalize time for every transfer performed
-        penalty += (obs.data.transfers as u32 - 1) as f64 * 20.0
-    }
-
-    let mut time_to_reach = obs.data.timestamp + penalty + time_to_reach;
-    if time_to_reach < obs.data.timestamp {
-        time_to_reach = obs.data.timestamp;
-    }
-    time_to_reach
-}
-
-impl TimeToReachRTree {
-
-    pub(crate) fn add_observation(&mut self, point: [f64; 2], mut data: ReachData) {
-        for near in self.tree.drain_within_distance(point, 15.0 * 15.0) {
-            let time_to_walk_here = near.data.timestamp + near.distance_2(&point) / WALKING_SPEED;
-            if time_to_walk_here < data.timestamp {
-                data.timestamp = time_to_walk_here;
-            }
-        }
-
-        self.tree.insert(GeomWithData::new(point, data));
-    }
-
-    // pub(crate) fn sample_fastest_time(&self, point: [f64; 2]) -> Option<u32> {
-    //     self.sample_fastest_time_within_distance(point, 600.0)
-    //         .or_else(|| self.sample_fastest_time_within_distance(point, 1500.0))
-    // }
-
-    // fn sample_fastest_time_within_distance(&self, point: [f64; 2], distance: f64) -> Option<u32> {
-    //     let best_time1 = self
-    //         .tree
-    //         .locate_within_distance(point, distance * distance)
-    //         .map(|obs| calculate_score(&point, obs))
-    //         .min();
-    //
-    //     best_time1
-    // }
-}
+// #[derive(Debug, Default)]
+// pub struct TimeToReachRTree {
+//     pub(crate) tree: RTree<GeomWithData<[f64; 2], ReachData>>,
+// }
+// pub fn calculate_score(original_point: &[f64; 2], obs: &GeomWithData<[f64; 2], ReachData>) -> Time {
+//     let distance = obs.distance_2(original_point).sqrt();
+//
+//     let time_to_reach = distance / WALKING_SPEED;
+//     let mut penalty = 10.0;
+//     if time_to_reach >= 25.0 {
+//         penalty += 1.5 * time_to_reach;
+//     } else {
+//         penalty += (time_to_reach - 25.0) * 7.0;
+//     }
+//
+//     if time_to_reach >= 2.0 * 60.0 {
+//         penalty += 1.0 * (time_to_reach - 2.0 * 60.0);
+//     }
+//
+//     if obs.data.transfers >= 2 {
+//         // Penalize time for every transfer performed
+//         penalty += (obs.data.transfers as u32 - 1) as f64 * 20.0
+//     }
+//
+//     let mut time_to_reach = obs.data.timestamp + penalty + time_to_reach;
+//     if time_to_reach < obs.data.timestamp {
+//         time_to_reach = obs.data.timestamp;
+//     }
+//     time_to_reach
+// }
+//
+// impl TimeToReachRTree {
+//     pub(crate) fn add_observation(&mut self, point: [f64; 2], mut data: ReachData) {
+//         for near in self.tree.drain_within_distance(point, 15.0 * 15.0) {
+//             let time_to_walk_here = near.data.timestamp + near.distance_2(&point) / WALKING_SPEED;
+//             if time_to_walk_here < data.timestamp {
+//                 data.timestamp = time_to_walk_here;
+//             }
+//         }
+//
+//         self.tree.insert(GeomWithData::new(point, data));
+//     }
+//
+//     // pub(crate) fn sample_fastest_time(&self, point: [f64; 2]) -> Option<u32> {
+//     //     self.sample_fastest_time_within_distance(point, 600.0)
+//     //         .or_else(|| self.sample_fastest_time_within_distance(point, 1500.0))
+//     // }
+//
+//     // fn sample_fastest_time_within_distance(&self, point: [f64; 2], distance: f64) -> Option<u32> {
+//     //     let best_time1 = self
+//     //         .tree
+//     //         .locate_within_distance(point, distance * distance)
+//     //         .map(|obs| calculate_score(&point, obs))
+//     //         .min();
+//     //
+//     //     best_time1
+//     // }
+// }
 
 pub struct Configuration {
     pub start_time: Time,
     pub duration_secs: f64,
     pub location: LatLng,
     pub agency_ids: HashSet<u8>,
-}
-
-pub struct ReachTimesResult {
-    pub trips_arena: TripsArena,
 }
 
 pub fn generate_reach_times(
@@ -131,7 +127,7 @@ pub fn generate_reach_times(
 fn get_stop_from_stop_seq_no(stop_times: &[StopTime], stop_sequence_no: u16) -> (&StopTime, usize) {
     for i in 0..stop_sequence_no as usize {
         if stop_times[i].stop_sequence == stop_sequence_no {
-            return (&stop_times[i], i)
+            return (&stop_times[i], i);
         }
     }
     unreachable!("{:?} {:?}", stop_times, stop_sequence_no)
@@ -148,10 +144,13 @@ fn all_stops_along_trip(
     is_free_transfer: bool,
 ) {
     let stop_times = &gtfs.trips[&trip_id].stop_times;
-    let (boarding_stop, stop_time_index) = get_stop_from_stop_seq_no(&stop_times, start_sequence_no);
+    let (boarding_stop, stop_time_index) =
+        get_stop_from_stop_seq_no(&stop_times, start_sequence_no);
 
-
-    for (_stops_travelled, st) in stop_times[stop_time_index as usize + 1..].iter().enumerate() {
+    for (_stops_travelled, st) in stop_times[stop_time_index as usize + 1..]
+        .iter()
+        .enumerate()
+    {
         let point = projection::project_stop(&gtfs.stops[&st.stop_id]);
         let timestamp = st.arrival_time.unwrap();
 
@@ -209,21 +208,34 @@ fn explore_from_point(
             for next_bus in route_pickup.range(starting_buspickup..) {
                 assert!(next_bus.timestamp >= this_timestamp);
 
-                let is_valid_agency = config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
+                let is_valid_agency =
+                    config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
 
                 let this_trip = &gtfs.trips[&next_bus.trip_id];
-                let service_runs_on_day = || gtfs.calendar.runs_on_date(this_trip.service_id, *PRESENT_DAY);
+                let service_runs_on_day = || {
+                    gtfs.calendar
+                        .runs_on_date(this_trip.service_id, *PRESENT_DAY)
+                };
 
-                let is_free_tranfer = if this_trip.block_id.is_some() && this_trip.block_id.as_ref() == current_trip.and_then(|a| a.block_id.as_ref()) {
+                let is_free_tranfer = if this_trip.block_id.is_some()
+                    && this_trip.block_id.as_ref() == current_trip.and_then(|a| a.block_id.as_ref())
+                {
                     println!("Free transfer detected! {:?} ", this_trip.trip_headsign);
                     true
                 } else {
                     false
                 };
 
-                let transfers_remaining = if is_free_tranfer {ip.total_transfers} else {ip.total_transfers + 1};
+                let transfers_remaining = if is_free_tranfer {
+                    ip.total_transfers
+                } else {
+                    ip.total_transfers + 1
+                };
 
-                if is_valid_agency && service_runs_on_day() && explore_queue.should_explore(next_bus) {
+                if is_valid_agency
+                    && service_runs_on_day()
+                    && explore_queue.should_explore(next_bus)
+                {
                     all_stops_along_trip(
                         gtfs,
                         next_bus.trip_id,
@@ -232,7 +244,7 @@ fn explore_from_point(
                         ip_id,
                         transfers_remaining,
                         explore_queue,
-                        is_free_tranfer
+                        is_free_tranfer,
                     );
                     routes_already_taken.insert(route_info.clone());
                     break;
@@ -241,7 +253,6 @@ fn explore_from_point(
                 }
             }
         }
-
     }
 }
 

@@ -1,12 +1,11 @@
-use std::collections::HashMap;
 use rkyv::{Archive, Deserialize, Serialize};
-use tokio::task_local;
-use chrono::{Datelike, NaiveDate, Weekday};
-use rkyv::with::ArchiveWith;
-use gtfs_structures::{CalendarDate, Id};
-use crate::gtfs_wrapper::{FromWithAgencyId, Gtfs0, try_parse_id, vec_to_hashmap};
-use crate::IdType;
+use std::collections::HashMap;
 
+use chrono::{Datelike, NaiveDate, Weekday};
+
+use crate::gtfs_wrapper::{try_parse_id, vec_to_hashmap, FromWithAgencyId};
+use crate::IdType;
+use gtfs_structures::{CalendarDate, Id};
 
 #[derive(Archive, Serialize, Deserialize, Debug)]
 pub struct Service {
@@ -25,7 +24,10 @@ pub struct Service {
 }
 
 impl FromWithAgencyId<gtfs_structures::Calendar> for Service {
-    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Calendar) -> Self where Self: Sized {
+    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Calendar) -> Self
+    where
+        Self: Sized,
+    {
         Service {
             id: (agency_id, try_parse_id(&f.id)),
             monday: f.monday,
@@ -81,7 +83,10 @@ pub struct CalendarException {
 }
 
 impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
-    fn from_with_agency_id(agency_id: u8, f: CalendarDate) -> Self where Self: Sized {
+    fn from_with_agency_id(agency_id: u8, f: CalendarDate) -> Self
+    where
+        Self: Sized,
+    {
         Self {
             service_id: (agency_id, try_parse_id(&f.service_id)),
             date: f.date,
@@ -95,7 +100,10 @@ pub struct CalendarExceptionList(HashMap<NaiveDate, CalendarException>);
 
 impl CalendarExceptionList {
     fn runs_on_date(&self, date: NaiveDate) -> bool {
-        self.0.get(&date).map(|exc| exc.exception_type == Exception::Added).unwrap_or(false)
+        self.0
+            .get(&date)
+            .map(|exc| exc.exception_type == Exception::Added)
+            .unwrap_or(false)
     }
 }
 
@@ -108,21 +116,19 @@ pub struct Calendar {
 impl Calendar {
     pub fn runs_on_date(&self, service_id: IdType, date: NaiveDate) -> bool {
         let normal = self.services.get(&service_id).map(|a| a.runs_on_date(date));
-        let exception = self.exceptions.get(&service_id).map(|a| a.runs_on_date(date));
+        let exception = self
+            .exceptions
+            .get(&service_id)
+            .map(|a| a.runs_on_date(date));
 
         match (normal, exception) {
-            (None, None) => {
-                true
-            },
-            _ => {
-                normal.unwrap_or(false) || exception.unwrap_or(false)
-            }
+            (None, None) => true,
+            _ => normal.unwrap_or(false) || exception.unwrap_or(false),
         }
     }
 
     pub fn parse(calendar: Vec<Service>, exceptions_list: Vec<CalendarException>) -> Self {
         let services = vec_to_hashmap(calendar, |a| a.id);
-
 
         let mut exceptions: HashMap<IdType, CalendarExceptionList> = HashMap::new();
 
@@ -130,7 +136,10 @@ impl Calendar {
             if let Some(inner) = exceptions.get_mut(&exc.service_id) {
                 inner.0.insert(exc.date, exc);
             } else {
-                exceptions.insert(exc.service_id, CalendarExceptionList([(exc.date, exc)].into()));
+                exceptions.insert(
+                    exc.service_id,
+                    CalendarExceptionList([(exc.date, exc)].into()),
+                );
             }
         }
         Self {

@@ -1,14 +1,14 @@
-use std::cmp::Ordering;
+use crate::in_progress_trip::InProgressTrip;
 use crate::time::Time;
 use crate::{BusPickupInfo, IdType};
 use id_arena::{Arena, Id};
-use std::collections::{BinaryHeap, HashMap, VecDeque};
-use crate::in_progress_trip::InProgressTrip;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 
 #[derive(PartialEq, Eq, Debug)]
 struct HeapIdTrip {
     inner: Id<InProgressTrip>,
-    compare: Time
+    compare: Time,
 }
 
 impl PartialOrd for HeapIdTrip {
@@ -61,7 +61,7 @@ impl TripsArena {
         let id = self.arena.alloc(item);
         let heap_struct = HeapIdTrip {
             compare: item_exit_time,
-            inner: id
+            inner: id,
         };
         self.explore_queue.push(heap_struct);
         Some(id)

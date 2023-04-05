@@ -1,12 +1,11 @@
 use crate::reach_data::ReachData;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::hash::Hash;
 
 pub struct BestTimes<T: Hash + Copy + PartialEq + Eq + Serialize> {
     inner: HashMap<T, ReachData>,
 }
-
 
 impl<T: Hash + Copy + PartialEq + Eq + Serialize> BestTimes<T> {
     pub fn new() -> Self {

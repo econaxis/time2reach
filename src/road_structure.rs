@@ -1,4 +1,4 @@
-use crate::{IdType, PROJSTRING, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
+use crate::{IdType, TripsArena, PROJSTRING, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
 use gdal::vector::LayerAccess;
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
 use geo_types::Point;
@@ -9,13 +9,13 @@ use serde::{Serialize, Serializer};
 use std::cell::UnsafeCell;
 use std::collections::{HashMap, VecDeque};
 
-use std::sync::Arc;
 use log::info;
+use std::sync::Arc;
 
 use crate::best_times::BestTimes;
 use crate::time::Time;
 use serde::ser::SerializeTuple;
-use crate::formatter::TimeFormatter;
+
 use crate::reach_data::ReachData;
 
 pub type EdgeId = u64;
@@ -137,7 +137,7 @@ impl RoadStructure {
     pub fn nearest_times_to_point(
         &self,
         point: &[f64; 2],
-    ) -> impl Iterator<Item=GeomWithData<[f64; 2], &ReachData>> + '_ {
+    ) -> impl Iterator<Item = GeomWithData<[f64; 2], &ReachData>> + '_ {
         self.rs
             .n_nearest_nodes_to_point(point, 5)
             .filter_map(|geom| {
@@ -166,8 +166,8 @@ pub struct NodeTime {
 
 impl Serialize for NodeTime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         let mut tuple = serializer.serialize_tuple(2).unwrap();
         tuple.serialize_element(&self.node_id).unwrap();
@@ -228,7 +228,7 @@ impl RoadStructureInner {
         &self,
         point: &[f64; 2],
         number: usize,
-    ) -> impl Iterator<Item=&GeomWithData<[f64; 2], NodeId>> + '_ {
+    ) -> impl Iterator<Item = &GeomWithData<[f64; 2], NodeId>> + '_ {
         self.nodes_rtree.nearest_neighbor_iter(point).take(number)
     }
     pub fn explore_from_point(

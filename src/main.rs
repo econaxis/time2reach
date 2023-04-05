@@ -3,43 +3,32 @@
 #![feature(vec_into_raw_parts)]
 
 mod best_times;
+mod calendar;
 mod formatter;
+mod gtfs_processing;
 mod gtfs_setup;
 mod gtfs_wrapper;
+mod in_progress_trip;
 mod projection;
+mod reach_data;
 mod road_structure;
 mod serialization;
 mod time;
 mod time_to_reach;
 mod trips_arena;
 mod web;
-mod calendar;
-mod reach_data;
-mod in_progress_trip;
-mod gtfs_processing;
 
 use crate::gtfs_wrapper::DirectionType;
-use id_arena::Id;
 
-use rstar::primitives::GeomWithData;
-use rstar::RTree;
-use serde::Serialize;
+use std::collections::HashSet;
 
-
-
-
-
-use std::collections::{BTreeSet, HashMap, HashSet};
-use std::hash::Hash;
-
-use std::time::Instant;
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
-pub use time_to_reach::TimeToReachRTree;
+use std::time::Instant;
 
 use crate::formatter::time_to_point;
-use crate::gtfs_wrapper::{Gtfs0, Gtfs1, StopTime, Trip};
-use crate::projection::{project_lng_lat, PROJSTRING};
+use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
+use crate::projection::PROJSTRING;
 use crate::road_structure::RoadStructure;
 use crate::time_to_reach::Configuration;
 use crate::web::LatLng;
@@ -55,10 +44,8 @@ pub const MIN_TRANSFER_SECONDS: f64 = 4.0;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
-lazy_static!{
-    pub static ref PRESENT_DAY: NaiveDate = {
-        NaiveDate::from_ymd_opt(2023, 04, 04).unwrap()
-    };
+lazy_static! {
+    pub static ref PRESENT_DAY: NaiveDate = NaiveDate::from_ymd_opt(2023, 04, 04).unwrap();
 }
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -92,7 +79,7 @@ fn main1() {
                 start_time: Time(3600.0 * 13.0),
                 duration_secs: 3600.0 * 1.5,
                 location: LatLng::from_lat_lng(43.68228522699712, -79.6125297053927),
-                agency_ids: HashSet::new()
+                agency_ids: HashSet::new(),
             },
         );
         time_to_point(
@@ -138,27 +125,33 @@ fn main() {
 }
 
 fn setup_gtfs() -> Gtfs1 {
-    let mut gtfs =
-        gtfs_setup::initialize_gtfs_as_bson(
-            "/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs", "TTC"
-        );
+    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson(
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs",
+        "TTC",
+    );
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express", "UP"
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express",
+        "UP",
     ));
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/waterloo_grt", "GRT"
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/waterloo_grt",
+        "GRT",
     ));
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS", "GO"
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS",
+        "GO",
     ));
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt", "YRT"
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt",
+        "YRT",
     ));
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton", "BRAMPTON"
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton",
+        "BRAMPTON",
     ));
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/miway", "MIWAY"
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/miway",
+        "MIWAY",
     ));
     gtfs
 }

@@ -1,12 +1,10 @@
+use crate::calendar::{Calendar, CalendarException, Service};
 use crate::IdType;
-use gtfs_structures::{
-    RawTrip,
-};
-use rkyv::{Serialize, Deserialize, Archive};
+use gtfs_structures::RawTrip;
+use rkyv::{Archive, Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
-use crate::calendar::{Calendar, CalendarException, CalendarExceptionList, Service};
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
@@ -110,8 +108,8 @@ impl From<gtfs_structures::LocationType> for LocationType {
 
 pub trait FromWithAgencyId<From> {
     fn from_with_agency_id(agency_id: u8, f: From) -> Self
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 thread_local! {
@@ -131,7 +129,7 @@ pub fn try_parse_id(a: &str) -> u64 {
                 idmap.insert(a.to_string(), id);
                 id
             }
-        })
+        }),
     }
 }
 
@@ -170,8 +168,8 @@ pub struct Stop {
 
 impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
     fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Stop) -> Self
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         Self {
             id: (agency_id, try_parse_id(&f.id)),
@@ -238,7 +236,6 @@ pub struct Route {
     pub order: Option<u32>,
     pub color: String,
     pub text_color: String,
-
 }
 
 impl FromWithAgencyId<gtfs_structures::Route> for Route {
@@ -346,18 +343,29 @@ impl From<Gtfs0> for Gtfs1 {
             stops,
             routes: vec_to_hashmap(a.routes, |route| route.id),
             trips,
-            calendar
+            calendar,
         }
     }
 }
-
 
 impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
         let agency_id = AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
         Self {
-            calendar: a.calendar.unwrap_or(Ok(vec![])).unwrap_or(vec![]).into_iter().map(|a| Service::from_with_agency_id(agency_id, a)).collect(),
-            calendar_dates: a.calendar_dates.unwrap_or(Ok(vec![])).unwrap_or(vec![]).into_iter().map(|a| CalendarException::from_with_agency_id(agency_id, a)).collect(),
+            calendar: a
+                .calendar
+                .unwrap_or(Ok(vec![]))
+                .unwrap_or(vec![])
+                .into_iter()
+                .map(|a| Service::from_with_agency_id(agency_id, a))
+                .collect(),
+            calendar_dates: a
+                .calendar_dates
+                .unwrap_or(Ok(vec![]))
+                .unwrap_or(vec![])
+                .into_iter()
+                .map(|a| CalendarException::from_with_agency_id(agency_id, a))
+                .collect(),
             stops: a
                 .stops
                 .unwrap()
@@ -385,7 +393,7 @@ impl From<LibraryGTFS> for Gtfs0 {
                 .map(|st| {
                     if st.trip_id == "40813385" && st.stop_sequence == 0 {
                         println!("wtf 5");
-                        let wtf = 5;
+                        let _wtf = 5;
                     }
                     StopTime {
                         arrival_time: st.arrival_time,
