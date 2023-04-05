@@ -32,6 +32,18 @@ impl Display for TimeFormatter {
     }
 }
 
+impl From<&str> for RouteType {
+    fn from(value: &str) -> Self {
+        match value {
+            "bus" => RouteType::Bus,
+            "tram" => RouteType::Tramway,
+            "subway" => RouteType::Subway,
+            "rail" => RouteType::Rail,
+            _ => panic!("{}", value)
+        }
+    }
+}
+
 pub fn get_route_mode(gtfs: &Gtfs1, trip: &InProgressTrip) -> &'static str {
     let route_id = trip.current_route.route_id;
     let route = &gtfs.routes[&route_id];
