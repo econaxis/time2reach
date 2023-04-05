@@ -1,8 +1,9 @@
 use std::cmp::Ordering;
 use crate::time::Time;
-use crate::{BusPickupInfo, IdType, InProgressTrip};
+use crate::{BusPickupInfo, IdType};
 use id_arena::{Arena, Id};
 use std::collections::{BinaryHeap, HashMap, VecDeque};
+use crate::in_progress_trip::InProgressTrip;
 
 #[derive(PartialEq, Eq, Debug)]
 struct HeapIdTrip {
@@ -33,12 +34,12 @@ pub struct TripsArena {
 
 impl TripsArena {
     pub fn should_explore(&mut self, bu: &BusPickupInfo) -> bool {
-        if let Some(sequence_no) = self.trips_already_taken.get(&bu.trip_id) {
-            // Don't get on this trip if we have already boarded on an earlier stop
-            if sequence_no <= &bu.stop_sequence_no {
-                return false;
-            }
-        }
+        // if let Some(sequence_no) = self.trips_already_taken.get(&bu.trip_id) {
+        //     // Don't get on this trip if we have already boarded on an earlier stop
+        //     if sequence_no <= &bu.stop_sequence_no {
+        //         return false;
+        //     }
+        // }
         self.trips_already_taken
             .insert(bu.trip_id, bu.stop_sequence_no);
         true

@@ -1,9 +1,10 @@
 use crate::time::Time;
 use crate::trips_arena::TripsArena;
-use crate::{gtfs_setup, Gtfs1, InProgressTrip, RoadStructure, NULL_ID, WALKING_SPEED};
+use crate::{Gtfs1, gtfs_setup, NULL_ID, RoadStructure, WALKING_SPEED};
 use crate::gtfs_wrapper::RouteType;
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
+use crate::in_progress_trip::InProgressTrip;
 
 pub struct InProgressTripsFormatter<'a, 'b> {
     pub(crate) trips: Vec<&'a InProgressTrip>,

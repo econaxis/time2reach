@@ -1,5 +1,5 @@
 use crate::trips_arena::TripsArena;
-use crate::{Gtfs0, Gtfs1, InProgressTrip, LibraryGTFS, StopsWithTrips};
+use crate::{Gtfs0, Gtfs1, LibraryGTFS};
 use id_arena::Id;
 use log::info;
 use std::fs::File;
@@ -9,6 +9,8 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 
 use std::sync::Mutex;
+use crate::gtfs_processing::StopsWithTrips;
+use crate::in_progress_trip::InProgressTrip;
 lazy_static! {
     static ref AGENCY_MAP: Mutex<HashMap<String, u8>> = {
         Mutex::new(HashMap::new())

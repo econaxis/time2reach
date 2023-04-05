@@ -8,7 +8,7 @@ use crate::gtfs_wrapper::{FromWithAgencyId, Gtfs0, try_parse_id, vec_to_hashmap}
 use crate::IdType;
 
 
-#[derive(Archive, Serialize, Deserialize)]
+#[derive(Archive, Serialize, Deserialize, Debug)]
 pub struct Service {
     pub id: IdType,
     pub monday: bool,
@@ -55,7 +55,7 @@ impl Service {
     }
 }
 
-#[derive(Serialize, Deserialize, Archive, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Archive, PartialEq, Eq, Debug)]
 pub enum Exception {
     Added,
     Deleted,
@@ -70,7 +70,7 @@ impl From<gtfs_structures::Exception> for Exception {
     }
 }
 
-#[derive(Serialize, Deserialize, Archive)]
+#[derive(Serialize, Deserialize, Archive, Debug)]
 pub struct CalendarException {
     /// Identifier of the service that is modified at this date
     pub service_id: IdType,
@@ -90,6 +90,7 @@ impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
     }
 }
 
+#[derive(Debug)]
 pub struct CalendarExceptionList(HashMap<NaiveDate, CalendarException>);
 
 impl CalendarExceptionList {
@@ -98,6 +99,7 @@ impl CalendarExceptionList {
     }
 }
 
+#[derive(Debug)]
 pub struct Calendar {
     pub services: HashMap<IdType, Service>,
     pub exceptions: HashMap<IdType, CalendarExceptionList>,
@@ -105,8 +107,17 @@ pub struct Calendar {
 
 impl Calendar {
     pub fn runs_on_date(&self, service_id: IdType, date: NaiveDate) -> bool {
-        self.services.get(&service_id).map(|a| a.runs_on_date(date)).unwrap_or(false) ||
-            self.exceptions.get(&service_id).map(|a| a.runs_on_date(date)).unwrap_or(false)
+        let normal = self.services.get(&service_id).map(|a| a.runs_on_date(date));
+        let exception = self.exceptions.get(&service_id).map(|a| a.runs_on_date(date));
+
+        match (normal, exception) {
+            (None, None) => {
+                true
+            },
+            _ => {
+                normal.unwrap_or(false) || exception.unwrap_or(false)
+            }
+        }
     }
 
     pub fn parse(calendar: Vec<Service>, exceptions_list: Vec<CalendarException>) -> Self {

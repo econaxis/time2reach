@@ -1,4 +1,4 @@
-use crate::ReachData;
+use crate::reach_data::ReachData;
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 use std::hash::Hash;

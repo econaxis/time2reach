@@ -1,10 +1,13 @@
 use crate::road_structure::RoadStructure;
-use crate::{projection, BusPickupInfo, Gtfs1, IdType, InProgressTrip, ReachData, RouteStopSequence, SpatialStopsWithTrips, TripsArena, NULL_ID, STRAIGHT_WALKING_SPEED, WALKING_SPEED, PRESENT_DAY, MIN_TRANSFER_SECONDS};
+use crate::{BusPickupInfo, Gtfs1, IdType, MIN_TRANSFER_SECONDS, NULL_ID, PRESENT_DAY, projection, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
 use id_arena::Id;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use std::collections::HashSet;
+use crate::gtfs_processing::{RouteStopSequence, SpatialStopsWithTrips};
 use crate::gtfs_wrapper::StopTime;
+use crate::in_progress_trip::InProgressTrip;
+use crate::reach_data::ReachData;
 
 use crate::time::Time;
 use crate::web::LatLng;
@@ -88,6 +91,7 @@ pub fn generate_reach_times(
 ) {
     let location = config.location;
     rs.trips_arena.add_to_explore(InProgressTrip {
+        trip_id: NULL_ID,
         boarding_time: config.start_time,
         exit_time: config.start_time,
         point: projection::project_lng_lat(location.longitude, location.latitude),
@@ -96,6 +100,7 @@ pub fn generate_reach_times(
         total_transfers: 0,
         previous_transfer: None,
         boarding_stop_id: NULL_ID,
+        is_free_transfer: false,
     });
 
     while let Some((item, id)) = rs.trips_arena.pop_front() {
@@ -129,8 +134,7 @@ fn get_stop_from_stop_seq_no(stop_times: &[StopTime], stop_sequence_no: u16) -> 
             return (&stop_times[i], i)
         }
     }
-    println!("{:?} {:?}", stop_times, stop_sequence_no);
-    unreachable!()
+    unreachable!("{:?} {:?}", stop_times, stop_sequence_no)
 }
 
 fn all_stops_along_trip(
@@ -141,15 +145,18 @@ fn all_stops_along_trip(
     previous_transfer: Id<InProgressTrip>,
     transfers_remaining: u8,
     explore_queue: &mut TripsArena,
+    is_free_transfer: bool,
 ) {
     let stop_times = &gtfs.trips[&trip_id].stop_times;
     let (boarding_stop, stop_time_index) = get_stop_from_stop_seq_no(&stop_times, start_sequence_no);
+
 
     for (_stops_travelled, st) in stop_times[stop_time_index as usize + 1..].iter().enumerate() {
         let point = projection::project_stop(&gtfs.stops[&st.stop_id]);
         let timestamp = st.arrival_time.unwrap();
 
         let id = explore_queue.add_to_explore(InProgressTrip {
+            trip_id,
             boarding_time: Time(boarding_stop.arrival_time.unwrap() as f64),
             exit_time: Time(timestamp as f64),
             point,
@@ -158,6 +165,7 @@ fn all_stops_along_trip(
             boarding_stop_id: boarding_stop.stop_id,
             total_transfers: transfers_remaining,
             previous_transfer: Some(previous_transfer),
+            is_free_transfer,
         });
 
         if id.is_none() {
@@ -175,6 +183,7 @@ fn explore_from_point(
     config: &Configuration,
 ) {
     let mut routes_already_taken = HashSet::from([ip.current_route.clone()]);
+    let current_trip = &gtfs.trips.get(&ip.trip_id);
 
     for (stop, distance) in data.0.nearest_neighbor_iter_with_distance_2(&ip.point) {
         if distance > 600.0 * 600.0 {
@@ -196,13 +205,23 @@ fn explore_from_point(
                 stop_sequence_no: 0,
                 trip_id: NULL_ID,
             };
-            if let Some(next_bus) = route_pickup.range(starting_buspickup..).next() {
+
+            for next_bus in route_pickup.range(starting_buspickup..) {
                 assert!(next_bus.timestamp >= this_timestamp);
 
                 let is_valid_agency = config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
 
-                let trip = &gtfs.trips[&next_bus.trip_id];
-                let service_runs_on_day = || gtfs.calendar.runs_on_date(trip.service_id, *PRESENT_DAY);
+                let this_trip = &gtfs.trips[&next_bus.trip_id];
+                let service_runs_on_day = || gtfs.calendar.runs_on_date(this_trip.service_id, *PRESENT_DAY);
+
+                let is_free_tranfer = if this_trip.block_id.is_some() && this_trip.block_id.as_ref() == current_trip.and_then(|a| a.block_id.as_ref()) {
+                    println!("Free transfer detected! {:?} ", this_trip.trip_headsign);
+                    true
+                } else {
+                    false
+                };
+
+                let transfers_remaining = if is_free_tranfer {ip.total_transfers} else {ip.total_transfers + 1};
 
                 if is_valid_agency && service_runs_on_day() && explore_queue.should_explore(next_bus) {
                     all_stops_along_trip(
@@ -211,14 +230,18 @@ fn explore_from_point(
                         next_bus.stop_sequence_no,
                         route_info,
                         ip_id,
-                        ip.total_transfers + 1,
+                        transfers_remaining,
                         explore_queue,
+                        is_free_tranfer
                     );
-
                     routes_already_taken.insert(route_info.clone());
+                    break;
+                } else {
+                    continue;
                 }
             }
         }
+
     }
 }
 

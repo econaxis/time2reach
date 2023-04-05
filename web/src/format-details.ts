@@ -13,7 +13,7 @@ export interface TripDetails {
 }
 
 function toTitleCase(str) {
-    return str.toLowerCase().split(/[\s()]/).map(function(word) {
+    return str.toLowerCase().split(/[\s()-\/]/).map(function(word) {
         return (word.charAt(0).toUpperCase() + word.slice(1));
     }).join(" ");
 }

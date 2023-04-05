@@ -14,6 +14,9 @@ mod time_to_reach;
 mod trips_arena;
 mod web;
 mod calendar;
+mod reach_data;
+mod in_progress_trip;
+mod gtfs_processing;
 
 use crate::gtfs_wrapper::DirectionType;
 use id_arena::Id;
@@ -45,8 +48,8 @@ use gtfs_wrapper::LibraryGTFS;
 use time::Time;
 use trips_arena::TripsArena;
 
-const WALKING_SPEED: f64 = 1.35;
-const STRAIGHT_WALKING_SPEED: f64 = 0.95;
+const WALKING_SPEED: f64 = 1.25;
+const STRAIGHT_WALKING_SPEED: f64 = 0.90;
 pub const MIN_TRANSFER_SECONDS: f64 = 4.0;
 
 type IdType = (u8, u64);
@@ -56,23 +59,6 @@ lazy_static!{
     pub static ref PRESENT_DAY: NaiveDate = {
         NaiveDate::from_ymd_opt(2023, 04, 04).unwrap()
     };
-}
-#[derive(Default, Debug)]
-pub struct RoutePickupTimes(HashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
-
-#[derive(Eq, PartialEq, Hash, Debug, Clone)]
-pub struct RouteStopSequence {
-    route_id: IdType,
-    direction: bool,
-}
-
-impl Default for RouteStopSequence {
-    fn default() -> Self {
-        Self {
-            route_id: NULL_ID,
-            direction: false,
-        }
-    }
 }
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -86,99 +72,6 @@ fn direction_to_bool(d: &DirectionType) -> bool {
     match d {
         DirectionType::Outbound => true,
         DirectionType::Inbound => false,
-    }
-}
-
-impl RoutePickupTimes {
-    fn add_route_pickup_time(&mut self, trip: &Trip, stop_time: &StopTime) {
-        let route_stop_sequence = RouteStopSequence {
-            route_id: trip.route_id,
-            direction: direction_to_bool(&trip.direction_id.unwrap()),
-        };
-
-        let bus_pickup = BusPickupInfo {
-            timestamp: Time(stop_time.arrival_time.unwrap() as f64),
-            stop_sequence_no: stop_time.stop_sequence as u16,
-            trip_id: trip.id,
-        };
-        if let Some(times) = self.0.get_mut(&route_stop_sequence) {
-            times.insert(bus_pickup);
-        } else {
-            self.0
-                .insert(route_stop_sequence, BTreeSet::from([bus_pickup]));
-        }
-    }
-}
-#[derive(Default)]
-pub struct StopsWithTrips(pub HashMap<IdType, RoutePickupTimes>);
-
-#[derive(Debug)]
-struct StopsData {
-    trips_with_time: RoutePickupTimes,
-}
-
-#[derive(Debug)]
-pub struct SpatialStopsWithTrips(RTree<GeomWithData<[f64; 2], StopsData>>);
-
-impl StopsWithTrips {
-    fn add_stop(&mut self, stop_time: &StopTime, trip: &Trip) {
-        if let Some(trips) = self.0.get_mut(&stop_time.stop_id) {
-            trips.add_route_pickup_time(trip, stop_time);
-        } else {
-            let mut rp = RoutePickupTimes::default();
-            rp.add_route_pickup_time(trip, stop_time);
-            self.0.insert(stop_time.stop_id, rp);
-        }
-    }
-    fn to_spatial(self, gtfs: &Gtfs1) -> SpatialStopsWithTrips {
-        let mut points_data = Vec::new();
-
-        for (stop_id, trips_with_time) in self.0 {
-            let stop = &gtfs.stops[&stop_id];
-            let stop_coords = projection::project_stop(stop);
-
-            let stops_data = StopsData { trips_with_time };
-            points_data.push(GeomWithData::new(stop_coords, stops_data));
-        }
-
-        SpatialStopsWithTrips(RTree::bulk_load(points_data))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct InProgressTrip {
-    boarding_time: Time,
-    exit_time: Time,
-    point: [f64; 2],
-    current_route: RouteStopSequence,
-    total_transfers: u8,
-    get_off_stop_id: IdType,
-    boarding_stop_id: IdType,
-    previous_transfer: Option<Id<InProgressTrip>>,
-}
-
-#[derive(PartialOrd, PartialEq, Eq, Debug, Clone)]
-pub struct ReachData {
-    timestamp: Time,
-
-    progress_trip_id: Option<Id<InProgressTrip>>,
-    transfers: u8,
-}
-
-impl ReachData {
-    pub fn new_with_time(time: Time) -> Self {
-        Self {
-            timestamp: time,
-            progress_trip_id: None,
-            transfers: 0,
-        }
-    }
-    pub fn with_time(&self, time: Time) -> Self {
-        ReachData {
-            timestamp: time,
-            progress_trip_id: self.progress_trip_id,
-            transfers: self.transfers,
-        }
     }
 }
 
@@ -247,10 +140,10 @@ fn main() {
 fn setup_gtfs() -> Gtfs1 {
     let mut gtfs =
         gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express", "UP"
+            "/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs", "TTC"
         );
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-            "/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs", "TTC"
+        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express", "UP"
     ));
     gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
         "/Users/henry.nguyen@snapcommerce.com/Downloads/waterloo_grt", "GRT"

@@ -86,7 +86,7 @@ map.on("load", async () => {
     });
     map.on("mouseleave", "transit-layer", (e) => {
         map.getCanvas().style.cursor = "";
-        // popup.remove();
+        popup.remove();
         clearTimeout(currentTask);
         currentTask = undefined;
     });

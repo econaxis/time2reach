@@ -1,5 +1,5 @@
-use crate::{IdType, ReachData, TripsArena, PROJSTRING, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
-use gdal::vector::{LayerAccess};
+use crate::{IdType, PROJSTRING, STRAIGHT_WALKING_SPEED, TripsArena, WALKING_SPEED};
+use gdal::vector::LayerAccess;
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
 use geo_types::Point;
 use proj::Proj;
@@ -16,6 +16,7 @@ use crate::best_times::BestTimes;
 use crate::time::Time;
 use serde::ser::SerializeTuple;
 use crate::formatter::TimeFormatter;
+use crate::reach_data::ReachData;
 
 pub type EdgeId = u64;
 

@@ -1,7 +1,7 @@
 use crate::formatter::{get_route_mode, time_to_point};
 use crate::road_structure::{EdgeId, RoadStructureInner};
 use crate::time_to_reach::Configuration;
-use crate::{gtfs_setup, time_to_reach, Gtfs1, RoadStructure, SpatialStopsWithTrips, Time, NULL_ID};
+use crate::{Gtfs1, gtfs_setup, NULL_ID, RoadStructure, Time, time_to_reach};
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use warp::{Filter, Reply};
+use crate::gtfs_processing::SpatialStopsWithTrips;
 use crate::gtfs_setup::get_agency_id_from_short_name;
 
 fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64, include_agencies: Vec<String>) -> impl Reply {
@@ -27,7 +28,7 @@ fn process_coordinates(ad: &mut AppData, lat: f64, lng: f64, include_agencies: V
         spatial_stops,
         &mut rs,
         Configuration {
-            start_time: Time(13.0 * 3600.0),
+            start_time: Time(17.3 * 3600.0),
             duration_secs: 3600.0 * 1.5,
             location: LatLng {
                 latitude: lat,
@@ -127,7 +128,11 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
     }
 
     let mut details_list = Vec::new();
-    for trip in formatter.unwrap().trips.iter().rev() {
+
+    // Automatically skips
+    let mut has_free_transfer_from_prev = false;
+    for trip in formatter.unwrap().trips {
+
         if trip.current_route.route_id == NULL_ID {
             // Begin of trip. Skip here.
             continue;
@@ -136,6 +141,12 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
         let route = &ad.gtfs.routes[&trip.current_route.route_id];
         let boarding_stop = &ad.gtfs.stops[&trip.boarding_stop_id];
         let exit_stop = &ad.gtfs.stops[&trip.get_off_stop_id];
+
+        let exit_stop_msg = if has_free_transfer_from_prev {
+            format!("{} (stay on vehicle)", exit_stop.name)
+        } else {
+            exit_stop.name.clone()
+        };
         details_list.push(TripDetails {
             mode: get_route_mode(&ad.gtfs, trip),
             background_color: route.color.clone(),
@@ -148,12 +159,15 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
             exit: TripDetailsInner {
                 time: trip.exit_time.0,
                 line: route.short_name.clone(),
-                stop: exit_stop.name.clone()
+                stop: exit_stop_msg
             }
         });
+
+        has_free_transfer_from_prev = trip.is_free_transfer;
     }
 
 
+    details_list.reverse();
     warp::reply::json(&details_list)
 }
 
