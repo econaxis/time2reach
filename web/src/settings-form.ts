@@ -1,5 +1,6 @@
 import { format_time } from "./format-details";
-import { data_promise, map, refetch_data } from "./ol";
+import { map, refetch_data } from "./ol";
+import { getData } from "./data-promise";
 
 
 
@@ -19,10 +20,10 @@ function setup_duration_range() {
         const value = parseInt(duration_range.value);
         duration_label.innerText = format_time(value).substring(0, 5);
 
-        if (data_promise) {
-            data_promise.max = data_promise.min + value;
-            data_promise.calculate_colors();
-            map.setPaintProperty("transit-layer", "line-color", ["get", ["to-string", ["id"]], ["literal", data_promise.m]]);
+        if (getData()) {
+            getData().max = getData().min + value;
+            getData().calculate_colors();
+            map.setPaintProperty("transit-layer", "line-color", ["get", ["to-string", ["id"]], ["literal", getData().m]]);
         }
     });
 }

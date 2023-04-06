@@ -10,7 +10,8 @@ const AGENCY_IDS = [
 export default function fetch_form_data() {
     const agencies = [];
     for (const id of AGENCY_IDS) {
-        if ((<HTMLInputElement>document.getElementById(id)).checked) {
+        let html_id = `agency-${id}`
+        if ((<HTMLInputElement>document.getElementById(html_id)).checked) {
             agencies.push(id.toUpperCase());
         }
     }

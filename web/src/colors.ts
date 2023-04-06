@@ -2,6 +2,7 @@ import createColorMap from "colormap";
 import mapboxgl from "mapbox-gl";
 import fetch_form_data, { fetch_modes_data } from "./fetch-form-data";
 import { duration_range } from "./settings-form";
+import setLoading from "./loading-spinner";
 
 const NSHADES = 300
 export const cmap = createColorMap({
@@ -28,6 +29,8 @@ export function get_color_0_1(value: number): string {
 }
 
 let lastLatLng: mapboxgl.LngLat | undefined = undefined;
+
+
 export class TimeColorMapper {
     m: Record<number, any>;
     raw: Record<number, any>;
@@ -59,6 +62,9 @@ export class TimeColorMapper {
             agencies: fetch_form_data(),
             modes: fetch_modes_data()
         }
+
+
+        setLoading(true);
         const data = await fetch("http://localhost:3030/hello", {
             method: "POST",
             mode: "cors",
@@ -84,6 +90,7 @@ export class TimeColorMapper {
 
         colors.max = colors.min + parseInt(duration_range.value);
         colors.calculate_colors();
+
         // duration_range.value = String(colors.max - colors.min);
         return colors;
     }

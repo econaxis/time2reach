@@ -4,38 +4,38 @@ import { get_details } from "./get_data";
 import { TimeColorMapper } from "./colors";
 
 import { format_popup_html, TripDetails } from "./format-details";
-import settings_form_setup from "./settings-form"
-export let data_promise: TimeColorMapper;
+import settings_form_setup from "./settings-form";
+import setLoading from "./loading-spinner";
+import { getData, setData } from "./data-promise";
 
 const starting_location = new mapboxgl.LngLat(
     -79.61142287490227,
     43.68355164972115
-)
+);
 
 mapboxgl.accessToken = "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
 
-const default_color = 'rgba(182,182,182,0.14)';
+const default_color = "rgba(182,182,182,0.14)";
 export const map = new mapboxgl.Map({
     container: "map", // container ID
     style: "mapbox://styles/mapbox/dark-v11", // style URL
     center: [-79.43113401487446, 43.650685085905365], // starting position [lng, lat]
     zoom: 12 // starting zoom
 });
+
 export async function refetch_data(lngLat?: mapboxgl.LngLat) {
-    data_promise = await TimeColorMapper.fetch(lngLat);
+    setData(await TimeColorMapper.fetch(lngLat));
     map.setPaintProperty("transit-layer", "line-color",
-        ['coalesce',
-            ["get", ["to-string", ["id"]], ["literal", data_promise.m]],
+        ["coalesce",
+            ["get", ["to-string", ["id"]], ["literal", getData().m]],
             default_color]);
+    setLoading(false);
 }
 
 
-settings_form_setup()
+settings_form_setup();
 
 map.on("load", async () => {
-    const start = TimeColorMapper.fetch(starting_location).then(result => data_promise = result)
-
-
     map.addSource("some id", {
         type: "vector",
         tiles: ["http://127.0.0.1:6767/edges/{z}/{x}/{y}.pbf"]
@@ -60,11 +60,11 @@ map.on("load", async () => {
         }
     );
 
-    start.then(() => refetch_data(starting_location))
+    await refetch_data(starting_location);
 
     map.on("dblclick", async (e) => {
         e.preventDefault();
-        await refetch_data(e.lngLat)
+        await refetch_data(e.lngLat);
     });
 
     const popup = new mapboxgl.Popup({
@@ -73,26 +73,26 @@ map.on("load", async () => {
 
     let currentTask = undefined;
     map.on("mouseover", "transit-layer", async (e) => {
+        const nearbyFeatures = map.queryRenderedFeatures(e.point);
+        if (nearbyFeatures.length === 0) return;
+
         if (currentTask) clearTimeout(currentTask);
 
         map.getCanvas().style.cursor = "crosshair";
         currentTask = setTimeout(async () => {
-            const feature1 = map.queryRenderedFeatures(e.point);
+            const feature = nearbyFeatures[0];
+            popup.setLngLat(e.lngLat);
+            const seconds = getData().raw[feature.id];
 
-            if (feature1.length) {
-                popup.setLngLat(e.lngLat);
-                const seconds = data_promise.raw[feature1[0].id];
+            if (!seconds) return;
 
-                if (!seconds) return;
+            const details: Array<TripDetails> = await get_details(getData(), {
+                latitude: e.lngLat.lat,
+                longitude: e.lngLat.lng
+            });
 
-                const details: Array<TripDetails> = await get_details(data_promise, {
-                    latitude: e.lngLat.lat,
-                    longitude: e.lngLat.lng
-                });
-
-                popup.setHTML(format_popup_html(seconds, details));
-                popup.addTo(map);
-            }
+            popup.setHTML(format_popup_html(seconds, details));
+            popup.addTo(map);
         }, 400);
 
 
