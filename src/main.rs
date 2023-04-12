@@ -2,8 +2,11 @@
 #![feature(file_create_new)]
 #![feature(vec_into_raw_parts)]
 
+extern crate core;
+
 mod best_times;
 mod calendar;
+mod configuration;
 mod formatter;
 mod gtfs_processing;
 mod gtfs_setup;
@@ -30,17 +33,17 @@ use crate::formatter::time_to_point;
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
 use crate::projection::PROJSTRING;
 use crate::road_structure::RoadStructure;
-use crate::time_to_reach::Configuration;
 use crate::web::LatLng;
+use configuration::Configuration;
 use gtfs_wrapper::LibraryGTFS;
 
 use time::Time;
 use trips_arena::TripsArena;
 
-const WALKING_SPEED: f64 = 1.25;
-const STRAIGHT_WALKING_SPEED: f64 = 0.90;
+const WALKING_SPEED: f64 = 1.35;
+const STRAIGHT_WALKING_SPEED: f64 = 1.20;
 pub const MIN_TRANSFER_SECONDS: f64 = 5.0;
-
+pub const TRANSIT_EXIT_PENALTY: f64 = 30.0;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
@@ -80,7 +83,7 @@ fn main1() {
                 duration_secs: 3600.0 * 1.5,
                 location: LatLng::from_lat_lng(43.68228522699712, -79.6125297053927),
                 agency_ids: HashSet::new(),
-                modes: vec![]
+                modes: vec![],
             },
         );
         time_to_point(

@@ -5,7 +5,7 @@ use chrono::{Datelike, NaiveDate, Weekday};
 
 use crate::gtfs_wrapper::{try_parse_id, vec_to_hashmap, FromWithAgencyId};
 use crate::IdType;
-use gtfs_structures::{CalendarDate, Id};
+use gtfs_structures::CalendarDate;
 
 #[derive(Archive, Serialize, Deserialize, Debug)]
 pub struct Service {

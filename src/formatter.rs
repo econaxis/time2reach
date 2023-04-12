@@ -9,6 +9,7 @@ use std::fmt::{Display, Formatter};
 pub struct InProgressTripsFormatter<'a, 'b> {
     pub(crate) trips: Vec<&'a InProgressTrip>,
     pub(crate) gtfs: &'b Gtfs1,
+    pub(crate) final_walking_length: f64,
 }
 
 pub struct TimeFormatter {
@@ -39,7 +40,7 @@ impl From<&str> for RouteType {
             "tram" => RouteType::Tramway,
             "subway" => RouteType::Subway,
             "rail" => RouteType::Rail,
-            _ => panic!("{}", value)
+            _ => panic!("{}", value),
         }
     }
 }
@@ -137,16 +138,18 @@ pub fn time_to_point<'a, 'b>(
     let (_best_time, obs) = data
         .nearest_times_to_point(&point)
         .map(|obs| {
-            let time_to_reach = obs.data.timestamp + obs.distance_2(&point).sqrt() / WALKING_SPEED;
+            let distance = obs.distance_2(&point).sqrt();
+            let time_to_reach = obs.data.timestamp + distance / WALKING_SPEED;
             (time_to_reach, obs)
         })
         .min_by_key(|(time, obs)| {
             // Penalize time for every transfer performed
-            *time + obs.data.transfers as f64 * 150.0
+            *time + obs.data.transfers as f64 * 120.0
         })?;
 
     Some(InProgressTripsFormatter {
         trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id.unwrap()),
         gtfs,
+        final_walking_length: obs.data.walking_length,
     })
 }

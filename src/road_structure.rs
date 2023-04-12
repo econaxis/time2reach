@@ -185,7 +185,7 @@ impl RoadStructureInner {
         &self,
         node: NodeId,
         base_time: &ReachData,
-        to_explore: &mut VecDeque<(NodeId, Time)>,
+        to_explore: &mut VecDeque<(NodeId, ReachData)>,
         node_best_times: &mut BestTimes<NodeId>,
     ) {
         if node_best_times
@@ -200,12 +200,13 @@ impl RoadStructureInner {
             let edge = &self.edges[edge_];
 
             let other_node = edge.get_other_node(node);
-            let time_to_other_node =
-                base_time.with_time(base_time.timestamp + edge.length / WALKING_SPEED);
-            let time_to_other_node_timestamp = time_to_other_node.timestamp;
-            if node_best_times.set_best_time(other_node, time_to_other_node) {
+            let time_to_other_node = base_time.with_time_and_dist(
+                base_time.timestamp + edge.length / WALKING_SPEED,
+                edge.length,
+            );
+            if node_best_times.set_best_time(other_node, time_to_other_node.clone()) {
                 // This node has it's best time beat.
-                to_explore.push_back((other_node, time_to_other_node_timestamp));
+                to_explore.push_back((other_node, time_to_other_node));
             }
         }
     }
@@ -241,18 +242,22 @@ impl RoadStructureInner {
         let mut queue = VecDeque::new();
 
         for closest_node in self.n_nearest_nodes_to_point(point, 6) {
-            let time_to_closest_node =
-                closest_node.distance_2(point).sqrt() / STRAIGHT_WALKING_SPEED;
+            let distance_to_closest_node = closest_node.distance_2(point).sqrt();
+            let time_to_closest_node = distance_to_closest_node / STRAIGHT_WALKING_SPEED;
 
             self.explore_from_node(
                 closest_node.data,
-                &base_time.with_time(base_time.timestamp + time_to_closest_node),
+                &base_time.with_time_and_dist(
+                    base_time.timestamp + time_to_closest_node,
+                    distance_to_closest_node,
+                ),
                 &mut queue,
                 node_best_times,
             );
         }
 
-        while let Some((item, set_time)) = queue.pop_back() {
+        while let Some((item, rd)) = queue.pop_back() {
+            let set_time = rd.timestamp;
             let time = node_best_times.get(&item).unwrap().timestamp;
             if time != set_time {
                 assert!(time < set_time);
@@ -263,12 +268,7 @@ impl RoadStructureInner {
                 continue;
             }
 
-            self.explore_from_node(
-                item,
-                &base_time.with_time(time),
-                &mut queue,
-                node_best_times,
-            );
+            self.explore_from_node(item, &rd, &mut queue, node_best_times);
         }
     }
 

@@ -1,36 +1,34 @@
+use crate::configuration::Configuration;
 use crate::formatter::{get_route_mode, time_to_point};
 use crate::gtfs_processing::SpatialStopsWithTrips;
 use crate::gtfs_setup::get_agency_id_from_short_name;
+use crate::gtfs_wrapper::RouteType;
 use crate::road_structure::{EdgeId, RoadStructureInner};
-use crate::time_to_reach::Configuration;
-use crate::{gtfs_setup, time_to_reach, Gtfs1, RoadStructure, Time, NULL_ID};
+use crate::{
+    gtfs_setup, time_to_reach, Gtfs1, RoadStructure, Time, NULL_ID, STRAIGHT_WALKING_SPEED,
+    WALKING_SPEED,
+};
+use lazy_static::lazy_static;
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::{HashMap, HashSet};
+use serde_json::Value;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
 use std::ptr::hash;
 use std::sync::{Arc, Mutex};
-use lazy_static::lazy_static;
-use warp::{Filter, Reply};
 use warp::reply::Json;
-use crate::gtfs_wrapper::RouteType;
-use serde_json::Value;
+use warp::{Filter, Reply};
 
 lazy_static! {
-    pub static ref CACHE: Mutex<HashMap<u64, Value>> = {
-        Mutex::new(HashMap::new())
-    };
+    pub static ref CACHE: Mutex<HashMap<u64, Value>> = { Mutex::new(HashMap::new()) };
 }
 fn round_f64_for_hash(x: f64) -> u64 {
     return (x * 10000.0).round() as u64;
 }
-fn cache_key(lat: f64,
-             lng: f64,
-             include_agencies: &[String],
-             include_modes: &[String]) -> u64 {
+fn cache_key(lat: f64, lng: f64, include_agencies: &[String], include_modes: &[String]) -> u64 {
     let mut hasher = DefaultHasher::new();
     hasher.write_u64(round_f64_for_hash(lat));
     hasher.write_u64(round_f64_for_hash(lng));
@@ -38,7 +36,7 @@ fn cache_key(lat: f64,
     "AGENCY".hash(&mut hasher);
     for agency in include_agencies {
         agency.hash(&mut hasher);
-    };
+    }
 
     "MODE".hash(&mut hasher);
     for mode in include_modes {
@@ -48,34 +46,32 @@ fn cache_key(lat: f64,
     hasher.finish()
 }
 
-
 fn check_cache<'a>(
-    cache: &'a HashMap<u64, Value>, lat: f64,
-               lng: f64,
-               include_agencies: &[String],
-               include_modes: &[String]) -> Result<&'a Value, u64> {
+    cache: &'a HashMap<u64, Value>,
+    lat: f64,
+    lng: f64,
+    include_agencies: &[String],
+    include_modes: &[String],
+) -> Result<&'a Value, u64> {
     let hash = cache_key(lat, lng, include_agencies, include_modes);
     println!("Hash key {hash}");
 
     cache.get(&hash).ok_or(hash)
 }
 
-
 fn process_coordinates(
     ad: &mut AppData,
     lat: f64,
     lng: f64,
     include_agencies: Vec<String>,
-    include_modes: Vec<String>
+    include_modes: Vec<String>,
 ) -> impl Reply {
-
     let mut cache = CACHE.lock().unwrap();
 
     let cache_key = match check_cache(&cache, lat, lng, &include_agencies, &include_modes) {
         Ok(reply) => return warp::reply::json(reply),
-        Err(key) => key
+        Err(key) => key,
     };
-
 
     let gtfs = &ad.gtfs;
     let spatial_stops = &ad.spatial;
@@ -102,7 +98,10 @@ fn process_coordinates(
                 longitude: lng,
             },
             agency_ids,
-            modes: include_modes.iter().map(|x| RouteType::from(x.as_ref())).collect(),
+            modes: include_modes
+                .iter()
+                .map(|x| RouteType::from(x.as_ref()))
+                .collect(),
         },
     );
 
@@ -115,7 +114,6 @@ fn process_coordinates(
         "request_id": ad.rs_list.len() - 1,
         "edge_times": edge_times_object
     });
-
 
     cache.insert(cache_key, response);
     warp::reply::json(&cache[&cache_key])
@@ -148,7 +146,7 @@ pub struct CalculateRequest {
     pub latitude: f64,
     pub longitude: f64,
     pub agencies: Vec<String>,
-    pub modes: Vec<String>
+    pub modes: Vec<String>,
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -173,13 +171,26 @@ struct TripDetailsInner {
     stop: String,
 }
 
-#[derive(Serialize, Deserialize)]
-struct TripDetails {
+#[derive(Serialize)]
+struct TripDetailsTransit {
     background_color: String,
     text_color: String,
     mode: &'static str,
     boarding: TripDetailsInner,
     exit: TripDetailsInner,
+}
+
+#[derive(Serialize)]
+struct TripDetailsWalking {
+    time: f64,
+    length: f64,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "method")]
+enum TripDetails {
+    Transit(TripDetailsTransit),
+    Walking(TripDetailsWalking),
 }
 
 fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
@@ -199,11 +210,21 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
         return warp::reply::json(&"None");
     }
 
+    let formatter = formatter.unwrap();
+
     let mut details_list = Vec::new();
+
+    let final_walking_time = formatter.final_walking_length / WALKING_SPEED;
+    if final_walking_time >= 30.0 {
+        details_list.push(TripDetails::Walking(TripDetailsWalking {
+            time: final_walking_time,
+            length: formatter.final_walking_length,
+        }))
+    }
 
     // Automatically skips
     let mut has_free_transfer_from_prev = false;
-    for trip in formatter.unwrap().trips {
+    for trip in formatter.trips {
         if trip.current_route.route_id == NULL_ID {
             // Begin of trip. Skip here.
             continue;
@@ -218,7 +239,7 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
         } else {
             exit_stop.name.clone()
         };
-        details_list.push(TripDetails {
+        details_list.push(TripDetails::Transit(TripDetailsTransit {
             mode: get_route_mode(&ad.gtfs, trip),
             background_color: route.color.clone(),
             text_color: route.text_color.clone(),
@@ -232,7 +253,15 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
                 line: route.short_name.clone(),
                 stop: exit_stop_msg,
             },
-        });
+        }));
+
+        if trip.walking_time.0 >= 30.0 {
+            assert!(!trip.is_free_transfer);
+            details_list.push(TripDetails::Walking(TripDetailsWalking {
+                time: trip.walking_time.0,
+                length: trip.walking_length_m,
+            }))
+        }
 
         has_free_transfer_from_prev = trip.is_free_transfer;
     }
@@ -275,7 +304,13 @@ pub async fn main() {
         .and(warp::body::json())
         .map(|ad: Arc<Mutex<AppData>>, req: CalculateRequest| {
             let mut ad = ad.lock().unwrap();
-            process_coordinates(&mut ad, req.latitude, req.longitude, req.agencies, req.modes)
+            process_coordinates(
+                &mut ad,
+                req.latitude,
+                req.longitude,
+                req.agencies,
+                req.modes,
+            )
         });
 
     let details = warp::post()

@@ -3,7 +3,7 @@ import mapboxgl from "mapbox-gl";
 import { get_details } from "./get_data";
 import { TimeColorMapper } from "./colors";
 
-import { format_popup_html, TripDetails } from "./format-details";
+import { format_popup_html, TripDetailsTransit } from "./format-details";
 import settings_form_setup from "./settings-form";
 import setLoading from "./loading-spinner";
 import { getData, setData } from "./data-promise";
@@ -86,7 +86,7 @@ map.on("load", async () => {
 
             if (!seconds) return;
 
-            const details: Array<TripDetails> = await get_details(getData(), {
+            const details: Array<TripDetailsTransit> = await get_details(getData(), {
                 latitude: e.lngLat.lat,
                 longitude: e.lngLat.lng
             });

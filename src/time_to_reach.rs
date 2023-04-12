@@ -1,17 +1,17 @@
+use crate::configuration::Configuration;
 use crate::gtfs_processing::{RouteStopSequence, SpatialStopsWithTrips};
-use crate::gtfs_wrapper::{RouteType, StopTime};
+use crate::gtfs_wrapper::StopTime;
 use crate::in_progress_trip::InProgressTrip;
 use crate::reach_data::ReachData;
 use crate::road_structure::RoadStructure;
 use crate::{
     projection, BusPickupInfo, Gtfs1, IdType, TripsArena, MIN_TRANSFER_SECONDS, NULL_ID,
-    PRESENT_DAY, STRAIGHT_WALKING_SPEED,
+    PRESENT_DAY, STRAIGHT_WALKING_SPEED, TRANSIT_EXIT_PENALTY,
 };
 use id_arena::Id;
 use std::collections::HashSet;
 
 use crate::time::Time;
-use crate::web::LatLng;
 
 // #[derive(Debug, Default)]
 // pub struct TimeToReachRTree {
@@ -72,14 +72,6 @@ use crate::web::LatLng;
 //     // }
 // }
 
-pub struct Configuration {
-    pub start_time: Time,
-    pub duration_secs: f64,
-    pub location: LatLng,
-    pub agency_ids: HashSet<u8>,
-    pub modes: Vec<RouteType>
-}
-
 pub fn generate_reach_times(
     gtfs: &Gtfs1,
     data: &SpatialStopsWithTrips,
@@ -98,6 +90,8 @@ pub fn generate_reach_times(
         previous_transfer: None,
         boarding_stop_id: NULL_ID,
         is_free_transfer: false,
+        walking_time: Time(0.0),
+        walking_length_m: 0.0,
     });
 
     while let Some((item, id)) = rs.trips_arena.pop_front() {
@@ -115,9 +109,10 @@ pub fn generate_reach_times(
             rs.add_observation(
                 &item.point,
                 ReachData {
-                    timestamp: item.exit_time,
+                    timestamp: item.exit_time + TRANSIT_EXIT_PENALTY,
                     progress_trip_id: Some(id),
                     transfers: item.total_transfers,
+                    walking_length: 0.0,
                 },
             );
         }
@@ -139,11 +134,15 @@ fn all_stops_along_trip(
     trip_id: IdType,
     start_sequence_no: u16,
     route_info: &RouteStopSequence,
-    previous_transfer: Id<InProgressTrip>,
+    previous_transfer_id: Id<InProgressTrip>,
     transfers_remaining: u8,
     explore_queue: &mut TripsArena,
-    is_free_transfer: bool,
+    transfer_walking_time: Time,
+    transfer_walking_length: f64,
 ) {
+    let is_free_transfer = explore_queue
+        .get_by_id(previous_transfer_id)
+        .is_free_transfer;
     let stop_times = &gtfs.trips[&trip_id].stop_times;
     let (boarding_stop, stop_time_index) =
         get_stop_from_stop_seq_no(&stop_times, start_sequence_no);
@@ -155,7 +154,7 @@ fn all_stops_along_trip(
         let point = projection::project_stop(&gtfs.stops[&st.stop_id]);
         let timestamp = st.arrival_time.unwrap();
 
-        let id = explore_queue.add_to_explore(InProgressTrip {
+        let current_inprogress_trip = InProgressTrip {
             trip_id,
             boarding_time: Time(boarding_stop.arrival_time.unwrap() as f64),
             exit_time: Time(timestamp as f64),
@@ -164,9 +163,13 @@ fn all_stops_along_trip(
             get_off_stop_id: st.stop_id,
             boarding_stop_id: boarding_stop.stop_id,
             total_transfers: transfers_remaining,
-            previous_transfer: Some(previous_transfer),
+            previous_transfer: Some(previous_transfer_id),
             is_free_transfer,
-        });
+            walking_time: transfer_walking_time,
+            walking_length_m: transfer_walking_length,
+        };
+
+        let id = explore_queue.add_to_explore(current_inprogress_trip);
 
         if id.is_none() {
             break;
@@ -193,7 +196,8 @@ fn explore_from_point(
 
         let stop_d = &stop.data;
 
-        let time_to_stop = distance.sqrt() / STRAIGHT_WALKING_SPEED;
+        let transfer_walking_length = distance.sqrt();
+        let time_to_stop = transfer_walking_length / STRAIGHT_WALKING_SPEED;
         let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
         for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
             // Search for route pickup on or after the starting_timestamp
@@ -212,20 +216,19 @@ fn explore_from_point(
                 let is_valid_agency =
                     config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
 
-
                 let this_trip = &gtfs.trips[&next_bus.trip_id];
                 let this_route = &gtfs.routes[&this_trip.route_id];
 
-                let is_valid_mode = || {
-                    config.modes.is_empty() || config.modes.contains(&this_route.route_type)
-                };
+                let is_valid_mode =
+                    || config.modes.is_empty() || config.modes.contains(&this_route.route_type);
                 let service_runs_on_day = || {
                     gtfs.calendar
                         .runs_on_date(this_trip.service_id, *PRESENT_DAY)
                 };
 
                 let is_free_tranfer = this_trip.block_id.is_some()
-                    && this_trip.block_id.as_ref() == current_trip.and_then(|a| a.block_id.as_ref());
+                    && this_trip.block_id.as_ref()
+                        == current_trip.and_then(|a| a.block_id.as_ref());
 
                 let transfers_remaining = if is_free_tranfer {
                     ip.total_transfers
@@ -246,7 +249,8 @@ fn explore_from_point(
                         ip_id,
                         transfers_remaining,
                         explore_queue,
-                        is_free_tranfer,
+                        Time(time_to_stop),
+                        transfer_walking_length,
                     );
                     routes_already_taken.insert(route_info.clone());
                     break;
