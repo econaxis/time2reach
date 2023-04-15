@@ -62,7 +62,7 @@ export class TimeColorMapper {
         };
 
         setLoading(true);
-        const data = await fetch("http://localhost:3030/hello", {
+        const data = await fetch("http://localhost:3030/hello/Toronto", {
             method: "POST",
             mode: "cors",
             headers: {

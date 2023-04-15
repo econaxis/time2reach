@@ -1,15 +1,13 @@
 import osmnx
-def generate_toronto_geopackage():
-    toronto = osmnx.graph_from_point((43.76592048876812, -79.63720080558336), dist = 85000, network_type="drive_service")
-    # polygon = polygon["geometry"].unary_union
-    # toronto = osmnx.graph_from_polygon(polygon, network_type="walk")
-    osmnx.save_graph_geopackage(toronto, "toronto2.gpkg")
-    # map.save("map.html")
+def generate_toronto_geopackage(loc = (43.76592048876812, -79.63720080558336), filename = "toronto2.gpkg", dist = 55000):
+    toronto = osmnx.graph_from_point(loc, dist = dist, network_type="drive_service")
+    osmnx.save_graph_geopackage(toronto, filename)
 
-generate_toronto_geopackage()
+cities = ['New York City', 'Vancouver', 'Montreal']
 
-def generate_pyosm():
-    fp = pyrosm.get_data("Ontario")
-    osm = pyrosm.OSM(fp)
-    driving = osm.get_network(network_type = "driving")
+for city in cities:
+    print("Working for", city)
+    location = osmnx.geocode(city)
+    generate_toronto_geopackage(location, f"{city}.gpkg")
+
 

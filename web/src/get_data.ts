@@ -2,7 +2,7 @@ import { TimeColorMapper } from "./colors";
 
 export async function get_details(data: TimeColorMapper, location: object) {
     const resp = await fetch(
-        `http://localhost:3030/details/${data.request_id}`,
+        `http://localhost:3030/details/Toronto/${data.request_id}`,
         {
             method: "POST",
             mode: "cors",
