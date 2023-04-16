@@ -5,8 +5,7 @@ use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::gtfs_wrapper::RouteType;
 use crate::road_structure::{EdgeId, RoadStructureInner};
 use crate::{
-    gtfs_setup, time_to_reach, Gtfs1, RoadStructure, Time, NULL_ID, STRAIGHT_WALKING_SPEED,
-    WALKING_SPEED,
+    gtfs_setup, time_to_reach, Gtfs1, RoadStructure, Time, NULL_ID, WALKING_SPEED,
 };
 use lazy_static::lazy_static;
 use log::info;
@@ -17,10 +16,12 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
+use std::ops::DerefMut;
 use std::ptr::hash;
 use std::sync::{Arc, Mutex};
 use warp::reply::Json;
 use warp::{Filter, Reply};
+use crate::agencies::{agencies, City, load_all_gtfs};
 
 lazy_static! {
     pub static ref CACHE: Mutex<HashMap<u64, Value>> = { Mutex::new(HashMap::new()) };
@@ -46,6 +47,11 @@ fn cache_key(lat: f64, lng: f64, include_agencies: &[String], include_modes: &[S
     hasher.finish()
 }
 
+fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> Arc<Mutex<CityAppData>> {
+    let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
+
+    CityAppData::new(gtfs, data, city)
+}
 fn check_cache<'a>(
     cache: &'a HashMap<u64, Value>,
     lat: f64,
@@ -60,12 +66,17 @@ fn check_cache<'a>(
 }
 
 fn process_coordinates(
-    ad: &mut AppData,
+    ad: Arc<AllAppData>,
     lat: f64,
     lng: f64,
     include_agencies: Vec<String>,
     include_modes: Vec<String>,
+    city: City
 ) -> impl Reply {
+    let ad = &ad.ads.get(&city).unwrap();
+    let mut ad = ad.lock().unwrap();
+    let ad = ad.deref_mut();
+
     let mut cache = CACHE.lock().unwrap();
 
     let cache_key = match check_cache(&cache, lat, lng, &include_agencies, &include_modes) {
@@ -119,20 +130,26 @@ fn process_coordinates(
     warp::reply::json(&cache[&cache_key])
 }
 
-struct AppData {
+struct CityAppData {
     gtfs: Gtfs1,
     spatial: SpatialStopsWithTrips,
     rs_template: Arc<RoadStructureInner>,
     rs_list: Vec<RoadStructure>,
 }
 
-impl AppData {
-    fn new(gtfs: Gtfs1, spatial: SpatialStopsWithTrips) -> Arc<Mutex<AppData>> {
-        Arc::new(Mutex::new(Self::new1(gtfs, spatial)))
+struct AllAppData {
+    ads: HashMap<City, Arc<Mutex<CityAppData>>>
+}
+
+unsafe impl Sync for AllAppData {}
+
+impl CityAppData {
+    fn new(gtfs: Gtfs1, spatial: SpatialStopsWithTrips, city: City) -> Arc<Mutex<CityAppData>> {
+        Arc::new(Mutex::new(Self::new1(gtfs, spatial, city)))
     }
-    fn new1(gtfs: Gtfs1, spatial: SpatialStopsWithTrips) -> AppData {
-        let rs = RoadStructureInner::new();
-        AppData {
+    fn new1(gtfs: Gtfs1, spatial: SpatialStopsWithTrips, city: City) -> CityAppData {
+        let rs = RoadStructureInner::new(city);
+        CityAppData {
             gtfs,
             spatial,
             rs_template: Arc::new(rs),
@@ -193,7 +210,10 @@ enum TripDetails {
     Walking(TripDetailsWalking),
 }
 
-fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
+fn get_trip_details(ad: Arc<AllAppData>, id: usize, latlng: LatLng, city: City) -> impl Reply {
+    let ad = &ad.ads[&city];
+    let ad = ad.lock().unwrap();
+
     if id >= ad.rs_list.len() {
         return warp::reply::json(&"Invalid");
     }
@@ -271,18 +291,18 @@ fn get_trip_details(ad: &mut AppData, id: usize, latlng: LatLng) -> impl Reply {
 }
 
 fn with_appdata(
-    ad: Arc<Mutex<AppData>>,
-) -> impl Filter<Extract = (Arc<Mutex<AppData>>,), Error = Infallible> + Clone {
+    ad: Arc<AllAppData>,
+) -> impl Filter<Extract = (Arc<AllAppData>,), Error = Infallible> + Clone {
     warp::any().map(move || ad.clone())
 }
 
 pub async fn main() {
-    info!("Loading...");
+    let all_gtfs = load_all_gtfs();
+    let all_gtfs: HashMap<City, Arc<Mutex<CityAppData>>> = all_gtfs.into_iter().map(|(city, gtfs) | (city, gtfs_to_city_appdata(city, gtfs))).collect();
 
-    let gtfs = crate::setup_gtfs();
-    let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
-
-    let appdata = AppData::new(gtfs, data);
+    let appdata = Arc::new(AllAppData {
+        ads: all_gtfs
+    });
 
     let cors_policy = warp::cors()
         .allow_any_origin()
@@ -300,29 +320,33 @@ pub async fn main() {
     let log = warp::log("warp");
     let hello = warp::post()
         .and(with_appdata(appdata.clone()))
-        .and(warp::path("hello"))
+        .and(warp::path!("hello" / City))
         .and(warp::body::json())
-        .map(|ad: Arc<Mutex<AppData>>, req: CalculateRequest| {
-            let mut ad = ad.lock().unwrap();
+        .map(|ad: Arc<AllAppData>, city: City, req: CalculateRequest| {
             process_coordinates(
-                &mut ad,
+                ad,
                 req.latitude,
                 req.longitude,
                 req.agencies,
                 req.modes,
+                city
             )
         });
 
     let details = warp::post()
         .and(with_appdata(appdata.clone()))
-        .and(warp::path!("details" / usize))
+        .and(warp::path!("details" / City / usize))
         .and(warp::body::json())
-        .map(|ad: Arc<Mutex<AppData>>, id: usize, latlng: LatLng| {
-            let mut ad = ad.lock().unwrap();
-            get_trip_details(&mut ad, id, latlng)
+        .map(|ad: Arc<AllAppData>, city: City, id: usize, latlng: LatLng| {
+            get_trip_details(ad, id, latlng, city)
         });
 
-    let routes = hello.or(details).with(cors_policy).with(log);
+    let agencies_endpoint = warp::get()
+        .map(|| {
+            warp::reply::json(&agencies())
+        });
+
+    let routes = hello.or(details).or(agencies_endpoint).with(cors_policy).with(log);
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }

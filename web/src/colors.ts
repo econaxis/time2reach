@@ -3,6 +3,7 @@ import mapboxgl from "mapbox-gl";
 import fetch_form_data, { fetch_modes_data } from "./fetch-form-data";
 import { duration_range } from "./settings-form";
 import setLoading from "./loading-spinner";
+import { CITY } from "./ol";
 
 const NSHADES = 300;
 export const cmap = createColorMap({
@@ -62,7 +63,7 @@ export class TimeColorMapper {
         };
 
         setLoading(true);
-        const data = await fetch("http://localhost:3030/hello", {
+        const data = await fetch(`http://localhost:3030/hello/${CITY}`, {
             method: "POST",
             mode: "cors",
             headers: {

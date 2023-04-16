@@ -15,6 +15,7 @@ use std::sync::Arc;
 use crate::best_times::BestTimes;
 use crate::time::Time;
 use serde::ser::SerializeTuple;
+use crate::agencies::City;
 
 use crate::reach_data::ReachData;
 
@@ -120,7 +121,7 @@ impl RoadStructure {
     }
     pub fn new() -> Self {
         Self {
-            rs: Arc::new(RoadStructureInner::new()),
+            rs: Arc::new(RoadStructureInner::new(City::Toronto)),
             nb: BestTimes::new(),
             trips_arena: TripsArena::default(),
         }
@@ -272,7 +273,7 @@ impl RoadStructureInner {
         }
     }
 
-    pub fn new() -> Self {
+    pub fn new(city: City) -> Self {
         let options = DatasetOptions {
             open_flags: GdalOpenFlags::GDAL_OF_UPDATE,
             allowed_drivers: None,
@@ -280,7 +281,8 @@ impl RoadStructureInner {
             sibling_files: None,
         };
         info!("Loading toronto2.gpkg dataset");
-        let dataset = Dataset::open_ex("web/public/toronto2.gpkg", options).unwrap();
+        let dataset = Dataset::open_ex(
+            format!("web/public/{}.gpkg", city.get_gpkg_path()), options).unwrap();
 
         let mut s = Self {
             dataset,

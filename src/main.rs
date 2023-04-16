@@ -20,6 +20,7 @@ mod time;
 mod time_to_reach;
 mod trips_arena;
 mod web;
+mod agencies;
 
 use crate::gtfs_wrapper::DirectionType;
 
@@ -28,6 +29,7 @@ use std::collections::HashSet;
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
 use std::time::Instant;
+use serde::Serialize;
 
 use crate::formatter::time_to_point;
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
@@ -39,6 +41,7 @@ use gtfs_wrapper::LibraryGTFS;
 
 use time::Time;
 use trips_arena::TripsArena;
+use crate::agencies::City;
 
 const WALKING_SPEED: f64 = 1.35;
 const STRAIGHT_WALKING_SPEED: f64 = 1.20;
@@ -128,34 +131,10 @@ fn main() {
     }
 }
 
+
+
+
 fn setup_gtfs() -> Gtfs1 {
-    let mut gtfs = gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/ttc",
-        "TTC",
-    );
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/up_express",
-        "UP",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/waterloo_grt",
-        "GRT",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/GO_GTFS",
-        "GO",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/yrt",
-        "YRT",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/brampton",
-        "BRAMPTON",
-    ));
-    gtfs.merge(gtfs_setup::initialize_gtfs_as_bson(
-        "/Users/henry.nguyen@snapcommerce.com/Downloads/miway",
-        "MIWAY",
-    ));
-    gtfs
+    let mut result = agencies::load_all_gtfs();
+    result.remove(&City::Toronto).unwrap()
 }

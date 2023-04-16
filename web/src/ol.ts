@@ -9,9 +9,13 @@ import setLoading from "./loading-spinner";
 import { getData, setData } from "./data-promise";
 
 const starting_location = new mapboxgl.LngLat(
-    -79.61142287490227,
-    43.68355164972115
+    -73.99097283138498,
+    40.743697683057555,
+    // -79.61142287490227,
+    // 43.68355164972115
 );
+
+export const CITY = "NewYorkCity"
 
 mapboxgl.accessToken =
     "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
@@ -20,7 +24,7 @@ const default_color = "rgba(182,182,182,0.14)";
 export const map = new mapboxgl.Map({
     container: "map", // container ID
     style: "mapbox://styles/mapbox/dark-v11", // style URL
-    center: [-79.43113401487446, 43.650685085905365], // starting position [lng, lat]
+    center: starting_location, // starting position [lng, lat]
     zoom: 12, // starting zoom
 });
 

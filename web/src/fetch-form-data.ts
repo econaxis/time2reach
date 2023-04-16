@@ -7,6 +7,8 @@ export default function fetch_form_data() {
             agencies.push(id.toUpperCase());
         }
     }
+    agencies.push("NYC-SUBWAY");
+    agencies.push("NYC-BUS");
     return agencies;
 }
 
