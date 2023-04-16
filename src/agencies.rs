@@ -21,7 +21,10 @@ impl FromStr for City {
             "Toronto" => Ok(City::Toronto),
             "Montreal" => Ok(City::Montreal),
             "Vancouver" => Ok(City::Vancouver),
-            _ => Err(format!("{s} not a city"))
+            _ => {
+                log::error!("{s} is not a city");
+                Err(format!("{s} not a city"))
+            }
         }
     }
 }

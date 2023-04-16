@@ -280,7 +280,7 @@ impl RoadStructureInner {
             open_options: None,
             sibling_files: None,
         };
-        info!("Loading toronto2.gpkg dataset");
+        info!("Loading {} dataset", city.get_gpkg_path());
         let dataset = Dataset::open_ex(
             format!("web/public/{}.gpkg", city.get_gpkg_path()), options).unwrap();
 
@@ -295,8 +295,6 @@ impl RoadStructureInner {
         let mut edges_layer = s.dataset.layer_by_name("edges").unwrap();
         let mut nodes_layer = s.dataset.layer_by_name("nodes").unwrap();
 
-        // let field = FieldDefn::new("test_field1", OGRFieldType::OFTInteger).unwrap();
-        // field.add_to_layer(&edges_layer);
 
         let spatialref = edges_layer.spatial_ref().unwrap();
 

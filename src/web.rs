@@ -97,6 +97,8 @@ fn process_coordinates(
         .map(|ag| get_agency_id_from_short_name(ag))
         .collect();
 
+    println!("Agencies: {:?}", agency_ids);
+
     let _answer = time_to_reach::generate_reach_times(
         gtfs,
         spatial_stops,

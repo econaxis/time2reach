@@ -213,8 +213,7 @@ fn explore_from_point(
             for next_bus in route_pickup.range(starting_buspickup..) {
                 assert!(next_bus.timestamp >= this_timestamp);
 
-                let is_valid_agency =
-                    config.agency_ids.is_empty() || config.agency_ids.contains(&next_bus.trip_id.0);
+                let is_valid_agency = config.agency_ids.contains(&next_bus.trip_id.0);
 
                 let this_trip = &gtfs.trips[&next_bus.trip_id];
                 let this_route = &gtfs.routes[&this_trip.route_id];

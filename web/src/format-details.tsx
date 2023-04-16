@@ -102,12 +102,7 @@ export function DetailEntryTransit({ detail }) {
         <div class="px-2 py-1 my-3 border-l-red-200 border-l-4 rounded font-medium">
             <div>
                 <span class="">
-                    {<ModeIcon
-                        {detail.mode,
-                        detail.boarding.line,
-                        detail.background_color,
-                        detail.text_color
-                    )}
+                    {<ModeIcon{...detail}></ModeIcon>}
                     {formatStop(detail.boarding.stop)}
                 </span>
                 <span class="text-xs text-gray-500">
@@ -125,7 +120,7 @@ export function DetailEntryTransit({ detail }) {
 }
 
 export function DetailEntryWalking({ detail }) {
-    assert(detail.method === "Walking");
+    assert(detail.method === "Walking")
     return (
         <div className="px-2 py-1 my-1 border-l-gray-200 border-l-4 rounded font-medium">
             <div>
