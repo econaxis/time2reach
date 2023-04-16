@@ -3,7 +3,7 @@ import { CITY } from "./ol";
 
 export async function get_details(data: TimeColorMapper, location: object) {
     const resp = await fetch(
-        `http://localhost:3030/details/${CITY}/${data.request_id}`,
+        `http://localhost:3030/details/Toronto/${CITY}/${data.request_id}`,
         {
             method: "POST",
             mode: "cors",
