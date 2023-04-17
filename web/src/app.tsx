@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import mapboxgl from "mapbox-gl";
-import { getData, setData } from "./data-promise";
 import { DetailPopup, TripDetailsTransit } from "./format-details";
-import { get_details } from "./get_data";
+import { getDetails } from "./get_data";
 import { defaultColor, startingLocation } from "./ol";
 import { render } from "preact";
 import { TimeColorMapper } from "./colors";
+import { Fragment } from "preact";
 
+import "./style.css"
 interface Agency {
     agencyCode: string;
     agencyLongName: string;
@@ -108,18 +109,18 @@ const MODES = [
     { agencyCode: "rail", agencyLongName: "Train" }
 ];
 
-function setupMapboxMap(currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.LngLat) => void) {
+function setupMapboxMap(currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.LngLat) => void, getTimeData: () => TimeColorMapper) {
     currentMap.on("load", async () => {
         currentMap.addSource("some id", {
             type: "vector",
-            tiles: ["http://127.0.0.1:6767/edges/{z}/{x}/{y}.pbf"]
+            tiles: ["http://127.0.0.1:6767/newyorkcity/{z}/{x}/{y}.pbf"]
         });
 
         currentMap.addLayer({
             id: "transit-layer", // Layer ID
             type: "line",
             source: "some id", // ID of the tile source created above
-            "source-layer": "edges",
+            "source-layer": "newyorkcity",
             layout: {
                 "line-cap": "round",
                 "line-join": "round"
@@ -150,30 +151,31 @@ function setupMapboxMap(currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.L
             currentMap.getCanvas().style.cursor = "crosshair";
             currentTask = setTimeout(async () => {
                 const feature = nearbyFeatures[0];
-                popup.setLngLat(e.lngLat);
-                const seconds = getData().raw[feature.id];
+                const seconds = getTimeData().raw[feature.id];
 
                 if (!seconds) return;
 
-                const details: Array<TripDetailsTransit> = await get_details(
-                    getData(),
+                const details: Array<TripDetailsTransit> = await getDetails(
+                    getTimeData(),
                     {
                         latitude: e.lngLat.lat,
                         longitude: e.lngLat.lng
                     }
                 );
 
-                const elem = popup.getElement();
+
+                const node = document.createElement('div');
                 const detailPopup = <DetailPopup details={details} arrival_time={seconds}></DetailPopup>;
-                render(detailPopup, elem);
-                console.log("Rendered");
+                render(detailPopup, node);
+                popup.setDOMContent(node);
+                popup.setLngLat(e.lngLat);
+                popup.addTo(currentMap)
+                console.log('element', popup.getElement());
                 // popup.setHTML(format_popup_html(seconds, details));
-                popup.addTo(currentMap);
             }, 400);
         });
         currentMap.on("mouseleave", "transit-layer", () => {
             currentMap.getCanvas().style.cursor = "";
-            popup.remove();
             clearTimeout(currentTask);
             currentTask = undefined;
         });
@@ -183,7 +185,13 @@ function setupMapboxMap(currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.L
 export function MapboxMap({ currentOptions, currentLatLng, setLatLng }) {
     const [map, setMap] = useState<mapboxgl.Map | null>(null);
     const [loading, setLoading] = useState(true);
+    const timeData = useRef<TimeColorMapper | null>(null);
     const mapContainer = useRef<HTMLElement | null>(null);
+
+    const getTimeData = () => {
+        if (timeData.current) return timeData.current;
+        else throw Error('TimeData is undefined right now')
+    }
 
     useEffect(() => {
         // Init mapbox gl map here.
@@ -202,7 +210,7 @@ export function MapboxMap({ currentOptions, currentLatLng, setLatLng }) {
 
         let currentMap = map as mapboxgl.Map;
 
-        setupMapboxMap(currentMap, setLatLng);
+        setupMapboxMap(currentMap, setLatLng, getTimeData);
 
         currentMap.on('load', () => {
             setLoading(false);
@@ -216,14 +224,12 @@ export function MapboxMap({ currentOptions, currentLatLng, setLatLng }) {
 
         console.log('Fetching new data', currentLatLng, currentOptions)
         TimeColorMapper.fetch(currentLatLng, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
+            timeData.current = data;
             (map as mapboxgl.Map).setPaintProperty("transit-layer", "line-color", [
                 "coalesce",
                 ["get", ["to-string", ["id"]], ["literal", data.m]],
                 defaultColor
             ]);
-
-
-            console.log("Setting paint property", data)
         });
     }, [currentOptions, currentLatLng, map, loading]);
 
@@ -322,9 +328,9 @@ export function App() {
     const [currentLatLng, setCurrentLatLng] = useState(startingLocation);
 
     return (
-        <div>
+        <Fragment>
             <MapboxMap currentOptions={currentOptions} currentLatLng={currentLatLng} setLatLng={setCurrentLatLng} />
             <ControlSidebar setOptions={setCurrentOptions} />
-        </div>
+        </Fragment>
     );
 }

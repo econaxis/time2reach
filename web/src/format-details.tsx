@@ -1,5 +1,3 @@
-import * as assert from "assert";
-
 interface TripDetailsInner {
     time: number;
     line: number;
@@ -66,18 +64,23 @@ export function format_time(secs: number): string {
 
 function ModeIcon({
     mode,
-    line_number,
-    bg_color,
+    boarding,
+    background_color,
     text_color}
 ) {
     const icon = {
-        bus: '<i class="fa-solid fa-bus-simple"></i>',
-        tram: '<i class="fa-solid fa-train-tram"></i>',
-        subway: '<i class="fa-solid fa-train-subway"></i>',
-        rail: '<i class="fa-solid fa-train"></i>',
+        bus: <i className="fa-solid fa-bus-simple"></i>,
+        tram: <i className="fa-solid fa-train-tram"></i>,
+        subway: <i className="fa-solid fa-train-subway"></i>,
+        rail: <i className="fa-solid fa-train"></i>,
     }[mode];
 
-    return <span class="rounded p-0.5 px-1" style={`background-color: ${bg_color}; color: ${text_color}`}>{icon} {line_number}</span>;
+    console.log('Setting ', background_color, text_color)
+    const styleString = {"background-color": background_color, color: text_color};
+
+    return <span className="rounded p-0.5 px-1" style={styleString}>
+        {icon} {boarding.line}
+    </span>;
 }
 
 function format_walking_duration(secs: number) {
@@ -96,22 +99,22 @@ function format_walking_distance(length: number) {
 }
 
 export function DetailEntryTransit({ detail }) {
-    assert(detail.method === "Transit");
+    console.assert(detail.method === "Transit");
 
     return (
-        <div class="px-2 py-1 my-3 border-l-red-200 border-l-4 rounded font-medium">
+        <div className="px-2 py-1 my-3 border-l-red-200 border-l-4 rounded font-medium">
             <div>
-                <span class="">
-                    {<ModeIcon{...detail}></ModeIcon>}
+                <span>
+                    <ModeIcon{...detail}></ModeIcon>
                     {formatStop(detail.boarding.stop)}
                 </span>
-                <span class="text-xs text-gray-500">
+                <span className="text-xs text-gray-500">
                     {format_time(detail.boarding.time)}
                 </span>
             </div>
             <div>
                 <span>Exit at {formatStop(detail.exit.stop)}</span>
-                <span class="text-xs text-gray-500">
+                <span className="text-xs text-gray-500">
                     {format_time(detail.exit.time)}
                 </span>
             </div>
@@ -120,13 +123,12 @@ export function DetailEntryTransit({ detail }) {
 }
 
 export function DetailEntryWalking({ detail }) {
-    assert(detail.method === "Walking")
+    console.assert(detail.method === "Walking")
     return (
         <div className="px-2 py-1 my-1 border-l-gray-200 border-l-4 rounded font-medium">
             <div>
                 <span>
-                    Walk ${format_walking_duration(detail.time)} ($
-                    {format_walking_distance(detail.length)})
+                    Walk {format_walking_duration(detail.time)} ({format_walking_distance(detail.length)})
                 </span>
             </div>
         </div>
@@ -135,16 +137,17 @@ export function DetailEntryWalking({ detail }) {
 
 export function DetailPopup({ details, arrival_time }) {
     const detailEntries = details.map((d) => {
+        console.log('detailpopup', d)
         if (d.method === "Walking")
-            return <DetailEntryWalking {...d}></DetailEntryWalking>;
-        else return <DetailEntryTransit {...d}></DetailEntryTransit>;
+            return <DetailEntryWalking detail={d}></DetailEntryWalking>;
+        else return <DetailEntryTransit detail={d}></DetailEntryTransit>;
     });
 
     return (
         <div className="border max-w-xs rounded-lg bg-slate-50 p-2 pb-1 font-sans">
             {detailEntries}
             <p>
-                Arrival time <strong>${format_time(arrival_time)}</strong>
+                Arrival time <strong>{format_time(arrival_time)}</strong>
             </p>
         </div>
     );

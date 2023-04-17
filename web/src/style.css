@@ -99,3 +99,9 @@
 #map {
     height: 800px;
 }
+
+.mapboxgl-popup {
+    position: absolute;
+    top:0;
+    left:0;
+}

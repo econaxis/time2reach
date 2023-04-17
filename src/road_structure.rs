@@ -265,7 +265,7 @@ impl RoadStructureInner {
                 continue;
             }
 
-            if time - base_time.timestamp >= Time(3600.0 * 0.30) {
+            if time - base_time.timestamp >= Time(3600.0 * 1.30) {
                 continue;
             }
 
