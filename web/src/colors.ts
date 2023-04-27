@@ -1,7 +1,6 @@
 import createColorMap from 'colormap'
 import type mapboxgl from 'mapbox-gl'
 import setLoading from './loading-spinner'
-import { getCityFromUrl } from './ol'
 
 const NSHADES = 300
 export const cmap = createColorMap({
@@ -11,12 +10,12 @@ export const cmap = createColorMap({
   nshades: NSHADES
 })
 
-function mapper (value) {
+function mapper (value: number): number {
   value = 1.1 / (1 + Math.exp(-3 * (2 * value - 1.2))) - 0.03
   return value
 }
 
-export function get_color_0_1 (value: number): string {
+export function getColor0To1 (value: number): string {
   if (value < 0 || value > 1) {
     console.log('invalid value', value)
   }
@@ -26,8 +25,8 @@ export function get_color_0_1 (value: number): string {
   return cmap[Math.trunc(value * NSHADES)]
 }
 
-function object_to_true_values (obj: Record<string, boolean>) {
-  return Object.entries(obj).filter(([_, include]) => include).map(([key, include]) => key)
+function objectToTrueValues (obj: Record<string, boolean>): string[] {
+  return Object.entries(obj).filter(([_, include]) => include).map(([key, _include]) => key)
 }
 export class TimeColorMapper {
   m: Record<number, any>
@@ -36,30 +35,30 @@ export class TimeColorMapper {
   max: number
   request_id: any
 
-  constructor (request_id, edge_times, durationRange) {
+  constructor (requestId: object, edgeTimes: Record<string, number>, durationRange: number) {
     this.m = {}
     this.min = 9999999999999
     this.max = -this.min
     this.raw = {}
     this.request_id = 0
 
-    for (const nodeid in edge_times) {
-      this.raw[nodeid.toString()] = edge_times[nodeid]
-      const time = edge_times[nodeid]
+    for (const nodeid in edgeTimes) {
+      this.raw[nodeid.toString()] = edgeTimes[nodeid]
+      const time = edgeTimes[nodeid]
       this.min = Math.min(this.min, time)
     }
-    this.request_id = request_id
+    this.request_id = requestId
 
     this.max = this.min + durationRange
     this.calculate_colors()
   }
 
-  static async fetch (location: mapboxgl.LngLat, durationRange: number, agencies: Record<string, boolean>, modes: Record<string, boolean>) {
+  static async fetch (location: mapboxgl.LngLat, durationRange: number, agencies: Record<string, boolean>, modes: Record<string, boolean>): Promise<TimeColorMapper> {
     const body = {
       latitude: location.lat,
       longitude: location.lng,
-      agencies: object_to_true_values(agencies),
-      modes: object_to_true_values(modes)
+      agencies: objectToTrueValues(agencies),
+      modes: objectToTrueValues(modes)
     }
 
     setLoading(true)
@@ -74,12 +73,12 @@ export class TimeColorMapper {
     })
     const js = await data.json()
 
-    const { request_id, edge_times } = js
+    const { request_id: requestId, edge_times: edgeTimes } = js
 
-    return new TimeColorMapper(request_id, edge_times, durationRange)
+    return new TimeColorMapper(requestId, edgeTimes, durationRange)
   }
 
-  calculate_colors () {
+  calculate_colors (): void {
     const spread = this.max - this.min
 
     for (const id in this.raw) {
@@ -88,7 +87,7 @@ export class TimeColorMapper {
 
       if (normalized > 1.0) {
       } else {
-        const color = get_color_0_1(normalized)
+        const color = getColor0To1(normalized)
         if (color) {
           this.m[id] = color
         } else {

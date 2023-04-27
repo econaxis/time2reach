@@ -18,6 +18,11 @@
         "react"
     ],
     "rules": {
+        "@typescript-eslint/strict-boolean-expressions": "off",
+        "react/react-in-jsx-scope": "off",
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/quotes": "off",
+        "indent": ["warn", 4]
     },
     "settings": {
         "react": {
