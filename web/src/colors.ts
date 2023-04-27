@@ -1,7 +1,7 @@
 import createColorMap from "colormap";
 import mapboxgl from "mapbox-gl";
 import setLoading from "./loading-spinner";
-import { CITY } from "./ol";
+import { getCityFromUrl } from "./ol";
 
 const NSHADES = 300;
 export const cmap = createColorMap({
@@ -35,7 +35,7 @@ export class TimeColorMapper {
     raw: Record<number, any>;
     min: number;
     max: number;
-    request_id: number;
+    request_id: any;
 
     constructor(request_id, edge_times, durationRange) {
         this.m = {};
@@ -64,7 +64,7 @@ export class TimeColorMapper {
         };
 
         setLoading(true);
-        const data = await fetch(`http://localhost:3030/hello/${CITY}`, {
+        const data = await fetch(`http://localhost:3030/hello/${getCityFromUrl()}`, {
             method: "POST",
             mode: "cors",
             headers: {

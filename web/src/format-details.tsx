@@ -105,15 +105,16 @@ export function DetailEntryTransit({ detail }) {
         <div className="px-2 py-1 my-3 border-l-red-200 border-l-4 rounded font-medium">
             <div>
                 <span>
-                    <ModeIcon{...detail}></ModeIcon>
+                    <ModeIcon{...detail}></ModeIcon>&nbsp;
                     {formatStop(detail.boarding.stop)}
-                </span>
+                </span>&nbsp;
                 <span className="text-xs text-gray-500">
                     {format_time(detail.boarding.time)}
                 </span>
             </div>
             <div>
                 <span>Exit at {formatStop(detail.exit.stop)}</span>
+                &nbsp;
                 <span className="text-xs text-gray-500">
                     {format_time(detail.exit.time)}
                 </span>

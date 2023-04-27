@@ -8,10 +8,7 @@
 // import setLoading from "./loading-spinner";
 // import { getData, setData } from "./data-promise";
 //
-import { getData, setData } from "./data-promise";
-import { TimeColorMapper } from "./colors";
 import mapboxgl from "mapbox-gl";
-import setLoading from "./loading-spinner";
 
 export const startingLocation = new mapboxgl.LngLat(
     -73.99097283138498,
@@ -20,7 +17,18 @@ export const startingLocation = new mapboxgl.LngLat(
     // 43.68355164972115
 );
 
-export const CITY = "NewYorkCity"
+
+
+export function getCityFromUrl() {
+    const DEFAULT_CITY = 'newyorkcity'
+    const urlParams = new URLSearchParams(window.location.search)
+    const city = urlParams.get('city');
+    if (!city) {
+        urlParams.set('city', DEFAULT_CITY)
+        return DEFAULT_CITY;
+    }
+    return city.toLowerCase();
+}
 
 export const defaultColor = "rgba(182,182,182,0.14)";
 

@@ -4,8 +4,5 @@ observations.bson
 observations.rmp
 fd1sa
 cache
-map.html
-toronto.gpkg*
-toronto1.gpkg*
-toronto2.gpkg*
 node_modules
+*.gpkg

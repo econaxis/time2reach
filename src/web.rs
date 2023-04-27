@@ -65,14 +65,38 @@ fn check_cache<'a>(
     cache.get(&hash).ok_or(hash)
 }
 
+fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
+    for (city, data) in &ad.ads {
+        let data = data.lock().unwrap();
+        let is_near_point = data.spatial.is_near_point(LatLng {
+            latitude: lat,
+            longitude: lng
+        });
+
+        if is_near_point {
+            return Some(*city)
+        }
+    }
+    return None;
+}
+
+fn generate_request_id(lat: f64, lng: f64) -> (f64, f64) {
+    return (lat, lng);
+}
+
 fn process_coordinates(
     ad: Arc<AllAppData>,
     lat: f64,
     lng: f64,
     include_agencies: Vec<String>,
     include_modes: Vec<String>,
-    city: City
 ) -> impl Reply {
+    let city = check_city(&ad, lat, lng);
+
+    if city.is_none() {
+        return warp::reply::json(&"No city found nearby");
+    }
+    let city = city.unwrap();
     let ad = &ad.ads.get(&city).unwrap();
     let mut ad = ad.lock().unwrap();
     let ad = ad.deref_mut();
@@ -123,8 +147,13 @@ fn process_coordinates(
         .into_iter()
         .map(|edge_time| (edge_time.edge_id, edge_time.time as u32))
         .collect();
+
+    let request_id = RequestId {
+        rs_list_index: ad.rs_list.len() - 1,
+        city
+    };
     let response = json!({
-        "request_id": ad.rs_list.len() - 1,
+        "request_id": request_id,
         "edge_times": edge_times_object
     });
 
@@ -143,7 +172,6 @@ struct AllAppData {
     ads: HashMap<City, Arc<Mutex<CityAppData>>>
 }
 
-unsafe impl Sync for AllAppData {}
 
 impl CityAppData {
     fn new(gtfs: Gtfs1, spatial: SpatialStopsWithTrips, city: City) -> Arc<Mutex<CityAppData>> {
@@ -212,14 +240,29 @@ enum TripDetails {
     Walking(TripDetailsWalking),
 }
 
-fn get_trip_details(ad: Arc<AllAppData>, id: usize, latlng: LatLng, city: City) -> impl Reply {
+#[derive(Deserialize)]
+struct GetDetailsRequest {
+    latlng: LatLng,
+    request_id: RequestId
+}
+
+#[derive(Serialize, Deserialize)]
+struct RequestId {
+    rs_list_index: usize,
+    city: City
+}
+
+fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
+
+    let latlng = req.latlng;
+    let city= req.request_id.city;
     let ad = &ad.ads[&city];
     let ad = ad.lock().unwrap();
 
-    if id >= ad.rs_list.len() {
+    if req.request_id.rs_list_index>= ad.rs_list.len() {
         return warp::reply::json(&"Invalid");
     }
-    let rs = &ad.rs_list[id];
+    let rs = &ad.rs_list[req.request_id.rs_list_index];
     let formatter = time_to_point(
         rs,
         &rs.trips_arena,
@@ -331,16 +374,15 @@ pub async fn main() {
                 req.longitude,
                 req.agencies,
                 req.modes,
-                city
             )
         });
 
     let details = warp::post()
         .and(with_appdata(appdata.clone()))
-        .and(warp::path!("details" / City / usize))
+        .and(warp::path!("details" ))
         .and(warp::body::json())
-        .map(|ad: Arc<AllAppData>, city: City, id: usize, latlng: LatLng| {
-            get_trip_details(ad, id, latlng, city)
+        .map(|ad: Arc<AllAppData>, req: GetDetailsRequest| {
+            get_trip_details(ad, req)
         });
 
     let agencies_endpoint = warp::get()

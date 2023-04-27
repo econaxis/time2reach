@@ -1,9 +1,13 @@
 import { TimeColorMapper } from "./colors";
-import { CITY } from "./ol";
 
 export async function getDetails(data: TimeColorMapper, location: object) {
+
+    let body = {
+        request_id: data.request_id,
+        latlng: location
+    }
     const resp = await fetch(
-        `http://localhost:3030/details/${CITY}/${data.request_id}`,
+        `http://localhost:3030/details/`,
         {
             method: "POST",
             mode: "cors",
@@ -11,7 +15,7 @@ export async function getDetails(data: TimeColorMapper, location: object) {
                 Accept: "application/json",
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(location),
+            body: JSON.stringify(body),
         }
     );
 

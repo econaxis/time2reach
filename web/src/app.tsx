@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import mapboxgl from "mapbox-gl";
 import { DetailPopup, TripDetailsTransit } from "./format-details";
 import { getDetails } from "./get_data";
-import { defaultColor, startingLocation } from "./ol";
+import { defaultColor, getCityFromUrl, startingLocation } from "./ol";
 import { render } from "preact";
 import { TimeColorMapper } from "./colors";
 import { Fragment } from "preact";
@@ -113,14 +113,14 @@ function setupMapboxMap(currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.L
     currentMap.on("load", async () => {
         currentMap.addSource("some id", {
             type: "vector",
-            tiles: ["http://127.0.0.1:6767/newyorkcity/{z}/{x}/{y}.pbf"]
+            tiles: [`http://127.0.0.1:6767/all_cities/{z}/{x}/{y}.pbf`]
         });
 
         currentMap.addLayer({
             id: "transit-layer", // Layer ID
             type: "line",
             source: "some id", // ID of the tile source created above
-            "source-layer": "newyorkcity",
+            "source-layer": 'all_cities',
             layout: {
                 "line-cap": "round",
                 "line-join": "round"
@@ -170,9 +170,7 @@ function setupMapboxMap(currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.L
                 popup.setDOMContent(node);
                 popup.setLngLat(e.lngLat);
                 popup.addTo(currentMap)
-                console.log('element', popup.getElement());
-                // popup.setHTML(format_popup_html(seconds, details));
-            }, 400);
+            }, 300);
         });
         currentMap.on("mouseleave", "transit-layer", () => {
             currentMap.getCanvas().style.cursor = "";
@@ -189,7 +187,7 @@ export function MapboxMap({ currentOptions, currentLatLng, setLatLng }) {
     const mapContainer = useRef<HTMLElement | null>(null);
 
     const getTimeData = () => {
-        if (timeData.current) return timeData.current;
+        if (timeData.current) return timeData.current as TimeColorMapper;
         else throw Error('TimeData is undefined right now')
     }
 
@@ -233,7 +231,7 @@ export function MapboxMap({ currentOptions, currentLatLng, setLatLng }) {
         });
     }, [currentOptions, currentLatLng, map, loading]);
 
-    return <div ref={mapContainer} className="map w-screen h-screen"></div>;
+    return <div ref={mapContainer} className="map w-screen h-screen overflow-none"></div>;
 }
 
 export function TimeSlider({ setDuration }) {

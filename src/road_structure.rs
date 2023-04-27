@@ -20,6 +20,7 @@ use crate::agencies::City;
 use crate::reach_data::ReachData;
 
 pub type EdgeId = u64;
+const MAX_WALKING_HOURS: f64 = 0.40;
 
 #[derive(Clone)]
 struct EdgeData {
@@ -91,7 +92,6 @@ pub struct RoadStructureInner {
 }
 
 unsafe impl Send for RoadStructureInner {}
-
 unsafe impl Sync for RoadStructureInner {}
 
 pub struct RoadStructure {
@@ -265,7 +265,7 @@ impl RoadStructureInner {
                 continue;
             }
 
-            if time - base_time.timestamp >= Time(3600.0 * 1.30) {
+            if time - base_time.timestamp >= Time(3600.0 * MAX_WALKING_HOURS) {
                 continue;
             }
 

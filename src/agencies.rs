@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::str::FromStr;
+use serde::Deserialize;
 use serde::Serialize;
 use crate::gtfs_setup::initialize_gtfs_as_bson;
 use crate::gtfs_wrapper::Gtfs1;
 
-#[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub enum City {
     NewYorkCity,
     Vancouver,
@@ -16,11 +17,11 @@ impl FromStr for City {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "NewYorkCity" => Ok(City::NewYorkCity),
-            "Toronto" => Ok(City::Toronto),
-            "Montreal" => Ok(City::Montreal),
-            "Vancouver" => Ok(City::Vancouver),
+        match s.to_lowercase().as_str() {
+            "newyorkcity" => Ok(City::NewYorkCity),
+            "toronto" => Ok(City::Toronto),
+            "montreal" => Ok(City::Montreal),
+            "vancouver" => Ok(City::Vancouver),
             _ => {
                 log::error!("{s} is not a city");
                 Err(format!("{s} not a city"))
