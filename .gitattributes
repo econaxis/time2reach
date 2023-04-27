@@ -1,0 +1,5 @@
+web/public/Toronto.gpkg filter=lfs diff=lfs merge=lfs -text
+web/public/toronto4.gpkg filter=lfs diff=lfs merge=lfs -text
+web/public/Vancouver.gpkg filter=lfs diff=lfs merge=lfs -text
+web/public/Montreal.gpkg filter=lfs diff=lfs merge=lfs -text
+web/public/NewYorkCity.gpkg filter=lfs diff=lfs merge=lfs -text
