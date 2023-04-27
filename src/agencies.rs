@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::str::FromStr;
-use serde::Deserialize;
-use serde::Serialize;
 use crate::gtfs_setup::initialize_gtfs_as_bson;
 use crate::gtfs_wrapper::Gtfs1;
+use serde::Deserialize;
+use serde::Serialize;
+use std::collections::HashMap;
+use std::str::FromStr;
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub enum City {
@@ -36,7 +36,7 @@ impl City {
             City::NewYorkCity => "NewYorkCity",
             City::Toronto => "Toronto",
             City::Montreal => "Montreal",
-            City::Vancouver => "Vancouver"
+            City::Vancouver => "Vancouver",
         }
     }
 }
@@ -49,13 +49,15 @@ pub struct Agency {
     city: City,
 }
 
-
 pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
     let mut result: HashMap<City, Gtfs1> = HashMap::new();
 
     for agency in agencies() {
         let this_gtfs = initialize_gtfs_as_bson(
-            &format!("/Users/henry.nguyen@snapcommerce.com/Downloads/{}", agency.path),
+            &format!(
+                "/Users/henry.nguyen@snapcommerce.com/Downloads/{}",
+                agency.path
+            ),
             agency.short_code,
         );
         if let Some(gtfs) = result.get_mut(&agency.city) {
@@ -112,7 +114,6 @@ pub const fn agencies<'a>() -> &'a [Agency] {
             path: "miway",
             short_code: "MIWAY",
         },
-
         // New York City
         Agency {
             public_name: "NYC Subway",

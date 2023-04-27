@@ -12,10 +12,10 @@ use std::collections::{HashMap, VecDeque};
 use log::info;
 use std::sync::Arc;
 
+use crate::agencies::City;
 use crate::best_times::BestTimes;
 use crate::time::Time;
 use serde::ser::SerializeTuple;
-use crate::agencies::City;
 
 use crate::reach_data::ReachData;
 
@@ -281,8 +281,8 @@ impl RoadStructureInner {
             sibling_files: None,
         };
         info!("Loading {} dataset", city.get_gpkg_path());
-        let dataset = Dataset::open_ex(
-            format!("web/public/{}.gpkg", city.get_gpkg_path()), options).unwrap();
+        let dataset =
+            Dataset::open_ex(format!("web/public/{}.gpkg", city.get_gpkg_path()), options).unwrap();
 
         let mut s = Self {
             dataset,
@@ -294,7 +294,6 @@ impl RoadStructureInner {
 
         let mut edges_layer = s.dataset.layer_by_name("edges").unwrap();
         let mut nodes_layer = s.dataset.layer_by_name("nodes").unwrap();
-
 
         let spatialref = edges_layer.spatial_ref().unwrap();
 

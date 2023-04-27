@@ -4,6 +4,7 @@
 
 extern crate core;
 
+mod agencies;
 mod best_times;
 mod calendar;
 mod configuration;
@@ -20,7 +21,6 @@ mod time;
 mod time_to_reach;
 mod trips_arena;
 mod web;
-mod agencies;
 
 use crate::gtfs_wrapper::DirectionType;
 
@@ -28,8 +28,8 @@ use std::collections::HashSet;
 
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
-use std::time::Instant;
 use serde::Serialize;
+use std::time::Instant;
 
 use crate::formatter::time_to_point;
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
@@ -39,9 +39,9 @@ use crate::web::LatLng;
 use configuration::Configuration;
 use gtfs_wrapper::LibraryGTFS;
 
+use crate::agencies::City;
 use time::Time;
 use trips_arena::TripsArena;
-use crate::agencies::City;
 
 const WALKING_SPEED: f64 = 1.35;
 const STRAIGHT_WALKING_SPEED: f64 = 1.20;
@@ -130,9 +130,6 @@ fn main() {
         });
     }
 }
-
-
-
 
 fn setup_gtfs() -> Gtfs1 {
     let mut result = agencies::load_all_gtfs();

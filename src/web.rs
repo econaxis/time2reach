@@ -1,12 +1,11 @@
+use crate::agencies::{agencies, load_all_gtfs, City};
 use crate::configuration::Configuration;
 use crate::formatter::{get_route_mode, time_to_point};
 use crate::gtfs_processing::SpatialStopsWithTrips;
 use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::gtfs_wrapper::RouteType;
 use crate::road_structure::{EdgeId, RoadStructureInner};
-use crate::{
-    gtfs_setup, time_to_reach, Gtfs1, RoadStructure, Time, NULL_ID, WALKING_SPEED,
-};
+use crate::{gtfs_setup, time_to_reach, Gtfs1, RoadStructure, Time, NULL_ID, WALKING_SPEED};
 use lazy_static::lazy_static;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -21,7 +20,6 @@ use std::ptr::hash;
 use std::sync::{Arc, Mutex};
 use warp::reply::Json;
 use warp::{Filter, Reply};
-use crate::agencies::{agencies, City, load_all_gtfs};
 
 lazy_static! {
     pub static ref CACHE: Mutex<HashMap<u64, Value>> = { Mutex::new(HashMap::new()) };
@@ -70,11 +68,11 @@ fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
         let data = data.lock().unwrap();
         let is_near_point = data.spatial.is_near_point(LatLng {
             latitude: lat,
-            longitude: lng
+            longitude: lng,
         });
 
         if is_near_point {
-            return Some(*city)
+            return Some(*city);
         }
     }
     return None;
@@ -150,7 +148,7 @@ fn process_coordinates(
 
     let request_id = RequestId {
         rs_list_index: ad.rs_list.len() - 1,
-        city
+        city,
     };
     let response = json!({
         "request_id": request_id,
@@ -169,9 +167,8 @@ struct CityAppData {
 }
 
 struct AllAppData {
-    ads: HashMap<City, Arc<Mutex<CityAppData>>>
+    ads: HashMap<City, Arc<Mutex<CityAppData>>>,
 }
-
 
 impl CityAppData {
     fn new(gtfs: Gtfs1, spatial: SpatialStopsWithTrips, city: City) -> Arc<Mutex<CityAppData>> {
@@ -243,23 +240,22 @@ enum TripDetails {
 #[derive(Deserialize)]
 struct GetDetailsRequest {
     latlng: LatLng,
-    request_id: RequestId
+    request_id: RequestId,
 }
 
 #[derive(Serialize, Deserialize)]
 struct RequestId {
     rs_list_index: usize,
-    city: City
+    city: City,
 }
 
 fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
-
     let latlng = req.latlng;
-    let city= req.request_id.city;
+    let city = req.request_id.city;
     let ad = &ad.ads[&city];
     let ad = ad.lock().unwrap();
 
-    if req.request_id.rs_list_index>= ad.rs_list.len() {
+    if req.request_id.rs_list_index >= ad.rs_list.len() {
         return warp::reply::json(&"Invalid");
     }
     let rs = &ad.rs_list[req.request_id.rs_list_index];
@@ -343,11 +339,12 @@ fn with_appdata(
 
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
-    let all_gtfs: HashMap<City, Arc<Mutex<CityAppData>>> = all_gtfs.into_iter().map(|(city, gtfs) | (city, gtfs_to_city_appdata(city, gtfs))).collect();
+    let all_gtfs: HashMap<City, Arc<Mutex<CityAppData>>> = all_gtfs
+        .into_iter()
+        .map(|(city, gtfs)| (city, gtfs_to_city_appdata(city, gtfs)))
+        .collect();
 
-    let appdata = Arc::new(AllAppData {
-        ads: all_gtfs
-    });
+    let appdata = Arc::new(AllAppData { ads: all_gtfs });
 
     let cors_policy = warp::cors()
         .allow_any_origin()
@@ -365,32 +362,25 @@ pub async fn main() {
     let log = warp::log("warp");
     let hello = warp::post()
         .and(with_appdata(appdata.clone()))
-        .and(warp::path!("hello" / City))
+        .and(warp::path!("hello"))
         .and(warp::body::json())
-        .map(|ad: Arc<AllAppData>, city: City, req: CalculateRequest| {
-            process_coordinates(
-                ad,
-                req.latitude,
-                req.longitude,
-                req.agencies,
-                req.modes,
-            )
+        .map(|ad: Arc<AllAppData>, req: CalculateRequest| {
+            process_coordinates(ad, req.latitude, req.longitude, req.agencies, req.modes)
         });
 
     let details = warp::post()
         .and(with_appdata(appdata.clone()))
-        .and(warp::path!("details" ))
+        .and(warp::path!("details"))
         .and(warp::body::json())
-        .map(|ad: Arc<AllAppData>, req: GetDetailsRequest| {
-            get_trip_details(ad, req)
-        });
+        .map(|ad: Arc<AllAppData>, req: GetDetailsRequest| get_trip_details(ad, req));
 
-    let agencies_endpoint = warp::get()
-        .map(|| {
-            warp::reply::json(&agencies())
-        });
+    let agencies_endpoint = warp::get().map(|| warp::reply::json(&agencies()));
 
-    let routes = hello.or(details).or(agencies_endpoint).with(cors_policy).with(log);
+    let routes = hello
+        .or(details)
+        .or(agencies_endpoint)
+        .with(cors_policy)
+        .with(log);
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
