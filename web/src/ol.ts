@@ -17,7 +17,7 @@ export const startingLocation = new mapboxgl.LngLat(
   // 43.68355164972115
 )
 
-export function getCityFromUrl () {
+export function getCityFromUrl (): string {
   const DEFAULT_CITY = 'newyorkcity'
   const urlParams = new URLSearchParams(window.location.search)
   const city = urlParams.get('city')
