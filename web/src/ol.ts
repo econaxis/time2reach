@@ -8,30 +8,27 @@
 // import setLoading from "./loading-spinner";
 // import { getData, setData } from "./data-promise";
 //
-import mapboxgl from "mapbox-gl";
+import mapboxgl from 'mapbox-gl'
 
 export const startingLocation = new mapboxgl.LngLat(
-    -73.99097283138498,
-    40.743697683057555,
-    // -79.61142287490227,
-    // 43.68355164972115
-);
+  -73.99097283138498,
+  40.743697683057555
+  // -79.61142287490227,
+  // 43.68355164972115
+)
 
-
-
-export function getCityFromUrl() {
-    const DEFAULT_CITY = 'newyorkcity'
-    const urlParams = new URLSearchParams(window.location.search)
-    const city = urlParams.get('city');
-    if (!city) {
-        urlParams.set('city', DEFAULT_CITY)
-        return DEFAULT_CITY;
-    }
-    return city.toLowerCase();
+export function getCityFromUrl () {
+  const DEFAULT_CITY = 'newyorkcity'
+  const urlParams = new URLSearchParams(window.location.search)
+  const city = urlParams.get('city')
+  if (!city) {
+    urlParams.set('city', DEFAULT_CITY)
+    return DEFAULT_CITY
+  }
+  return city.toLowerCase()
 }
 
-export const defaultColor = "rgba(182,182,182,0.14)";
-
+export const defaultColor = 'rgba(182,182,182,0.14)'
 
 //
 // settings_form_setup();
