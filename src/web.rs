@@ -374,7 +374,7 @@ pub async fn main() {
         .and(warp::body::json())
         .map(|ad: Arc<AllAppData>, req: GetDetailsRequest| get_trip_details(ad, req));
 
-    let agencies_endpoint = warp::get().map(|| warp::reply::json(&agencies()));
+    let agencies_endpoint = warp::get().and(warp::path!("agencies")).map(|| warp::reply::json(&agencies()));
 
     let routes = hello
         .or(details)

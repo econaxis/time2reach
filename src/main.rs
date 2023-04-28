@@ -43,10 +43,10 @@ use crate::agencies::City;
 use time::Time;
 use trips_arena::TripsArena;
 
-const WALKING_SPEED: f64 = 1.35;
-const STRAIGHT_WALKING_SPEED: f64 = 1.20;
+const WALKING_SPEED: f64 = 1.42;
+const STRAIGHT_WALKING_SPEED: f64 = 1.30;
 pub const MIN_TRANSFER_SECONDS: f64 = 5.0;
-pub const TRANSIT_EXIT_PENALTY: f64 = 30.0;
+pub const TRANSIT_EXIT_PENALTY: f64 = 15.0;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 

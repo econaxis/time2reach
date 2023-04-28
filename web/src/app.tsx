@@ -9,6 +9,7 @@ import { TimeColorMapper } from './colors'
 import './style.css'
 import { CityPillContainer } from './city-pill'
 import { QueryClient, QueryClientProvider, useQuery } from 'react-query'
+import { TimeSlider } from './time-slider'
 
 interface Agency {
     agencyCode: string
@@ -163,6 +164,7 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
         let currentTask
         currentMap.on('mouseover', 'transit-layer', async (e) => {
+            console.log("Adding", e)
             const nearbyFeatures = currentMap.queryRenderedFeatures(e.point)
             if (nearbyFeatures.length === 0) return
 
@@ -188,9 +190,11 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
                 popup.addTo(currentMap)
             }, 300)
         })
-        currentMap.on('mouseleave', 'transit-layer', () => {
+        currentMap.on('mouseleave', 'transit-layer', (e) => {
+            console.log('Clearing', e)
             currentMap.getCanvas().style.cursor = ''
             clearTimeout(currentTask)
+            popup.remove()
             currentTask = undefined
         })
     })
@@ -264,47 +268,6 @@ export function MapboxMap ({
     }, [currentPos])
 
     return <div ref={mapContainer} className="map w-screen h-screen overflow-none"></div>
-}
-
-// eslint-disable-next-line react/prop-types
-export function TimeSlider ({ setDuration }) {
-    const defaultDurationRange = 3600
-    const onChange = (element) => {
-        setDuration(parseInt(element.target.value))
-    }
-    useEffect(() => {
-        console.log('Setting duration')
-        setDuration(3600)
-    }, [])
-    return (
-        <div className="mt-2">
-            <Header>Time Settings</Header>
-
-            <div className="mt-2">
-                <div>
-                    <label
-                        htmlFor="duration-range"
-                        className="float-left mb-1 text-sm font-medium text-gray-900"
-                    >
-                        Maximum duration of trip
-                    </label>
-                    <span
-                        id="duration-label"
-                        className="float-right inline-block mb-1 text-sm font-light text-gray-700"
-                    >1:00</span>
-                </div>
-                <input
-                    id="duration-range"
-                    type="range"
-                    min="1800"
-                    max="5400"
-                    value={defaultDurationRange.toString()}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    onChange={onChange}
-                />
-            </div>
-        </div>
-    )
 }
 
 export function ControlSidebar ({ setOptions }) {

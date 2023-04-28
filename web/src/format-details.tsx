@@ -79,7 +79,6 @@ function ModeIcon ({
         rail: <i className="fa-solid fa-train"></i>
     }[mode]
 
-    console.log('Setting ', background_color, text_color)
     const styleString = {
         'background-color': background_color,
         color: text_color
@@ -98,7 +97,7 @@ function ModeIcon ({
     </span>
 }
 
-function format_walking_duration (secs: number) {
+function formatWalkingDuration (secs: number) {
     const minutes = Math.floor(secs / 60)
     const seconds = Math.round(secs % 60)
 
@@ -157,7 +156,7 @@ export function DetailEntryWalking ({ detail }) {
         <div className="px-1 my-1 border-l-gray-200 border-l-4 rounded font-medium">
             <div>
                 <SmallSpan>
-                    Walk {format_walking_duration(detail.time)}&nbsp;
+                    Walk {formatWalkingDuration(detail.time)}&nbsp;
                     <SmallSpan light>({format_walking_distance(detail.length)})</SmallSpan>
                 </SmallSpan>
             </div>
@@ -167,7 +166,7 @@ export function DetailEntryWalking ({ detail }) {
 
 export function DetailPopup ({
     details,
-    arrival_time
+    arrival_time: arrivalTime
 }) {
     const detailEntries = details.map((d) => {
         console.log('detailpopup', d)
@@ -182,7 +181,7 @@ export function DetailPopup ({
         <div className="border max-w-xs rounded-lg bg-slate-50 p-2 pb-1 font-sans">
             {detailEntries}
             <p className="mt-2 ml-1 text-xs font-bold">
-                Arrival time: {formatTime(arrival_time)}
+                Arrival time: {formatTime(arrivalTime)}
             </p>
         </div>
     )

@@ -5,4 +5,5 @@ observations.rmp
 fd1sa
 cache
 node_modules
-*.gpkg
+*.gpkg*
+.DS_Store
