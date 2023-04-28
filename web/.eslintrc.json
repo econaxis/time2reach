@@ -22,7 +22,9 @@
         "react/react-in-jsx-scope": "off",
         "@typescript-eslint/explicit-function-return-type": "off",
         "@typescript-eslint/quotes": "off",
-        "indent": ["warn", 4]
+        "indent": "off",
+        "@typescript-eslint/indent": "off",
+        "react/prop-types": "off"
     },
     "settings": {
         "react": {

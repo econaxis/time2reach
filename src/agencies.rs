@@ -127,5 +127,22 @@ pub const fn agencies<'a>() -> &'a [Agency] {
             path: "nyc-bus",
             short_code: "NYC-BUS",
         },
+
+
+        // Vancouver
+        Agency {
+            public_name: "Vancouver Translink",
+            city: City::Vancouver,
+            path: "vancouver-translink",
+            short_code: "VANCOUVER-TRANSLINK",
+        },
+
+        // Montreal
+        Agency {
+            public_name: "Montreal STM",
+            city: City::Montreal,
+            path: "montreal",
+            short_code: "MONTREAL",
+        },
     ];
 }
