@@ -1,21 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link
-            rel="stylesheet"
-            href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
-            integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI="
-            crossorigin=""
-        />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="tailwind.css" />
+  <link
+      href="https://api.mapbox.com/mapbox-gl-js/v2.13.0/mapbox-gl.css"
+      rel="stylesheet"
+  />
+  <script
+      defer
+      src="node_modules/@fortawesome/fontawesome-free/js/brands.js"
+  ></script>
+  <script
+      defer
+      src="node_modules/@fortawesome/fontawesome-free/js/solid.js"
+  ></script>
+  <script
+      defer
+      src="node_modules/@fortawesome/fontawesome-free/js/fontawesome.js"
+  ></script>
 
-        <title>Vite + TS</title>
-    </head>
-    <body>
-        <div id="map"></div>
-        <img src="/vite.svg" />
-        <script type="module" src="/src/main.ts"></script>
-    </body>
+  <title>Vite + Preact + TS</title>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="/src/main.tsx"></script>
+</body>
 </html>

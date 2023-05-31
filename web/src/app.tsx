@@ -10,6 +10,7 @@ import './style.css'
 import { CityPillContainer } from './city-pill'
 import { QueryClient, QueryClientProvider, useQuery } from 'react-query'
 import { TimeSlider } from './time-slider'
+import { sleep } from "react-query/types/core/utils";
 
 interface Agency {
     agencyCode: string
@@ -164,7 +165,6 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
         let currentTask
         currentMap.on('mouseover', 'transit-layer', async (e) => {
-            console.log("Adding", e)
             const nearbyFeatures = currentMap.queryRenderedFeatures(e.point)
             if (nearbyFeatures.length === 0) return
 
@@ -191,7 +191,6 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
             }, 300)
         })
         currentMap.on('mouseleave', 'transit-layer', (e) => {
-            console.log('Clearing', e)
             currentMap.getCanvas().style.cursor = ''
             clearTimeout(currentTask)
             popup.remove()
@@ -247,14 +246,15 @@ export function MapboxMap ({
         if (!currentOptions) return
         if (!currentLatLng) return
         if (loading) return
+        if (!map) return
 
-        console.log('Fetching new data', currentLatLng, currentOptions)
         void TimeColorMapper.fetch(currentLatLng, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
+            console.log("Loaded", map?.loaded())
             timeData.current = data;
-            console.log('Setting colors', data.m);
+
             (map as mapboxgl.Map).setPaintProperty('transit-layer', 'line-color', [
                 'coalesce',
-                ['get', ['to-string', ['get', 'fid']], ['literal', data.m]],
+                ['get', ['to-string', ['id']], ['literal', data.m]],
                 defaultColor
             ])
         })
@@ -262,8 +262,6 @@ export function MapboxMap ({
 
     useEffect(() => {
         if (!map) return
-
-        console.log('Setting center', currentPos)
         map.setCenter(currentPos)
         map.setZoom(11)
     }, [currentPos])
@@ -342,14 +340,16 @@ export function App () {
     const [currentCity, setCurrentCity] = useState("Toronto")
 
     const cityLocation = CITY_LOCATION[currentCity]
+    const setCityFromPill = (cityName: string) => {
+        setCurrentCity(cityName)
+        setCurrentStartingLoc(CITY_LOCATION[cityName])
+    }
 
-
-    console.log("Setting current city", currentCity, cityLocation);
 
     return (
         <QueryClientProvider client={queryClient}>
             <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City']}
-                               setLocation={setCurrentCity} />
+                               setLocation={setCityFromPill} />
             <MapboxMap currentOptions={currentOptions} currentLatLng={currentStartingLoc}
                        setLatLng={setCurrentStartingLoc}
                        currentPos={cityLocation} />
