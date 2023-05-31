@@ -251,9 +251,10 @@ export function MapboxMap ({
         console.log('Fetching new data', currentLatLng, currentOptions)
         void TimeColorMapper.fetch(currentLatLng, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
             timeData.current = data;
+            console.log('Setting colors', data.m);
             (map as mapboxgl.Map).setPaintProperty('transit-layer', 'line-color', [
                 'coalesce',
-                ['get', ['to-string', ['id']], ['literal', data.m]],
+                ['get', ['to-string', ['get', 'fid']], ['literal', data.m]],
                 defaultColor
             ])
         })

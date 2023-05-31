@@ -1,0 +1,24 @@
+[[tileset]]
+name="all_cities"
+
+[[tileset.layer]]
+name="edges"
+datasource="data"
+fid_field="fid"
+query_limit=1000000
+geometry_field="geom"
+table_name="all_cities"
+
+[[datasource]]
+name="data"
+dbconn="postgresql://henry@localhost:5432/data"
+
+
+[webserver]
+port=6767
+
+[service.mvt]
+viewer = false
+
+[grid]
+predefined = "web_mercator"

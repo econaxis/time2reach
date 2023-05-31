@@ -55,7 +55,7 @@ pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
     for agency in agencies() {
         let this_gtfs = initialize_gtfs_as_bson(
             &format!(
-                "/Users/henry.nguyen@snapcommerce.com/Downloads/{}",
+                "/Users/henry/Downloads/{}",
                 agency.path
             ),
             agency.short_code,
