@@ -28,8 +28,9 @@ use std::collections::HashSet;
 
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
-use serde::Serialize;
+
 use std::time::Instant;
+use log::LevelFilter;
 
 use crate::formatter::time_to_point;
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
@@ -118,11 +119,10 @@ fn main1() {
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::builder().filter_level(LevelFilter::Debug).parse_default_env().init();
 
     if false {
         main1();
-        return;
     } else {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {

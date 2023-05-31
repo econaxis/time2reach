@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import mapboxgl from 'mapbox-gl'
 import { DetailPopup, type TripDetailsTransit } from './format-details'
 import { getDetails } from './get_data'
-import { defaultColor, startingLocation } from './ol'
+import { defaultColor } from './ol'
 import { render } from 'preact'
 import { TimeColorMapper } from './colors'
 
@@ -305,12 +305,9 @@ export function ControlSidebar ({ setOptions }) {
     const {
         isLoading,
         data,
-        error
     } = useAgencies()
 
-    if (isLoading) return
-
-    console.log('got agencies', data, error)
+    if (isLoading) return null;
 
     return <Sidebar>
         <AgencyForm
@@ -327,20 +324,35 @@ export function ControlSidebar ({ setOptions }) {
     </Sidebar>
 }
 
+
+const CITY_LOCATION = {
+    Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),
+    "New York City": new mapboxgl.LngLat(-74.0060, 40.7128),
+    Montreal: new mapboxgl.LngLat(-73.5674, 45.5019),
+    Vancouver: new mapboxgl.LngLat(-123.1207, 49.2827)
+}
+
+export const startingLocation = CITY_LOCATION.Toronto
+
 export function App () {
     const queryClient = new QueryClient({})
 
     const [currentOptions, setCurrentOptions] = useState(null)
     const [currentStartingLoc, setCurrentStartingLoc] = useState(startingLocation)
-    const [currentPos, setCurrentPos] = useState(startingLocation)
+    const [currentCity, setCurrentCity] = useState("Toronto")
+
+    const cityLocation = CITY_LOCATION[currentCity]
+
+
+    console.log("Setting current city", currentCity, cityLocation);
 
     return (
         <QueryClientProvider client={queryClient}>
             <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City']}
-                               setLocation={setCurrentPos} />
+                               setLocation={setCurrentCity} />
             <MapboxMap currentOptions={currentOptions} currentLatLng={currentStartingLoc}
                        setLatLng={setCurrentStartingLoc}
-                       currentPos={currentPos} />
+                       currentPos={cityLocation} />
             <ControlSidebar setOptions={setCurrentOptions} />
         </QueryClientProvider>
     )

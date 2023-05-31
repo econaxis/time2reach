@@ -10,12 +10,7 @@
 //
 import mapboxgl from 'mapbox-gl'
 
-export const startingLocation = new mapboxgl.LngLat(
-  -73.99097283138498,
-  40.743697683057555
-  // -79.61142287490227,
-  // 43.68355164972115
-)
+
 
 export function getCityFromUrl (): string {
   const DEFAULT_CITY = 'newyorkcity'

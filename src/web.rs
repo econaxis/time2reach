@@ -16,16 +16,16 @@ use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
 use std::ops::DerefMut;
-use std::ptr::hash;
+
 use std::sync::{Arc, Mutex};
-use warp::reply::Json;
+
 use warp::{Filter, Reply};
 
 lazy_static! {
-    pub static ref CACHE: Mutex<HashMap<u64, Value>> = { Mutex::new(HashMap::new()) };
+    pub static ref CACHE: Mutex<HashMap<u64, Value>> = Mutex::new(HashMap::new());
 }
 fn round_f64_for_hash(x: f64) -> u64 {
-    return (x * 10000.0).round() as u64;
+    (x * 10000.0).round() as u64
 }
 fn cache_key(lat: f64, lng: f64, include_agencies: &[String], include_modes: &[String]) -> u64 {
     let mut hasher = DefaultHasher::new();
@@ -58,8 +58,6 @@ fn check_cache<'a>(
     include_modes: &[String],
 ) -> Result<&'a Value, u64> {
     let hash = cache_key(lat, lng, include_agencies, include_modes);
-    println!("Hash key {hash}");
-
     cache.get(&hash).ok_or(hash)
 }
 
@@ -75,12 +73,9 @@ fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
             return Some(*city);
         }
     }
-    return None;
+    None
 }
 
-fn generate_request_id(lat: f64, lng: f64) -> (f64, f64) {
-    return (lat, lng);
-}
 
 fn process_coordinates(
     ad: Arc<AllAppData>,
@@ -112,19 +107,18 @@ fn process_coordinates(
     let rs = RoadStructure::new_from_road_structure(rs_template);
 
     ad.rs_list.push(rs);
-    let mut rs = ad.rs_list.last_mut().unwrap();
+    let rs = ad.rs_list.last_mut().unwrap();
 
     let agency_ids: HashSet<u8> = include_agencies
         .iter()
         .map(|ag| get_agency_id_from_short_name(ag))
         .collect();
 
-    println!("Agencies: {:?}", agency_ids);
 
-    let _answer = time_to_reach::generate_reach_times(
+    time_to_reach::generate_reach_times(
         gtfs,
         spatial_stops,
-        &mut rs,
+        rs,
         Configuration {
             start_time: Time(17.3 * 3600.0),
             duration_secs: 3600.0 * 1.5,
@@ -372,7 +366,7 @@ pub async fn main() {
         .and(with_appdata(appdata.clone()))
         .and(warp::path!("details"))
         .and(warp::body::json())
-        .map(|ad: Arc<AllAppData>, req: GetDetailsRequest| get_trip_details(ad, req));
+        .map(get_trip_details);
 
     let agencies_endpoint = warp::get().and(warp::path!("agencies")).map(|| warp::reply::json(&agencies()));
 

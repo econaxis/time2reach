@@ -145,7 +145,7 @@ fn all_stops_along_trip(
         .is_free_transfer;
     let stop_times = &gtfs.trips[&trip_id].stop_times;
     let (boarding_stop, stop_time_index) =
-        get_stop_from_stop_seq_no(&stop_times, start_sequence_no);
+        get_stop_from_stop_seq_no(stop_times, start_sequence_no);
 
     for (_stops_travelled, st) in stop_times[stop_time_index as usize + 1..]
         .iter()

@@ -16,12 +16,6 @@ pub struct TimeFormatter {
     secs: Time,
 }
 
-impl TimeFormatter {
-    pub fn new(secs: Time) -> Self {
-        Self { secs }
-    }
-}
-
 impl Display for TimeFormatter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let secs = self.secs.as_u32();

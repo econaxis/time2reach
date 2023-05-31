@@ -110,7 +110,7 @@ impl RoadStructure {
         let nodeid = &self.rs.nearest_node_to_point(point, Some(stop_id));
 
         self.nb
-            .get(&nodeid)
+            .get(nodeid)
             .map(|a| a.timestamp)
             .unwrap_or(Time::MAX)
             > time
@@ -129,7 +129,7 @@ impl RoadStructure {
 
     pub fn new_from_road_structure(rs: Arc<RoadStructureInner>) -> Self {
         Self {
-            rs: rs.clone(),
+            rs,
             nb: BestTimes::new(),
             trips_arena: TripsArena::default(),
         }

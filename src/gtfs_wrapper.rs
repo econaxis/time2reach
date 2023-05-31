@@ -10,7 +10,7 @@ pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
 static AGENCY_COUNT: AtomicU8 = AtomicU8::new(0);
 
-#[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub enum RouteType {
     /// Tram, Streetcar, Light rail. Any light rail or street level system within a metropolitan area
     Tramway,
@@ -58,7 +58,7 @@ impl From<gtfs_structures::RouteType> for RouteType {
     }
 }
 
-#[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Default, Copy)]
+#[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, Copy)]
 pub enum DirectionType {
     /// Travel in one direction (e.g. outbound travel).
     #[default]
@@ -76,7 +76,7 @@ impl From<gtfs_structures::DirectionType> for DirectionType {
     }
 }
 
-#[derive(Debug, Archive, Serialize, Deserialize, Clone, PartialEq, Default)]
+#[derive(Debug, Archive, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 pub enum LocationType {
     /// Stop (or Platform). A location where passengers board or disembark from a transit vehicle. Is called a platform when defined within a parent_station
     #[default]
@@ -355,14 +355,14 @@ impl From<LibraryGTFS> for Gtfs0 {
             calendar: a
                 .calendar
                 .unwrap_or(Ok(vec![]))
-                .unwrap_or(vec![])
+                .unwrap_or_default()
                 .into_iter()
                 .map(|a| Service::from_with_agency_id(agency_id, a))
                 .collect(),
             calendar_dates: a
                 .calendar_dates
                 .unwrap_or(Ok(vec![]))
-                .unwrap_or(vec![])
+                .unwrap_or_default()
                 .into_iter()
                 .map(|a| CalendarException::from_with_agency_id(agency_id, a))
                 .collect(),
@@ -383,7 +383,7 @@ impl From<LibraryGTFS> for Gtfs0 {
                 .unwrap()
                 .into_iter()
                 .map(|a| {
-                    return Trip::from_with_agency_id(agency_id, a);
+                    Trip::from_with_agency_id(agency_id, a)
                 })
                 .collect(),
             stop_times: a

@@ -22,8 +22,8 @@ pub fn project_lng_lat(lng: f64, lat: f64) -> [f64; 2] {
     });
     [coord.0, coord.1]
 }
-
-pub fn inverse_project_lng_lat(x: f64, y: f64) -> [f64; 2] {
-    let coord = PROJ.with(|p| p.project((x, y), true).unwrap());
-    [coord.1.to_degrees(), coord.0.to_degrees()]
-}
+//
+// pub fn inverse_project_lng_lat(x: f64, y: f64) -> [f64; 2] {
+//     let coord = PROJ.with(|p| p.project((x, y), true).unwrap());
+//     [coord.1.to_degrees(), coord.0.to_degrees()]
+// }
