@@ -7,13 +7,17 @@ viewer = false
 dbconn = "postgresql://henry@localhost:5432/data"
 name = "dbconn"
 default = true
+connection_timeout=30000000
 
 [grid]
 predefined = "web_mercator"
 
 [[tileset]]
 name = "all_cities"
-extent = [-123.29228, 40.21737, -72.86419, 49.75538]
+
+extent = [ -80.92591413637992,43.20691728340927, -78.52793183891616, 44.034922140597025]
+
+
 [[tileset.layer]]
 name = "all_cities"
 table_name = "all_cities"
@@ -23,15 +27,19 @@ geometry_type = "LINESTRING"
 srid = 4326
 buffer_size = 0
 #make_valid = true
-simplify = true
 query_limit = 1000000
 
-[cache.file]
-base = "/tmp/mvtcache"
-baseurl = "http://example.com/tiles"
+
+[cache.s3]
+bucket="timetoreach-tiles"
+access_key="AKIA3DIAOJLS3KMRGIXW"
+secret_key="LZ/IMmYv+SmTP0Buc0a/J2vQaWCeoW84o8tMpL2T"
+region="us-east-1"
+endpoint="s3.us-east-1.amazonaws.com"
+
 
 [webserver]
 # Bind address. Use 0.0.0.0 to listen on all adresses.
-bind = "127.0.0.1"
+bind = "0.0.0.0"
 port = 6767
 
