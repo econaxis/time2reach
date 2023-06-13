@@ -11,6 +11,7 @@ import { CityPillContainer } from './city-pill'
 import { QueryClient, QueryClientProvider, useQuery } from 'react-query'
 import { TimeSlider } from './time-slider'
 import { baseUrl, mvtUrl } from "./dev-api";
+import { LoadingSpinner } from "./loading-spinner";
 
 interface Agency {
     agencyCode: string
@@ -97,7 +98,6 @@ export function Sidebar ({ children, zi }) {
 }
 
 async function fetchAgencies (): Promise<Agency[]> {
-    console.log('fetching agencies')
     const result = await fetch(`${baseUrl}/agencies`)
     const json = await result.json()
     console.log('json is', json)
@@ -206,14 +206,15 @@ export function MapboxMap ({
     currentOptions,
     currentLatLng,
     setLatLng,
-    currentPos
+    currentPos,
+    setSpinnerLoading
 }) {
     const [map, setMap] = useState<mapboxgl.Map | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [mapboxLoading, setMapboxLoading] = useState(true)
     const timeData = useRef<TimeColorMapper | null>(null)
     const mapContainer = useRef<HTMLElement | null>(null)
 
-    const getTimeData = () => {
+    const getTimeData = (): TimeColorMapper => {
         if (timeData.current != null) {
             return timeData.current
         } else {
@@ -229,7 +230,7 @@ export function MapboxMap ({
             'pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A'
 
         const map = new mapboxgl.Map({
-            container: mapContainer.current, // container ID
+            container: mapContainer.current as HTMLElement, // container ID
             style: 'mapbox://styles/mapbox/dark-v11', // style URL
             center: startingLocation, // starting position [lng, lat]
             zoom: 12 // starting zoom
@@ -240,17 +241,19 @@ export function MapboxMap ({
 
         setupMapboxMap(currentMap, setLatLng, getTimeData)
 
-        currentMap.on('load', () => {
-            setLoading(false)
+        currentMap.once('render', () => {
+            setMapboxLoading(false)
         })
     }, [])
 
     useEffect(() => {
         if (!currentOptions) return
         if (!currentLatLng) return
-        if (loading) return
+        if (mapboxLoading) return
         if (!map) return
 
+        console.log("setLoading True here")
+        setSpinnerLoading(true)
         void TimeColorMapper.fetch(currentLatLng, currentOptions.startTime, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
             timeData.current = data
 
@@ -259,8 +262,12 @@ export function MapboxMap ({
                 ['get', ['to-string', ['id']], ['literal', data.m]],
                 defaultColor
             ])
+
+            map.once('render', () => {
+                setSpinnerLoading(false)
+            })
         })
-    }, [currentOptions, currentLatLng, map, loading])
+    }, [currentOptions, currentLatLng, map, mapboxLoading])
 
     useEffect(() => {
         if (!map) return
@@ -318,8 +325,6 @@ export function ControlSidebar ({ setOptions, currentCity }) {
         }
     })
 
-    console.log("Agencies", filtered)
-
     return <Sidebar zi={10}>
         <AgencyForm
             agencies={filtered}
@@ -350,6 +355,7 @@ export function App () {
     const [currentOptions, setCurrentOptions] = useState(null)
     const [currentStartingLoc, setCurrentStartingLoc] = useState(startingLocation)
     const [currentCity, setCurrentCity] = useState("Toronto")
+    const [spinner, setSpinner] = useState(true);
 
     const cityLocation = CITY_LOCATION[currentCity]
     const setCityFromPill = (cityName: string) => {
@@ -359,11 +365,12 @@ export function App () {
 
     return (
         <QueryClientProvider client={queryClient}>
+            <LoadingSpinner display={spinner}/>
             <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City']}
                                setLocation={setCityFromPill} currentCity={currentCity} />
             <MapboxMap currentOptions={currentOptions} currentLatLng={currentStartingLoc}
                        setLatLng={setCurrentStartingLoc}
-                       currentPos={cityLocation} />
+                       currentPos={cityLocation} setSpinnerLoading={setSpinner} />
             <ControlSidebar setOptions={setCurrentOptions} currentCity={currentCity} />
         </QueryClientProvider>
     )

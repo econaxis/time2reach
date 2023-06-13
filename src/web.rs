@@ -18,11 +18,13 @@ use std::hash::{Hash, Hasher};
 use std::ops::DerefMut;
 
 use std::sync::{Arc, Mutex};
+use lru::LruCache;
 
 use warp::{Filter, Reply};
 
+use std::num::NonZeroUsize;
 lazy_static! {
-    pub static ref CACHE: Mutex<HashMap<u64, Value>> = Mutex::new(HashMap::new());
+    pub static ref CACHE: Mutex<LruCache<u64, Value>> = Mutex::new(LruCache::new(NonZeroUsize::new(15).unwrap()));
 }
 fn round_f64_for_hash(x: f64) -> u64 {
     (x * 10000.0).round() as u64
@@ -52,7 +54,7 @@ fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> Arc<Mutex<CityAppData>> {
     CityAppData::new(gtfs, data, city)
 }
 fn check_cache<'a>(
-    cache: &'a HashMap<u64, Value>,
+    cache: &'a mut LruCache<u64, Value>,
     lat: f64,
     lng: f64,
     include_agencies: &[String],
@@ -85,8 +87,11 @@ fn process_coordinates(
     lng: f64,
     include_agencies: Vec<String>,
     include_modes: Vec<String>,
-    start_time: u64
+    start_time: u64,
+    prev_request_id: Option<RequestId>
 ) -> impl Reply {
+
+
     let city = check_city(&ad, lat, lng);
 
     if city.is_none() {
@@ -97,9 +102,13 @@ fn process_coordinates(
     let mut ad = ad.lock().unwrap();
     let ad = ad.deref_mut();
 
+    if let Some(req) = prev_request_id {
+        ad.rs_list.remove(req.rs_list_index);
+    }
+
     let mut cache = CACHE.lock().unwrap();
 
-    let cache_key = match check_cache(&cache, lat, lng, &include_agencies, &include_modes, start_time) {
+    let cache_key = match check_cache(&mut cache, lat, lng, &include_agencies, &include_modes, start_time) {
         Ok(reply) => return warp::reply::json(reply),
         Err(key) => key,
     };
@@ -107,10 +116,10 @@ fn process_coordinates(
     let gtfs = &ad.gtfs;
     let spatial_stops = &ad.spatial;
     let rs_template = ad.rs_template.clone();
-    let rs = RoadStructure::new_from_road_structure(rs_template);
+    let mut rs = RoadStructure::new_from_road_structure(rs_template);
 
-    ad.rs_list.push(rs);
-    let rs = ad.rs_list.last_mut().unwrap();
+    // ad.rs_list.push(rs);
+    // let rs = ad.rs_list.last_mut().unwrap();
 
     let agency_ids: HashSet<u8> = include_agencies
         .iter()
@@ -121,7 +130,7 @@ fn process_coordinates(
     time_to_reach::generate_reach_times(
         gtfs,
         spatial_stops,
-        rs,
+        &mut rs,
         Configuration {
             start_time: Time(start_time as f64),
             duration_secs: 3600.0 * 1.5,
@@ -143,8 +152,10 @@ fn process_coordinates(
         .map(|edge_time| (edge_time.edge_id, edge_time.time as u32))
         .collect();
 
+
+    let rs_list_index = ad.rs_list.push(rs);
     let request_id = RequestId {
-        rs_list_index: ad.rs_list.len() - 1,
+        rs_list_index,
         city,
     };
     let response = json!({
@@ -152,15 +163,47 @@ fn process_coordinates(
         "edge_times": edge_times_object
     });
 
-    cache.insert(cache_key, response);
-    warp::reply::json(&cache[&cache_key])
+    let cached_response = cache.get_or_insert_mut(cache_key, || response);
+    warp::reply::json(cached_response)
+}
+
+struct RoadStructureList {
+    inner: LruCache<usize, RoadStructure>,
+    counter: usize
+}
+
+impl RoadStructureList {
+    fn remove(&mut self, key: usize) {
+        self.inner.pop(&key);
+    }
+    fn push(&mut self, rs: RoadStructure) -> usize {
+        self.counter += 1;
+
+        self.inner.put(self.counter, rs);
+
+        self.counter
+    }
+
+    fn pre_get(&mut self, key: usize) {
+        self.inner.get(&key);
+    }
+    fn get(&self, key: usize) -> Option<&RoadStructure> {
+        self.inner.peek(&key)
+    }
+
+    fn new(max: usize) -> Self {
+        RoadStructureList {
+            inner: LruCache::new(NonZeroUsize::new(max).unwrap()),
+            counter: 0
+        }
+    }
 }
 
 struct CityAppData {
     gtfs: Gtfs1,
     spatial: SpatialStopsWithTrips,
     rs_template: Arc<RoadStructureInner>,
-    rs_list: Vec<RoadStructure>,
+    rs_list: RoadStructureList,
 }
 
 struct AllAppData {
@@ -177,7 +220,7 @@ impl CityAppData {
             gtfs,
             spatial,
             rs_template: Arc::new(rs),
-            rs_list: Vec::new(),
+            rs_list: RoadStructureList::new(20),
         }
     }
 }
@@ -190,7 +233,10 @@ pub struct CalculateRequest {
     pub modes: Vec<String>,
 
     #[serde(rename = "startTime")]
-    pub start_time: u64
+    pub start_time: u64,
+
+    #[serde(rename = "previousRequestId")]
+    pub previous_request_id: Option<RequestId>
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -244,7 +290,7 @@ struct GetDetailsRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-struct RequestId {
+pub struct RequestId {
     rs_list_index: usize,
     city: City,
 }
@@ -252,13 +298,16 @@ struct RequestId {
 fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
     let latlng = req.latlng;
     let city = req.request_id.city;
-    let ad = &ad.ads[&city];
-    let ad = ad.lock().unwrap();
+    let ad = ad.ads.get(&city).unwrap();
+    let mut ad = ad.lock().unwrap();
 
-    if req.request_id.rs_list_index >= ad.rs_list.len() {
+    ad.rs_list.pre_get(req.request_id.rs_list_index);
+    let rs_option = ad.rs_list.get(req.request_id.rs_list_index);
+    if rs_option.is_none() {
         return warp::reply::json(&"Invalid");
     }
-    let rs = &ad.rs_list[req.request_id.rs_list_index];
+
+    let rs = rs_option.unwrap();
     let formatter = time_to_point(
         rs,
         &rs.trips_arena,
@@ -365,7 +414,7 @@ pub async fn main() {
         .and(warp::path!("hello"))
         .and(warp::body::json())
         .map(|ad: Arc<AllAppData>, req: CalculateRequest| {
-            process_coordinates(ad, req.latitude, req.longitude, req.agencies, req.modes, req.start_time)
+            process_coordinates(ad, req.latitude, req.longitude, req.agencies, req.modes, req.start_time, req.previous_request_id)
         });
 
     let details = warp::post()

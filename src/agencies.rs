@@ -73,7 +73,6 @@ pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
 }
 
 pub const fn agencies<'a>() -> &'a [Agency] {
-    return &[];
     &[
         Agency {
             public_name: "TTC",

@@ -1,6 +1,5 @@
 import createColorMap from 'colormap'
 import type mapboxgl from 'mapbox-gl'
-import setLoading from './loading-spinner'
 import { baseUrl } from "./dev-api";
 
 const NSHADES = 300
@@ -27,6 +26,7 @@ export function getColor0To1 (value: number): string {
 }
 
 function objectToTrueValues (obj: Record<string, boolean>): string[] {
+  console.log(obj)
   return Object.entries(obj).filter(([_, include]) => include).map(([key, _include]) => key)
 }
 export class TimeColorMapper {
@@ -63,7 +63,6 @@ export class TimeColorMapper {
       startTime
     }
 
-    setLoading(true)
     const data = await fetch(`${baseUrl}/hello/`, {
       method: 'POST',
       mode: 'cors',
