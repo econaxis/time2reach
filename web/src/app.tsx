@@ -10,6 +10,7 @@ import './style.css'
 import { CityPillContainer } from './city-pill'
 import { QueryClient, QueryClientProvider, useQuery } from 'react-query'
 import { TimeSlider } from './time-slider'
+import { baseUrl, mvtUrl } from "./dev-api";
 
 interface Agency {
     agencyCode: string
@@ -97,7 +98,7 @@ export function Sidebar ({ children, zi }) {
 
 async function fetchAgencies (): Promise<Agency[]> {
     console.log('fetching agencies')
-    const result = await fetch('http://localhost:3030/agencies')
+    const result = await fetch(`${baseUrl}/agencies`)
     const json = await result.json()
     console.log('json is', json)
     return json.map(agency => {
@@ -136,7 +137,8 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
     currentMap.on('load', async () => {
         currentMap.addSource('some id', {
             type: 'vector',
-            tiles: ['http://127.0.0.1:6767/all_cities/{z}/{x}/{y}.pbf']
+            // tiles: ['http://127.0.0.1:6767/all_cities/{z}/{x}/{y}.pbf']
+            tiles: [`${mvtUrl}/all_cities/{z}/{x}/{y}.pbf`]
         })
 
         currentMap.addLayer({

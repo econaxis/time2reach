@@ -1,0 +1,10 @@
+/target
+.idea
+observations.bson
+observations.rmp
+fd1sa
+cache
+node_modules
+*.gpkg*
+.DS_Store
+city-gtfs

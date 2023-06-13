@@ -1,5 +1,6 @@
 import { type TimeColorMapper } from './colors'
 import { type LngLat } from 'mapbox-gl'
+import { baseUrl } from "./dev-api";
 
 export async function getDetails (data: TimeColorMapper, location: LngLat) {
   const body = {
@@ -10,7 +11,7 @@ export async function getDetails (data: TimeColorMapper, location: LngLat) {
     }
   }
   const resp = await fetch(
-    'http://localhost:3030/details/',
+    `${baseUrl}/details/`,
     {
       method: 'POST',
       mode: 'cors',

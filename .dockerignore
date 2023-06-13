@@ -7,7 +7,8 @@ target
 node_modules
 venv
 cache
-**/*.gpkg*
 **/.DS_Store
-web/public
+web/public/Montreal.gpkg
+web/public/NewYorkCity.gpkg
+web/public/Vancouver.gpkg
 city-gtfs/*.rkyv

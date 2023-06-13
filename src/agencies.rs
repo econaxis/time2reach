@@ -73,6 +73,7 @@ pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
 }
 
 pub const fn agencies<'a>() -> &'a [Agency] {
+    return &[];
     &[
         Agency {
             public_name: "TTC",
@@ -104,18 +105,18 @@ pub const fn agencies<'a>() -> &'a [Agency] {
             path: "yrt",
             short_code: "YRT",
         },
-        // Agency {
-        //     public_name: "Brampton Transit",
-        //     city: City::Toronto,
-        //     path: "brampton",
-        //     short_code: "BRAMPTON",
-        // },
-        // Agency {
-        //     public_name: "Miway (Mississauga)",
-        //     city: City::Toronto,
-        //     path: "miway",
-        //     short_code: "MIWAY",
-        // },
+        Agency {
+            public_name: "Brampton Transit",
+            city: City::Toronto,
+            path: "brampton",
+            short_code: "BRAMPTON",
+        },
+        Agency {
+            public_name: "Miway (Mississauga)",
+            city: City::Toronto,
+            path: "miway",
+            short_code: "MIWAY",
+        },
         // // New York City
         // Agency {
         //     public_name: "MTA Subway",

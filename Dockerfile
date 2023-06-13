@@ -11,8 +11,7 @@ COPY deploy/deploy.sh deploy/
 RUN sh deploy/deploy.sh
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN apt-get install -y sqlite3 cmake libproj-dev proj-bin
-RUN apt-get install -y libclang-dev
+
 
 COPY . .
 RUN cargo build --release

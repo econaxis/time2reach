@@ -1,6 +1,7 @@
 import createColorMap from 'colormap'
 import type mapboxgl from 'mapbox-gl'
 import setLoading from './loading-spinner'
+import { baseUrl } from "./dev-api";
 
 const NSHADES = 300
 export const cmap = createColorMap({
@@ -63,7 +64,7 @@ export class TimeColorMapper {
     }
 
     setLoading(true)
-    const data = await fetch(`http://localhost:3030/hello/`, {
+    const data = await fetch(`${baseUrl}/hello/`, {
       method: 'POST',
       mode: 'cors',
       headers: {
