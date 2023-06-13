@@ -61,8 +61,22 @@ function formatStop (str: string): string {
     return toTitleCase(station)
 }
 
-export function formatTime (secs: number): string {
+export function formatDuration (secs: number): string {
     return new Date(secs * 1000).toISOString().substring(11, 19)
+}
+
+export function formatTime (secs: number): string {
+    const t = new Date((secs % (12 * 3600)) * 1000).toISOString().substring(11, 16)
+    const ampm = secs >= 12 * 3600
+    const nextday = secs >= 24 * 3600
+
+    if (nextday) {
+        return t + " am (next day)"
+    } else if (ampm) {
+        return t + " pm"
+    } else {
+        return t + " am"
+    }
 }
 
 function ModeIcon ({
@@ -136,14 +150,14 @@ export function DetailEntryTransit ({ detail }) {
                     {formatStop(detail.boarding.stop)}
                 </SmallSpan>&nbsp;
                 <SmallSpan light>
-                    {formatTime(detail.boarding.time)}
+                    {formatDuration(detail.boarding.time)}
                 </SmallSpan>
             </div>
             <div>
                 <SmallSpan>Exit at {formatStop(detail.exit.stop)}</SmallSpan>
                 &nbsp;
                 <SmallSpan light>
-                    {formatTime(detail.exit.time)}
+                    {formatDuration(detail.exit.time)}
                 </SmallSpan>
             </div>
         </div>
@@ -181,7 +195,7 @@ export function DetailPopup ({
         <div className="border max-w-xs rounded-lg bg-slate-50 p-2 pb-1 font-sans">
             {detailEntries}
             <p className="mt-2 ml-1 text-xs font-bold">
-                Arrival time: {formatTime(arrivalTime)}
+                Arrival time: {formatDuration(arrivalTime)}
             </p>
         </div>
     )

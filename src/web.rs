@@ -27,7 +27,7 @@ lazy_static! {
 fn round_f64_for_hash(x: f64) -> u64 {
     (x * 10000.0).round() as u64
 }
-fn cache_key(lat: f64, lng: f64, include_agencies: &[String], include_modes: &[String]) -> u64 {
+fn cache_key(lat: f64, lng: f64, include_agencies: &[String], include_modes: &[String], start_time: u64) -> u64 {
     let mut hasher = DefaultHasher::new();
     hasher.write_u64(round_f64_for_hash(lat));
     hasher.write_u64(round_f64_for_hash(lng));
@@ -42,6 +42,7 @@ fn cache_key(lat: f64, lng: f64, include_agencies: &[String], include_modes: &[S
         mode.hash(&mut hasher);
     }
 
+    start_time.hash(&mut hasher);
     hasher.finish()
 }
 
@@ -56,8 +57,9 @@ fn check_cache<'a>(
     lng: f64,
     include_agencies: &[String],
     include_modes: &[String],
+    start_time: u64
 ) -> Result<&'a Value, u64> {
-    let hash = cache_key(lat, lng, include_agencies, include_modes);
+    let hash = cache_key(lat, lng, include_agencies, include_modes, start_time);
     cache.get(&hash).ok_or(hash)
 }
 
@@ -83,6 +85,7 @@ fn process_coordinates(
     lng: f64,
     include_agencies: Vec<String>,
     include_modes: Vec<String>,
+    start_time: u64
 ) -> impl Reply {
     let city = check_city(&ad, lat, lng);
 
@@ -96,7 +99,7 @@ fn process_coordinates(
 
     let mut cache = CACHE.lock().unwrap();
 
-    let cache_key = match check_cache(&cache, lat, lng, &include_agencies, &include_modes) {
+    let cache_key = match check_cache(&cache, lat, lng, &include_agencies, &include_modes, start_time) {
         Ok(reply) => return warp::reply::json(reply),
         Err(key) => key,
     };
@@ -120,7 +123,7 @@ fn process_coordinates(
         spatial_stops,
         rs,
         Configuration {
-            start_time: Time(17.3 * 3600.0),
+            start_time: Time(start_time as f64),
             duration_secs: 3600.0 * 1.5,
             location: LatLng {
                 latitude: lat,
@@ -185,6 +188,9 @@ pub struct CalculateRequest {
     pub longitude: f64,
     pub agencies: Vec<String>,
     pub modes: Vec<String>,
+
+    #[serde(rename = "startTime")]
+    pub start_time: u64
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -359,7 +365,7 @@ pub async fn main() {
         .and(warp::path!("hello"))
         .and(warp::body::json())
         .map(|ad: Arc<AllAppData>, req: CalculateRequest| {
-            process_coordinates(ad, req.latitude, req.longitude, req.agencies, req.modes)
+            process_coordinates(ad, req.latitude, req.longitude, req.agencies, req.modes, req.start_time)
         });
 
     let details = warp::post()
@@ -376,5 +382,5 @@ pub async fn main() {
         .with(cors_policy)
         .with(log);
 
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
 }

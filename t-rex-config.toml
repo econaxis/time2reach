@@ -1,24 +1,37 @@
-[[tileset]]
-name="all_cities"
-
-[[tileset.layer]]
-name="edges"
-datasource="data"
-fid_field="fid"
-query_limit=1000000
-geometry_field="geom"
-table_name="all_cities"
-
-[[datasource]]
-name="data"
-dbconn="postgresql://henry@localhost:5432/data"
-
-
-[webserver]
-port=6767
+# t-rex configuration
 
 [service.mvt]
 viewer = false
 
+[[datasource]]
+dbconn = "postgresql://henry@localhost:5432/data"
+name = "dbconn"
+default = true
+
 [grid]
 predefined = "web_mercator"
+
+[[tileset]]
+name = "all_cities"
+extent = [-123.29228, 40.21737, -72.86419, 49.75538]
+[[tileset.layer]]
+name = "all_cities"
+table_name = "all_cities"
+geometry_field = "geom"
+fid_field="fid"
+geometry_type = "LINESTRING"
+srid = 4326
+buffer_size = 0
+#make_valid = true
+simplify = true
+query_limit = 1000000
+
+[cache.file]
+base = "/tmp/mvtcache"
+baseurl = "http://example.com/tiles"
+
+[webserver]
+# Bind address. Use 0.0.0.0 to listen on all adresses.
+bind = "127.0.0.1"
+port = 6767
+

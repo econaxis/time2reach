@@ -1,17 +1,19 @@
 use crate::gtfs_setup::initialize_gtfs_as_bson;
 use crate::gtfs_wrapper::Gtfs1;
-use serde::Deserialize;
+use serde::{Deserialize};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub enum City {
+    #[serde(rename = "New York City")]
     NewYorkCity,
     Vancouver,
     Toronto,
     Montreal,
 }
+
 
 impl FromStr for City {
     type Err = String;
@@ -55,7 +57,7 @@ pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
     for agency in agencies() {
         let this_gtfs = initialize_gtfs_as_bson(
             &format!(
-                "/Users/henry/Downloads/{}",
+                "city-gtfs/{}",
                 agency.path
             ),
             agency.short_code,
@@ -84,12 +86,12 @@ pub const fn agencies<'a>() -> &'a [Agency] {
             path: "up_express",
             short_code: "UP",
         },
-        Agency {
-            public_name: "GRT (Kitchener/Waterloo)",
-            city: City::Toronto,
-            path: "waterloo_grt",
-            short_code: "GRT",
-        },
+        // Agency {
+        //     public_name: "GRT (Kitchener/Waterloo)",
+        //     city: City::Toronto,
+        //     path: "waterloo_grt",
+        //     short_code: "GRT",
+        // },
         Agency {
             public_name: "GO Transit",
             city: City::Toronto,
@@ -102,47 +104,47 @@ pub const fn agencies<'a>() -> &'a [Agency] {
             path: "yrt",
             short_code: "YRT",
         },
-        Agency {
-            public_name: "Brampton Transit",
-            city: City::Toronto,
-            path: "brampton",
-            short_code: "BRAMPTON",
-        },
-        Agency {
-            public_name: "Miway (Mississauga)",
-            city: City::Toronto,
-            path: "miway",
-            short_code: "MIWAY",
-        },
-        // New York City
-        Agency {
-            public_name: "NYC Subway",
-            city: City::NewYorkCity,
-            path: "nyc-subway",
-            short_code: "NYC-SUBWAY",
-        },
-        Agency {
-            public_name: "NYC Bus",
-            city: City::NewYorkCity,
-            path: "nyc-bus",
-            short_code: "NYC-BUS",
-        },
-
+        // Agency {
+        //     public_name: "Brampton Transit",
+        //     city: City::Toronto,
+        //     path: "brampton",
+        //     short_code: "BRAMPTON",
+        // },
+        // Agency {
+        //     public_name: "Miway (Mississauga)",
+        //     city: City::Toronto,
+        //     path: "miway",
+        //     short_code: "MIWAY",
+        // },
+        // // New York City
+        // Agency {
+        //     public_name: "MTA Subway",
+        //     city: City::NewYorkCity,
+        //     path: "nyc-subway",
+        //     short_code: "NYC-SUBWAY",
+        // },
+        // Agency {
+        //     public_name: "MTA Bus",
+        //     city: City::NewYorkCity,
+        //     path: "nyc-bus",
+        //     short_code: "NYC-BUS",
+        // },
+        //
 
         // Vancouver
-        Agency {
-            public_name: "Vancouver Translink",
-            city: City::Vancouver,
-            path: "vancouver-translink",
-            short_code: "VANCOUVER-TRANSLINK",
-        },
-
-        // Montreal
-        Agency {
-            public_name: "Montreal STM",
-            city: City::Montreal,
-            path: "montreal",
-            short_code: "MONTREAL",
-        },
+        // Agency {
+        //     public_name: "Vancouver Translink",
+        //     city: City::Vancouver,
+        //     path: "vancouver-translink",
+        //     short_code: "VANCOUVER-TRANSLINK",
+        // },
+        //
+        // // Montreal
+        // Agency {
+        //     public_name: "Montreal STM",
+        //     city: City::Montreal,
+        //     path: "montreal",
+        //     short_code: "MONTREAL",
+        // },
     ]
 }

@@ -10,11 +10,11 @@ import './style.css'
 import { CityPillContainer } from './city-pill'
 import { QueryClient, QueryClientProvider, useQuery } from 'react-query'
 import { TimeSlider } from './time-slider'
-import { sleep } from "react-query/types/core/utils";
 
 interface Agency {
     agencyCode: string
     agencyLongName: string
+    city: string
 }
 
 export function AgencyEntry ({
@@ -68,7 +68,7 @@ export function AgencyForm ({
         values.current[value] = status
         updateValues(values.current)
     }
-    const agencyList = agencies.map((ag) => (
+    const agencyList = agencies.filter(ag => ag.shouldShow || ag.shouldShow === undefined).map((ag) => (
         <AgencyEntry {...ag} setSelectValue={setSelectValue} />
     ))
 
@@ -83,9 +83,9 @@ export function AgencyForm ({
     )
 }
 
-export function Sidebar ({ children }) {
+export function Sidebar ({ children, zi }) {
     return (
-        <div className="absolute top-0 right-0 m-5 max-w-sm p-5 bg-white border border-gray-200 rounded-lg shadow">
+        <div className="absolute top-0 right-0 m-5 w-3/12 p-5 bg-white border border-gray-200 rounded-lg shadow" style={{ zIndex: zi || 0 }}>
             <p className="text-gray-700">
                 Double click anywhere to see how far you can go by public
                 transit.
@@ -95,7 +95,7 @@ export function Sidebar ({ children }) {
     )
 }
 
-async function fetchAgencies () {
+async function fetchAgencies (): Promise<Agency[]> {
     console.log('fetching agencies')
     const result = await fetch('http://localhost:3030/agencies')
     const json = await result.json()
@@ -103,7 +103,8 @@ async function fetchAgencies () {
     return json.map(agency => {
         return {
             agencyCode: agency.short_code,
-            agencyLongName: agency.public_name
+            agencyLongName: agency.public_name,
+            city: agency.city
         }
     })
 }
@@ -248,11 +249,10 @@ export function MapboxMap ({
         if (loading) return
         if (!map) return
 
-        void TimeColorMapper.fetch(currentLatLng, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
-            console.log("Loaded", map?.loaded())
-            timeData.current = data;
+        void TimeColorMapper.fetch(currentLatLng, currentOptions.startTime, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
+            timeData.current = data
 
-            (map as mapboxgl.Map).setPaintProperty('transit-layer', 'line-color', [
+            map.setPaintProperty('transit-layer', 'line-color', [
                 'coalesce',
                 ['get', ['to-string', ['id']], ['literal', data.m]],
                 defaultColor
@@ -269,17 +269,17 @@ export function MapboxMap ({
     return <div ref={mapContainer} className="map w-screen h-screen overflow-none"></div>
 }
 
-export function ControlSidebar ({ setOptions }) {
+export function ControlSidebar ({ setOptions, currentCity }) {
     const agencies = useRef<object | null>(null)
     const modes = useRef<object | null>(null)
-    const duration = useRef<number | null>(null)
 
-    const onDurationChange = (durationSecs: number) => {
-        console.log('onDurationChange')
-        duration.current = durationSecs
+    const [duration, setDuration] = useState(3600)
+    const [startTime, setStartTime] = useState(17 * 3600)
+
+
+    useEffect(() => {
         triggerRefetch()
-    }
-
+    }, [duration, startTime])
     const onAgencyChange = (agencies1: object) => {
         console.log('onAgencyChange')
         agencies.current = agencies1
@@ -294,7 +294,8 @@ export function ControlSidebar ({ setOptions }) {
 
     const triggerRefetch = () => {
         setOptions({
-            duration: duration.current,
+            duration,
+            startTime,
             agencies: agencies.current,
             modes: modes.current
         })
@@ -302,14 +303,24 @@ export function ControlSidebar ({ setOptions }) {
 
     const {
         isLoading,
-        data,
+        data
     } = useAgencies()
 
-    if (isLoading) return null;
+    if (isLoading) return null
+    if (!data) throw new Error("data is null")
 
-    return <Sidebar>
+    const filtered = data.map(ag => {
+        return {
+            shouldShow: ag.city === currentCity,
+            ...ag
+        }
+    })
+
+    console.log("Agencies", filtered)
+
+    return <Sidebar zi={10}>
         <AgencyForm
-            agencies={data}
+            agencies={filtered}
             header="Agencies"
             updateValues={onAgencyChange}
         />
@@ -318,10 +329,9 @@ export function ControlSidebar ({ setOptions }) {
                     updateValues={onModeChange}
         />
 
-        <TimeSlider setDuration={onDurationChange} />
+        <TimeSlider duration={duration} setDuration={setDuration} startTime={startTime} setStartTime={setStartTime} />
     </Sidebar>
 }
-
 
 const CITY_LOCATION = {
     Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),
@@ -345,15 +355,14 @@ export function App () {
         setCurrentStartingLoc(CITY_LOCATION[cityName])
     }
 
-
     return (
         <QueryClientProvider client={queryClient}>
             <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City']}
-                               setLocation={setCityFromPill} />
+                               setLocation={setCityFromPill} currentCity={currentCity} />
             <MapboxMap currentOptions={currentOptions} currentLatLng={currentStartingLoc}
                        setLatLng={setCurrentStartingLoc}
                        currentPos={cityLocation} />
-            <ControlSidebar setOptions={setCurrentOptions} />
+            <ControlSidebar setOptions={setCurrentOptions} currentCity={currentCity} />
         </QueryClientProvider>
     )
 }

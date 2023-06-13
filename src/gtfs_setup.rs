@@ -56,7 +56,6 @@ pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
     let sample_id = result.stops.keys().next().unwrap();
     let mut map = AGENCY_MAP.lock().unwrap();
     map.insert(short_name.to_string(), sample_id.0);
-    debug!("{path} success! {}", sample_id.0);
     result
 }
 

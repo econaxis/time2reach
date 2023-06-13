@@ -1,0 +1,13 @@
+target
+**/.idea
+**/observations.bson
+**/observations.rmp
+**/fd1sa
+**/cache
+node_modules
+venv
+cache
+**/*.gpkg*
+**/.DS_Store
+web/public
+city-gtfs/*.rkyv

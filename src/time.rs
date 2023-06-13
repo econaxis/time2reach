@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::fmt::{Display, Formatter, Pointer};
+use std::fmt::{Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(PartialOrd, PartialEq, Copy, Clone, Debug)]

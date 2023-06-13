@@ -53,12 +53,13 @@ export class TimeColorMapper {
     this.calculate_colors()
   }
 
-  static async fetch (location: mapboxgl.LngLat, durationRange: number, agencies: Record<string, boolean>, modes: Record<string, boolean>): Promise<TimeColorMapper> {
+  static async fetch (location: mapboxgl.LngLat, startTime: number, durationRange: number, agencies: Record<string, boolean>, modes: Record<string, boolean>): Promise<TimeColorMapper> {
     const body = {
       latitude: location.lat,
       longitude: location.lng,
       agencies: objectToTrueValues(agencies),
-      modes: objectToTrueValues(modes)
+      modes: objectToTrueValues(modes),
+      startTime
     }
 
     setLoading(true)

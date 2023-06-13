@@ -308,7 +308,7 @@ impl RoadStructureInner {
                 .unwrap() as u64;
             s.nodes.insert(osmid, NodeEdges::default());
 
-            let geo = feature.geometry().to_geo().unwrap();
+            let geo = feature.geometry().unwrap().to_geo().unwrap();
             let point: Point = geo.try_into().unwrap();
 
             let point = proj.project(point, false).unwrap();

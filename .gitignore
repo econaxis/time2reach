@@ -7,3 +7,4 @@ cache
 node_modules
 *.gpkg*
 .DS_Store
+city-gtfs
