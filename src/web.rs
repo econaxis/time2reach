@@ -329,6 +329,11 @@ fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
 
     // Automatically skips
     let mut has_free_transfer_from_prev = false;
+
+    let path_shape = formatter.construct_shape();
+    let geojson = geojson::Feature::try_from(geojson::Value::from(&path_shape)).unwrap();
+
+
     for trip in formatter.trips {
         if trip.current_route.route_id == NULL_ID {
             // Begin of trip. Skip here.
@@ -372,7 +377,12 @@ fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
     }
 
     details_list.reverse();
-    warp::reply::json(&details_list)
+
+    let response = json!({
+        "details": details_list,
+        "path": geojson
+    });
+    warp::reply::json(&response)
 }
 
 fn with_appdata(

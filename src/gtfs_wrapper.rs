@@ -6,7 +6,6 @@ use rkyv::{Archive, Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
-use geo_types::{Coord, LineString};
 use rstar::primitives::{GeomWithData, Line};
 use rstar::RTree;
 use crate::shape::Shape;
@@ -417,7 +416,7 @@ fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
 
             let length = nearest_shape_edge.geom().length_2();
 
-            if (length < 1e-6) {
+            if length < 1e-6 {
                 stop_time.shape_index = nearest_shape_edge.data as f32;
             } else {
                 let fraction = (nearest_point.distance_2(&nearest_shape_edge.geom().from) / length).sqrt();
@@ -497,5 +496,7 @@ impl Gtfs1 {
         self.stops.extend(other.stops);
         self.routes.extend(other.routes);
         self.trips.extend(other.trips);
+        self.shapes.extend(other.shapes);
+        self.calendar.extend(other.calendar);
     }
 }

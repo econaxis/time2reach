@@ -10,8 +10,8 @@ import './style.css'
 import { CityPillContainer } from './city-pill'
 import { QueryClient, QueryClientProvider, useQuery } from 'react-query'
 import { TimeSlider } from './time-slider'
-import { baseUrl, mvtUrl } from "./dev-api";
-import { LoadingSpinner } from "./loading-spinner";
+import { baseUrl, mvtUrl } from "./dev-api"
+import { LoadingSpinner } from "./loading-spinner"
 
 interface Agency {
     agencyCode: string
@@ -157,6 +157,26 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
             }
         })
 
+        currentMap.addSource('geojson-path', {
+            type: 'geojson'
+        })
+
+        const geojsonSource = currentMap.getSource('geojson-path')
+
+        currentMap.addLayer({
+            id: 'geojson-path-layer',
+            type: 'line',
+            source: 'geojson-path',
+            layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+            },
+            paint: {
+                'line-color': '#888',
+                'line-width': 4
+            }
+        })
+
         currentMap.on('dblclick', async (e) => {
             e.preventDefault()
             setLatLng(e.lngLat)
@@ -180,18 +200,23 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
                 if (!seconds) return
 
-                const details: TripDetailsTransit[] = await getDetails(
+                const detailResponse = await getDetails(
                     getTimeData(),
                     e.lngLat
                 )
 
-                const node = document.createElement('div')
-                const detailPopup = <DetailPopup details={details} arrival_time={seconds}></DetailPopup>
-                render(detailPopup, node)
-                popup.setDOMContent(node)
-                popup.setLngLat(e.lngLat)
-                popup.addTo(currentMap)
-            }, 300)
+                const details: TripDetailsTransit[] = detailResponse.details
+                const path: object = detailResponse.path
+
+                geojsonSource.setData(path)
+
+                // const node = document.createElement('div')
+                // const detailPopup = <DetailPopup details={details} arrival_time={seconds}></DetailPopup>
+                // render(detailPopup, node)
+                // popup.setDOMContent(node)
+                // popup.setLngLat(e.lngLat)
+                // popup.addTo(currentMap)
+            }, 50)
         })
         currentMap.on('mouseleave', 'transit-layer', (e) => {
             currentMap.getCanvas().style.cursor = ''
@@ -230,7 +255,7 @@ export function MapboxMap ({
             'pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A'
 
         const map = new mapboxgl.Map({
-            container: mapContainer.current as HTMLElement, // container ID
+            container: mapContainer.current, // container ID
             style: 'mapbox://styles/mapbox/dark-v11', // style URL
             center: startingLocation, // starting position [lng, lat]
             zoom: 12 // starting zoom
@@ -284,7 +309,6 @@ export function ControlSidebar ({ setOptions, currentCity }) {
 
     const [duration, setDuration] = useState(3600)
     const [startTime, setStartTime] = useState(17 * 3600)
-
 
     useEffect(() => {
         triggerRefetch()
@@ -355,7 +379,7 @@ export function App () {
     const [currentOptions, setCurrentOptions] = useState(null)
     const [currentStartingLoc, setCurrentStartingLoc] = useState(startingLocation)
     const [currentCity, setCurrentCity] = useState("Toronto")
-    const [spinner, setSpinner] = useState(true);
+    const [spinner, setSpinner] = useState(true)
 
     const cityLocation = CITY_LOCATION[currentCity]
     const setCityFromPill = (cityName: string) => {

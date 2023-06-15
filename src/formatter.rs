@@ -23,12 +23,11 @@ fn construct_shape_for_ip_trip(gtfs: &Gtfs1, trip: &InProgressTrip) -> LineStrin
     let start_index = boarding_stop_time.shape_index;
     let end_index = get_off_stop_time.shape_index;
 
-
     Shape::to_geo_types_interp(shape, start_index, end_index)
 }
 
 impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
-    fn construct_shape(&self) -> MultiLineString {
+    pub fn construct_shape(&self) -> MultiLineString {
         MultiLineString::new(self.trips.iter().filter_map(|trip| {
             if trip.trip_id == NULL_ID {
                 None

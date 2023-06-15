@@ -183,7 +183,6 @@ export function DetailPopup ({
     arrival_time: arrivalTime
 }) {
     const detailEntries = details.map((d) => {
-        console.log('detailpopup', d)
         if (d.method === 'Walking') {
             return <DetailEntryWalking detail={d}></DetailEntryWalking>
         } else {

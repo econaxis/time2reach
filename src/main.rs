@@ -124,7 +124,7 @@ fn main1() {
 fn main() {
     env_logger::builder().filter_level(LevelFilter::Debug).parse_default_env().init();
 
-    if true {
+    if false {
         main1();
     } else {
         let rt = tokio::runtime::Runtime::new().unwrap();

@@ -118,8 +118,11 @@ pub struct Calendar {
 }
 
 
-
 impl Calendar {
+    pub fn extend(&mut self, other: Calendar) {
+        self.services.extend(other.services);
+        self.exceptions.extend(other.exceptions);
+    }
     pub fn runs_on_date(&self, service_id: IdType, date: NaiveDate) -> bool {
         let normal = self.services.get(&service_id).map(|a| a.runs_on_date(date));
         let exception = self

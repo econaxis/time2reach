@@ -1,6 +1,6 @@
 import { type TimeColorMapper } from './colors'
 import { type LngLat } from 'mapbox-gl'
-import { baseUrl } from "./dev-api";
+import { baseUrl } from "./dev-api"
 
 export async function getDetails (data: TimeColorMapper, location: LngLat) {
   const body = {
