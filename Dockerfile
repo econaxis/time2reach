@@ -1,12 +1,15 @@
-FROM ubuntu:20.04 AS chef
+FROM ubuntu:20.04 AS base
+ENV DEBIAN_FRONTEND=noninteractive
+
 
 WORKDIR /app
 
 COPY deploy/init.sh deploy/
 RUN sh deploy/init.sh
+RUN apt-get install -y git build-essential libgdal-dev curl ca-certificates sqlite3 cmake libproj-dev proj-bin libclang-dev --no-install-recommends
 
+FROM base as chef
 
-ENV DEBIAN_FRONTEND=noninteractive
 COPY deploy/deploy.sh deploy/
 RUN sh deploy/deploy.sh
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -28,8 +31,11 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release
 
-FROM ubuntu:20.04 AS run
+FROM base AS run
 WORKDIR /app
-COPY --from=builder /app/ /app/
+COPY --from=builder /app/city-gtfs /app/city-gtfs
+COPY --from=builder /app/web/public /app/web/public
+COPY --from=builder /app/target/release/timetoreach /app/target/release/timetoreach
+
 
 ENTRYPOINT ["/app/target/release/timetoreach"]

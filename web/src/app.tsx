@@ -1,17 +1,13 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
-import mapboxgl from 'mapbox-gl'
-import { DetailPopup, type TripDetailsTransit } from './format-details'
-import { getDetails } from './get_data'
-import { defaultColor } from './ol'
-import { render } from 'preact'
-import { TimeColorMapper } from './colors'
+import { useEffect, useRef, useState } from "preact/hooks";
+import mapboxgl from "mapbox-gl";
 
-import './style.css'
-import { CityPillContainer } from './city-pill'
-import { QueryClient, QueryClientProvider, useQuery } from 'react-query'
-import { TimeSlider } from './time-slider'
-import { baseUrl, mvtUrl } from "./dev-api"
-import { LoadingSpinner } from "./loading-spinner"
+import "./style.css";
+import { CityPillContainer } from "./city-pill";
+import { QueryClient, QueryClientProvider, useQuery } from "react-query";
+import { TimeSlider } from "./time-slider";
+import { baseUrl } from "./dev-api";
+import { LoadingSpinner } from "./loading-spinner";
+import { MapboxMap } from "./mapbox-map";
 
 interface Agency {
     agencyCode: string
@@ -85,13 +81,13 @@ export function AgencyForm ({
     )
 }
 
-export function Sidebar ({ children, zi }) {
+export function Sidebar ({ children, zi, positioning }) {
+    let classes = "absolute m-5 w-3/12 p-5 bg-white border border-gray-200 rounded-lg shadow "
+    classes += positioning || ''
+
     return (
-        <div className="absolute top-0 right-0 m-5 w-3/12 p-5 bg-white border border-gray-200 rounded-lg shadow" style={{ zIndex: zi || 0 }}>
-            <p className="text-gray-700">
-                Double click anywhere to see how far you can go by public
-                transit.
-            </p>
+        <div className={classes} style={{ zIndex: zi || 0 }}>
+
             {children}
         </div>
     )
@@ -132,176 +128,6 @@ const MODES = [
         agencyLongName: 'Train'
     }
 ]
-
-function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.LngLat) => void, getTimeData: () => TimeColorMapper) {
-    currentMap.on('load', async () => {
-        currentMap.addSource('some id', {
-            type: 'vector',
-            // tiles: ['http://127.0.0.1:6767/all_cities/{z}/{x}/{y}.pbf']
-            tiles: [`${mvtUrl}/all_cities/{z}/{x}/{y}.pbf`]
-        })
-
-        currentMap.addLayer({
-            id: 'transit-layer', // Layer ID
-            type: 'line',
-            source: 'some id', // ID of the tile source created above
-            'source-layer': 'all_cities',
-            layout: {
-                'line-cap': 'round',
-                'line-join': 'round'
-            },
-            paint: {
-                'line-opacity': 0.3,
-                'line-color': defaultColor,
-                'line-width': 3.3
-            }
-        })
-
-        currentMap.addSource('geojson-path', {
-            type: 'geojson'
-        })
-
-        const geojsonSource = currentMap.getSource('geojson-path')
-
-        currentMap.addLayer({
-            id: 'geojson-path-layer',
-            type: 'line',
-            source: 'geojson-path',
-            layout: {
-                'line-join': 'round',
-                'line-cap': 'round'
-            },
-            paint: {
-                'line-color': '#888',
-                'line-width': 4
-            }
-        })
-
-        currentMap.on('dblclick', async (e) => {
-            e.preventDefault()
-            setLatLng(e.lngLat)
-        })
-
-        const popup = new mapboxgl.Popup({
-            maxWidth: 'none'
-        })
-
-        let currentTask
-        currentMap.on('mouseover', 'transit-layer', async (e) => {
-            const nearbyFeatures = currentMap.queryRenderedFeatures(e.point)
-            if (nearbyFeatures.length === 0) return
-
-            if (currentTask) clearTimeout(currentTask)
-
-            currentMap.getCanvas().style.cursor = 'crosshair'
-            currentTask = setTimeout(async () => {
-                const feature = nearbyFeatures[0]
-                const seconds = getTimeData().raw[feature.id]
-
-                if (!seconds) return
-
-                const detailResponse = await getDetails(
-                    getTimeData(),
-                    e.lngLat
-                )
-
-                const details: TripDetailsTransit[] = detailResponse.details
-                const path: object = detailResponse.path
-
-                geojsonSource.setData(path)
-
-                // const node = document.createElement('div')
-                // const detailPopup = <DetailPopup details={details} arrival_time={seconds}></DetailPopup>
-                // render(detailPopup, node)
-                // popup.setDOMContent(node)
-                // popup.setLngLat(e.lngLat)
-                // popup.addTo(currentMap)
-            }, 50)
-        })
-        currentMap.on('mouseleave', 'transit-layer', (e) => {
-            currentMap.getCanvas().style.cursor = ''
-            clearTimeout(currentTask)
-            popup.remove()
-            currentTask = undefined
-        })
-    })
-}
-
-export function MapboxMap ({
-    currentOptions,
-    currentLatLng,
-    setLatLng,
-    currentPos,
-    setSpinnerLoading
-}) {
-    const [map, setMap] = useState<mapboxgl.Map | null>(null)
-    const [mapboxLoading, setMapboxLoading] = useState(true)
-    const timeData = useRef<TimeColorMapper | null>(null)
-    const mapContainer = useRef<HTMLElement | null>(null)
-
-    const getTimeData = (): TimeColorMapper => {
-        if (timeData.current != null) {
-            return timeData.current
-        } else {
-            throw Error('TimeData is undefined right now')
-        }
-    }
-
-    useEffect(() => {
-        // Init mapbox gl map here.
-        if (mapContainer.current == null) return
-
-        mapboxgl.accessToken =
-            'pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A'
-
-        const map = new mapboxgl.Map({
-            container: mapContainer.current, // container ID
-            style: 'mapbox://styles/mapbox/dark-v11', // style URL
-            center: startingLocation, // starting position [lng, lat]
-            zoom: 12 // starting zoom
-        })
-        setMap(map)
-
-        const currentMap = map
-
-        setupMapboxMap(currentMap, setLatLng, getTimeData)
-
-        currentMap.once('render', () => {
-            setMapboxLoading(false)
-        })
-    }, [])
-
-    useEffect(() => {
-        if (!currentOptions) return
-        if (!currentLatLng) return
-        if (mapboxLoading) return
-        if (!map) return
-
-        console.log("setLoading True here")
-        setSpinnerLoading(true)
-        void TimeColorMapper.fetch(currentLatLng, currentOptions.startTime, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
-            timeData.current = data
-
-            map.setPaintProperty('transit-layer', 'line-color', [
-                'coalesce',
-                ['get', ['to-string', ['id']], ['literal', data.m]],
-                defaultColor
-            ])
-
-            map.once('render', () => {
-                setSpinnerLoading(false)
-            })
-        })
-    }, [currentOptions, currentLatLng, map, mapboxLoading])
-
-    useEffect(() => {
-        if (!map) return
-        map.setCenter(currentPos)
-        map.setZoom(11)
-    }, [currentPos])
-
-    return <div ref={mapContainer} className="map w-screen h-screen overflow-none"></div>
-}
 
 export function ControlSidebar ({ setOptions, currentCity }) {
     const agencies = useRef<object | null>(null)
@@ -349,7 +175,11 @@ export function ControlSidebar ({ setOptions, currentCity }) {
         }
     })
 
-    return <Sidebar zi={10}>
+    return <Sidebar zi={10} positioning="top-0 right-0">
+        <p className="text-gray-700">
+            Double click anywhere to see how far you can go by public
+            transit.
+        </p>
         <AgencyForm
             agencies={filtered}
             header="Agencies"

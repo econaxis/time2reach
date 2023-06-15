@@ -1,4 +1,3 @@
-apt-get install -y git build-essential libgdal-dev curl ca-certificates sqlite3 cmake libproj-dev proj-bin libclang-dev --no-install-recommends
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y --default-toolchain nightly
 echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
