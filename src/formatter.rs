@@ -2,18 +2,53 @@ use crate::gtfs_wrapper::RouteType;
 use crate::in_progress_trip::InProgressTrip;
 use crate::time::Time;
 use crate::trips_arena::TripsArena;
-use crate::{gtfs_setup, Gtfs1, RoadStructure, NULL_ID, WALKING_SPEED};
+use crate::{Gtfs1, gtfs_setup, NULL_ID, RoadStructure, WALKING_SPEED};
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
+use geo_types::{LineString, MultiLineString};
+use crate::shape::Shape;
 
 pub struct InProgressTripsFormatter<'a, 'b> {
     pub(crate) trips: Vec<&'a InProgressTrip>,
     pub(crate) gtfs: &'b Gtfs1,
-    pub(crate) final_walking_length: f64,
+    pub(crate) final_walking_length: f32,
+}
+
+fn construct_shape_for_ip_trip(gtfs: &Gtfs1, trip: &InProgressTrip) -> LineString {
+    let gtfs_trip = &gtfs.trips[&trip.trip_id];
+    let shape = &gtfs.shapes[&gtfs_trip.shape_id.unwrap()];
+
+    let boarding_stop_time = &gtfs_trip.stop_times[trip.boarding_stop_time_idx];
+    let get_off_stop_time = &gtfs_trip.stop_times[trip.get_off_stop_time_idx];
+    let start_index = boarding_stop_time.shape_index;
+    let end_index = get_off_stop_time.shape_index;
+
+
+    Shape::to_geo_types_interp(shape, start_index, end_index)
+}
+
+impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
+    fn construct_shape(&self) -> MultiLineString {
+        MultiLineString::new(self.trips.iter().filter_map(|trip| {
+            if trip.trip_id == NULL_ID {
+                None
+            } else {
+                Some(construct_shape_for_ip_trip(self.gtfs, trip))
+            }
+        }).collect())
+    }
 }
 
 pub struct TimeFormatter {
     secs: Time,
+}
+
+impl TimeFormatter {
+    fn new(s: Time) -> Self {
+        TimeFormatter {
+            secs: s
+        }
+    }
 }
 
 impl Display for TimeFormatter {
@@ -112,6 +147,10 @@ impl<'a, 'b> Display for InProgressTripsFormatter<'a, 'b> {
             InProgressTripsFormatter::format_in_progress_trip_boarding(self.gtfs, trip, f)?;
             InProgressTripsFormatter::format_in_progress_trip_disembark(self.gtfs, trip, f)?;
         }
+
+        let shape = self.construct_shape();
+        let geojson = geojson::Value::from(&shape);
+        Display::fmt(&geojson, f)?;
         Ok(())
     }
 }
@@ -144,6 +183,6 @@ pub fn time_to_point<'a, 'b>(
     Some(InProgressTripsFormatter {
         trips: gtfs_setup::get_trip_transfers(arena, obs.data.progress_trip_id.unwrap()),
         gtfs,
-        final_walking_length: obs.data.walking_length,
+        final_walking_length: obs.data.walking_length as f32,
     })
 }

@@ -92,6 +92,8 @@ pub fn generate_reach_times(
         is_free_transfer: false,
         walking_time: Time(0.0),
         walking_length_m: 0.0,
+        boarding_stop_time_idx: 0,
+        get_off_stop_time_idx: 0
     });
 
     while let Some((item, id)) = rs.trips_arena.pop_front() {
@@ -166,7 +168,9 @@ fn all_stops_along_trip(
             previous_transfer: Some(previous_transfer_id),
             is_free_transfer,
             walking_time: transfer_walking_time,
-            walking_length_m: transfer_walking_length,
+            walking_length_m: transfer_walking_length as f32,
+            boarding_stop_time_idx: boarding_stop.index_of_stop_time,
+            get_off_stop_time_idx: st.index_of_stop_time
         };
 
         let id = explore_queue.add_to_explore(current_inprogress_trip);

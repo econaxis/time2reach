@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![feature(slice_group_by)]
 #![feature(file_create_new)]
 #![feature(vec_into_raw_parts)]
 
@@ -21,6 +22,8 @@ mod time;
 mod time_to_reach;
 mod trips_arena;
 mod web;
+mod path_usage;
+mod shape;
 
 use crate::gtfs_wrapper::DirectionType;
 
@@ -32,7 +35,6 @@ use lazy_static::lazy_static;
 use std::time::Instant;
 use log::LevelFilter;
 
-use crate::formatter::time_to_point;
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
 use crate::projection::PROJSTRING;
 use crate::road_structure::RoadStructure;
@@ -43,6 +45,7 @@ use gtfs_wrapper::LibraryGTFS;
 use crate::agencies::City;
 use time::Time;
 use trips_arena::TripsArena;
+use crate::formatter::time_to_point;
 
 const WALKING_SPEED: f64 = 1.42;
 const STRAIGHT_WALKING_SPEED: f64 = 1.30;
@@ -85,19 +88,19 @@ fn main1() {
                 // start_time: Time(3600.0 * 13.0),
                 start_time: Time(3600.0 * 13.0),
                 duration_secs: 3600.0 * 1.5,
-                location: LatLng::from_lat_lng(43.68228522699712, -79.6125297053927),
-                agency_ids: HashSet::new(),
+                location: LatLng::from_lat_lng(43.69679924308685, -79.82260848623213),
+                agency_ids: HashSet::from([gtfs.agency_id]),
                 modes: vec![],
             },
         );
-        time_to_point(
+        let fmter = time_to_point(
             &rs,
             &rs.trips_arena,
             &gtfs,
-            [43.68208688807143, -79.61316825624802],
+            [43.71675866093244, -79.74566916652475],
             true,
         );
-        // rs.save();
+        println!("{}", fmter.unwrap());
     }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
 
@@ -121,7 +124,7 @@ fn main1() {
 fn main() {
     env_logger::builder().filter_level(LevelFilter::Debug).parse_default_env().init();
 
-    if false {
+    if true {
         main1();
     } else {
         let rt = tokio::runtime::Runtime::new().unwrap();

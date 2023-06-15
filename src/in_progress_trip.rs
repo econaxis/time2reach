@@ -16,5 +16,7 @@ pub struct InProgressTrip {
     pub previous_transfer: Option<Id<InProgressTrip>>,
     pub is_free_transfer: bool,
     pub walking_time: Time,
-    pub walking_length_m: f64,
+    pub walking_length_m: f32,
+    pub boarding_stop_time_idx: usize,
+    pub get_off_stop_time_idx: usize,
 }

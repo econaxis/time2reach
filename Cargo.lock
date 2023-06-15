@@ -664,6 +664,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "geojson"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d728c1df1fbf328d74151efe6cb0586f79ee813346ea981add69bd22c9241b"
+dependencies = [
+ "geo-types",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1905,6 +1918,7 @@ dependencies = [
  "env_logger 0.10.0",
  "gdal",
  "geo-types",
+ "geojson",
  "gtfs-structures",
  "id-arena",
  "int-enum",

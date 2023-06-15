@@ -280,7 +280,7 @@ impl RoadStructureInner {
             open_options: None,
             sibling_files: None,
         };
-        info!("Loading {} dataset", city.get_gpkg_path());
+        info!("Loading {} road network...", city.get_gpkg_path());
         let dataset =
             Dataset::open_ex(format!("web/public/{}.gpkg", city.get_gpkg_path()), options).unwrap();
 

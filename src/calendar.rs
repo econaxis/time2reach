@@ -1,4 +1,5 @@
 use rkyv::{Archive, Deserialize, Serialize};
+
 use std::collections::HashMap;
 
 use chrono::{Datelike, NaiveDate, Weekday};
@@ -95,23 +96,28 @@ impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
     }
 }
 
-#[derive(Debug)]
-pub struct CalendarExceptionList(HashMap<NaiveDate, CalendarException>);
+#[derive(Debug, Archive, Serialize, Deserialize)]
+pub struct CalendarExceptionList(HashMap<u32, CalendarException>);
+
+
 
 impl CalendarExceptionList {
     fn runs_on_date(&self, date: NaiveDate) -> bool {
+        let ord = date.ordinal0();
         self.0
-            .get(&date)
+            .get(&ord)
             .map(|exc| exc.exception_type == Exception::Added)
             .unwrap_or(false)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Archive, Serialize, Deserialize)]
 pub struct Calendar {
     pub services: HashMap<IdType, Service>,
     pub exceptions: HashMap<IdType, CalendarExceptionList>,
 }
+
+
 
 impl Calendar {
     pub fn runs_on_date(&self, service_id: IdType, date: NaiveDate) -> bool {
@@ -134,11 +140,11 @@ impl Calendar {
 
         for exc in exceptions_list {
             if let Some(inner) = exceptions.get_mut(&exc.service_id) {
-                inner.0.insert(exc.date, exc);
+                inner.0.insert(exc.date.ordinal0(), exc);
             } else {
                 exceptions.insert(
                     exc.service_id,
-                    CalendarExceptionList([(exc.date, exc)].into()),
+                    CalendarExceptionList([(exc.date.ordinal0(), exc)].into()),
                 );
             }
         }

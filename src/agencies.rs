@@ -74,48 +74,48 @@ pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
 
 pub const fn agencies<'a>() -> &'a [Agency] {
     &[
-        Agency {
-            public_name: "TTC",
-            path: "ttc",
-            short_code: "TTC",
-            city: City::Toronto,
-        },
-        Agency {
-            public_name: "UP Express",
-            city: City::Toronto,
-            path: "up_express",
-            short_code: "UP",
-        },
         // Agency {
-        //     public_name: "GRT (Kitchener/Waterloo)",
+        //     public_name: "TTC",
+        //     path: "ttc",
+        //     short_code: "TTC",
         //     city: City::Toronto,
-        //     path: "waterloo_grt",
-        //     short_code: "GRT",
         // },
-        Agency {
-            public_name: "GO Transit",
-            city: City::Toronto,
-            path: "GO_GTFS",
-            short_code: "GO",
-        },
-        Agency {
-            public_name: "York Region Transit",
-            city: City::Toronto,
-            path: "yrt",
-            short_code: "YRT",
-        },
+        // Agency {
+        //     public_name: "UP Express",
+        //     city: City::Toronto,
+        //     path: "up_express",
+        //     short_code: "UP",
+        // },
+        // Agency {
+        //     public_name: "GO Transit",
+        //     city: City::Toronto,
+        //     path: "GO_GTFS",
+        //     short_code: "GO",
+        // },
+        // Agency {
+        //     public_name: "York Region Transit",
+        //     city: City::Toronto,
+        //     path: "yrt",
+        //     short_code: "YRT",
+        // },
         Agency {
             public_name: "Brampton Transit",
             city: City::Toronto,
             path: "brampton",
             short_code: "BRAMPTON",
         },
-        Agency {
-            public_name: "Miway (Mississauga)",
-            city: City::Toronto,
-            path: "miway",
-            short_code: "MIWAY",
-        },
+        // Agency {
+        //     public_name: "Miway (Mississauga)",
+        //     city: City::Toronto,
+        //     path: "miway",
+        //     short_code: "MIWAY",
+        // },
+        // Agency {
+        //     public_name: "GRT (Kitchener/Waterloo)",
+        //     city: City::Toronto,
+        //     path: "waterloo_grt",
+        //     short_code: "GRT",
+        // },
         // // New York City
         // Agency {
         //     public_name: "MTA Subway",

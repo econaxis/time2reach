@@ -90,8 +90,6 @@ fn process_coordinates(
     start_time: u64,
     prev_request_id: Option<RequestId>
 ) -> impl Reply {
-
-
     let city = check_city(&ad, lat, lng);
 
     if city.is_none() {
@@ -117,9 +115,6 @@ fn process_coordinates(
     let spatial_stops = &ad.spatial;
     let rs_template = ad.rs_template.clone();
     let mut rs = RoadStructure::new_from_road_structure(rs_template);
-
-    // ad.rs_list.push(rs);
-    // let rs = ad.rs_list.last_mut().unwrap();
 
     let agency_ids: HashSet<u8> = include_agencies
         .iter()
@@ -273,7 +268,7 @@ struct TripDetailsTransit {
 #[derive(Serialize)]
 struct TripDetailsWalking {
     time: f64,
-    length: f64,
+    length: f32,
 }
 
 #[derive(Serialize)]
@@ -324,7 +319,7 @@ fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
 
     let mut details_list = Vec::new();
 
-    let final_walking_time = formatter.final_walking_length / WALKING_SPEED;
+    let final_walking_time = formatter.final_walking_length as f64 / WALKING_SPEED;
     if final_walking_time >= 30.0 {
         details_list.push(TripDetails::Walking(TripDetailsWalking {
             time: final_walking_time,

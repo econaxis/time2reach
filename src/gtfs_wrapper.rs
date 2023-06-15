@@ -1,10 +1,15 @@
 use crate::calendar::{Calendar, CalendarException, Service};
+use rstar::PointDistance;
 use crate::IdType;
 use gtfs_structures::RawTrip;
 use rkyv::{Archive, Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
+use geo_types::{Coord, LineString};
+use rstar::primitives::{GeomWithData, Line};
+use rstar::RTree;
+use crate::shape::Shape;
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
@@ -147,6 +152,7 @@ pub struct StopTime {
     pub trip_id: IdType,
 
     pub index_of_stop_time: usize,
+    pub shape_index: f32
 }
 
 /// A physical stop, station or area. See <https://gtfs.org/reference/static/#stopstxt>
@@ -164,6 +170,7 @@ pub struct Stop {
     pub latitude: Option<f64>,
     pub location_type: LocationType,
     pub parent_station: Option<String>,
+    // pub shape_travelled_index: f64
 }
 
 impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
@@ -274,6 +281,7 @@ impl FromWithAgencyId<RawTrip> for Trip {
 pub struct Gtfs0 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: Vec<Stop>,
+    pub shapes: Vec<Shape>,
     /// All routes by `route_id`
     pub routes: Vec<Route>,
     /// All trips by `trip_id`
@@ -284,6 +292,7 @@ pub struct Gtfs0 {
     pub agency_id: u8,
 }
 
+#[derive(Archive, Serialize, Deserialize)]
 pub struct Gtfs1 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: HashMap<IdType, Stop>,
@@ -291,8 +300,13 @@ pub struct Gtfs1 {
     pub routes: HashMap<IdType, Route>,
     /// All trips by `trip_id`
     pub trips: HashMap<IdType, Trip>,
+    pub shapes: HashMap<IdType, Vec<Shape>>,
+
     pub calendar: Calendar,
+    pub agency_id: u8,
 }
+
+
 
 pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<IdType, T> {
     let mut hashmap = HashMap::new();
@@ -303,11 +317,28 @@ pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashM
     hashmap
 }
 
+
+fn convert_shapes(mut shape: Vec<Shape>) -> HashMap<IdType, Vec<Shape>> {
+    shape.sort_by(|a, b| a.id.cmp(&b.id));
+
+    let mut answer = HashMap::new();
+    for shape_seq in shape.group_by(|a, b| {
+        a.id == b.id
+    }) {
+        let shape_id = shape_seq[0].id;
+        let mut shape_vec = shape_seq.to_vec();
+        shape_vec.sort_by(|a, b| a.sequence.cmp(&b.sequence));
+        answer.insert(shape_id, shape_vec);
+    }
+
+    answer
+}
 impl From<Gtfs0> for Gtfs1 {
     fn from(mut a: Gtfs0) -> Self {
         AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
 
         let stops = vec_to_hashmap(a.stops, |stop| stop.id);
+        let shapes = convert_shapes(a.shapes);
         let mut trips: HashMap<IdType, Trip> = a
             .trips
             .into_iter()
@@ -339,11 +370,61 @@ impl From<Gtfs0> for Gtfs1 {
         }
 
         let calendar = Calendar::parse(a.calendar, a.calendar_dates);
-        Self {
+        let mut self_ = Self {
             stops,
+            shapes,
             routes: vec_to_hashmap(a.routes, |route| route.id),
             trips,
             calendar,
+            agency_id: a.agency_id
+        };
+        process_stop_times_with_shape_dist_travelled(&mut self_);
+
+        self_
+    }
+}
+
+fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
+    let geo_shape: HashMap<_, _> = gtfs.shapes.iter().map(|(id, shape)| {
+
+        let mut edge_index_iter = 0;
+
+        let edges: Vec<GeomWithData<Line<[f64; 2]>, usize>> = shape.windows(2).map(|edge| {
+            let geo_line_string = Shape::to_geo_types(edge).0;
+            match geo_line_string.as_slice() {
+                [a, b] => {
+                    let line = Line {
+                        from: [a.x, a.y],
+                        to: [b.x, b.y]
+                    };
+                    edge_index_iter += 1;
+                    GeomWithData::new(line, edge_index_iter - 1)
+                },
+                _ => {panic!("incorrect geo length")}
+            }
+        }).collect();
+        (id.clone(), RTree::<GeomWithData<Line<[f64; 2]>, usize>>::bulk_load(edges))
+    }).collect();
+
+    for trip in gtfs.trips.values_mut() {
+        for stop_time in &mut trip.stop_times {
+            let stop = &gtfs.stops[&stop_time.stop_id];
+            let shape_rstar = &geo_shape[&trip.shape_id.unwrap()];
+
+            let stop_query_point = [stop.longitude.unwrap(), stop.latitude.unwrap()];
+            let nearest_shape_edge = shape_rstar.nearest_neighbor(&stop_query_point).unwrap();
+            let nearest_point = nearest_shape_edge.geom().nearest_point(&stop_query_point);
+
+            let length = nearest_shape_edge.geom().length_2();
+
+            if (length < 1e-6) {
+                stop_time.shape_index = nearest_shape_edge.data as f32;
+            } else {
+                let fraction = (nearest_point.distance_2(&nearest_shape_edge.geom().from) / length).sqrt();
+
+                assert!(fraction <= 1.0 && fraction >= 0.0);
+                stop_time.shape_index = fraction as f32 + nearest_shape_edge.data as f32;
+            }
         }
     }
 }
@@ -352,6 +433,11 @@ impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
         let agency_id = AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
         Self {
+            shapes: a.shapes.unwrap_or(Ok(vec![]))
+                .unwrap_or_default()
+                .into_iter()
+                .map(|a| Shape::from_with_agency_id(agency_id, a))
+                .collect(),
             calendar: a
                 .calendar
                 .unwrap_or(Ok(vec![]))
@@ -391,16 +477,13 @@ impl From<LibraryGTFS> for Gtfs0 {
                 .unwrap()
                 .into_iter()
                 .map(|st| {
-                    if st.trip_id == "40813385" && st.stop_sequence == 0 {
-                        println!("wtf 5");
-                        let _wtf = 5;
-                    }
                     StopTime {
                         arrival_time: st.arrival_time,
                         stop_sequence: st.stop_sequence,
                         stop_id: (agency_id, try_parse_id(&st.stop_id)),
                         trip_id: (agency_id, try_parse_id(&st.trip_id)),
                         index_of_stop_time: 0,
+                        shape_index: -1.0,
                     }
                 })
                 .collect(),

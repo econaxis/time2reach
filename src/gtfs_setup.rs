@@ -36,22 +36,23 @@ pub fn get_agency_id_from_short_name(short_name: &str) -> u8 {
     *map.get(&short_name.to_ascii_uppercase()).unwrap()
 }
 pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
-    info!("For file {path}");
+    info!("Loading schedules for {path}");
     let file = File::create_new(format!("{path}-1.rkyv"));
+
+
     let result: Gtfs1 = if let Ok(mut file) = file {
         info!("GTFS not detected! Creating new");
-        let gtfs = Gtfs0::from(LibraryGTFS::from_path(path).unwrap());
+        let gtfs = Gtfs1::from(Gtfs0::from(LibraryGTFS::from_path(path).unwrap()));
         let bytes = rkyv::to_bytes::<_, 1024>(&gtfs).unwrap();
         file.write_all(&bytes).unwrap();
         info!("GTFS created");
-        gtfs.into()
+        gtfs
     } else {
         let mut file = File::open(format!("{path}-1.rkyv")).unwrap();
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes).unwrap();
-        unsafe { rkyv::from_bytes_unchecked::<Gtfs0>(&bytes) }
+        unsafe { rkyv::from_bytes_unchecked::<Gtfs1>(&bytes) }
             .unwrap()
-            .into()
     };
     let sample_id = result.stops.keys().next().unwrap();
     let mut map = AGENCY_MAP.lock().unwrap();
