@@ -148,7 +148,7 @@ fn all_stops_along_trip(
     let stop_times = &gtfs.trips[&trip_id].stop_times;
     let (boarding_stop, stop_time_index) = get_stop_from_stop_seq_no(stop_times, start_sequence_no);
 
-    for (_stops_travelled, st) in stop_times[stop_time_index as usize + 1..]
+    for (_stops_travelled, st) in stop_times[stop_time_index + 1..]
         .iter()
         .enumerate()
     {
@@ -256,7 +256,7 @@ fn explore_from_point(
                     );
                     routes_already_taken.insert(route_info.clone());
                     break;
-                } else if (is_valid_agency) {
+                } else if is_valid_agency {
                     println!("Removed because {} {} {}", is_valid_agency, service_runs_on_day(), is_valid_mode());
                     continue;
                 }

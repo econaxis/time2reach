@@ -25,7 +25,7 @@ use warp::{Filter, Reply};
 use geo_types::Coord;
 use geojson::PointType;
 use std::num::NonZeroUsize;
-use warp::body::form;
+
 lazy_static! {
     pub static ref CACHE: Mutex<LruCache<u64, Value>> =
         Mutex::new(LruCache::new(NonZeroUsize::new(15).unwrap()));

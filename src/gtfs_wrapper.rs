@@ -405,7 +405,7 @@ fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
                 })
                 .collect();
             (
-                id.clone(),
+                *id,
                 RTree::<GeomWithData<Line<[f64; 2]>, usize>>::bulk_load(edges),
             )
         })
@@ -428,7 +428,7 @@ fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
                 let fraction =
                     (nearest_point.distance_2(&nearest_shape_edge.geom().from) / length).sqrt();
 
-                assert!(fraction <= 1.0 && fraction >= 0.0);
+                assert!((0.0..=1.0).contains(&fraction));
                 stop_time.shape_index = fraction as f32 + nearest_shape_edge.data as f32;
             }
         }

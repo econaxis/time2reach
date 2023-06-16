@@ -17,7 +17,7 @@ lazy_static! {
 #[inline(never)]
 pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
     let mut result = StopsWithTrips::default();
-    for (_trip_id, trip) in &gtfs.trips {
+    for trip in gtfs.trips.values() {
         for st in &trip.stop_times {
             result.add_stop(st, trip);
         }
@@ -57,10 +57,10 @@ pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
     result
 }
 
-pub fn get_trip_transfers<'a>(
-    arena: &'a TripsArena,
+pub fn get_trip_transfers(
+    arena: &TripsArena,
     mut trip: Id<InProgressTrip>,
-) -> Vec<&'a InProgressTrip> {
+) -> Vec<&InProgressTrip> {
     let mut history = Vec::new();
 
     loop {

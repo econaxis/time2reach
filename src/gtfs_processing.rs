@@ -34,7 +34,7 @@ impl RoutePickupTimes {
 
         let bus_pickup = BusPickupInfo {
             timestamp: Time(stop_time.arrival_time.unwrap() as f64),
-            stop_sequence_no: stop_time.stop_sequence as u16,
+            stop_sequence_no: stop_time.stop_sequence,
             trip_id: trip.id,
         };
         if let Some(times) = self.0.get_mut(&route_stop_sequence) {

@@ -41,6 +41,7 @@ impl EdgeData {
     }
 }
 
+#[derive(Default)]
 struct NodeEdges(
     // Terminal([EdgeId; 1]),
     // Straight([EdgeId; 2]),
@@ -66,11 +67,7 @@ impl<'a> Iterator for NodeEdgesIteratorMut<'a> {
     }
 }
 
-impl Default for NodeEdges {
-    fn default() -> Self {
-        Self(Vec::new())
-    }
-}
+
 
 impl NodeEdges {
     fn iter(&self) -> NodeEdgesIteratorMut<'_> {

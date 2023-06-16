@@ -59,7 +59,7 @@ impl Shape {
         linestring.push(start_coord);
 
         for i in 1..length - 1 {
-            linestring.push(coords[i].clone());
+            linestring.push(coords[i]);
         }
 
         if end_frac > 0.0 || !end_is_whole {
@@ -67,7 +67,7 @@ impl Shape {
                 Shape::interpolate(&coords[length - 2], &coords[length - 1], end_frac as f64);
             linestring.push(end_coord);
         } else {
-            linestring.push(coords[length - 1].clone());
+            linestring.push(coords[length - 1]);
         }
 
         LineString::new(linestring)
