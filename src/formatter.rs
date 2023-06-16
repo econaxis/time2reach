@@ -1,12 +1,12 @@
 use crate::gtfs_wrapper::RouteType;
 use crate::in_progress_trip::InProgressTrip;
+use crate::shape::Shape;
 use crate::time::Time;
 use crate::trips_arena::TripsArena;
-use crate::{Gtfs1, gtfs_setup, NULL_ID, RoadStructure, WALKING_SPEED};
+use crate::{gtfs_setup, Gtfs1, RoadStructure, NULL_ID, WALKING_SPEED};
+use geo_types::{LineString, MultiLineString};
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
-use geo_types::{LineString, MultiLineString};
-use crate::shape::Shape;
 
 pub struct InProgressTripsFormatter<'a, 'b> {
     pub(crate) trips: Vec<&'a InProgressTrip>,
@@ -28,13 +28,18 @@ fn construct_shape_for_ip_trip(gtfs: &Gtfs1, trip: &InProgressTrip) -> LineStrin
 
 impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
     pub fn construct_shape(&self) -> MultiLineString {
-        MultiLineString::new(self.trips.iter().filter_map(|trip| {
-            if trip.trip_id == NULL_ID {
-                None
-            } else {
-                Some(construct_shape_for_ip_trip(self.gtfs, trip))
-            }
-        }).collect())
+        MultiLineString::new(
+            self.trips
+                .iter()
+                .filter_map(|trip| {
+                    if trip.trip_id == NULL_ID {
+                        None
+                    } else {
+                        Some(construct_shape_for_ip_trip(self.gtfs, trip))
+                    }
+                })
+                .collect(),
+        )
     }
 }
 
@@ -44,9 +49,7 @@ pub struct TimeFormatter {
 
 impl TimeFormatter {
     fn new(s: Time) -> Self {
-        TimeFormatter {
-            secs: s
-        }
+        TimeFormatter { secs: s }
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::gtfs_setup::initialize_gtfs_as_bson;
 use crate::gtfs_wrapper::Gtfs1;
-use serde::{Deserialize};
+use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -13,7 +13,6 @@ pub enum City {
     Toronto,
     Montreal,
 }
-
 
 impl FromStr for City {
     type Err = String;
@@ -55,13 +54,8 @@ pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
     let mut result: HashMap<City, Gtfs1> = HashMap::new();
 
     for agency in agencies() {
-        let this_gtfs = initialize_gtfs_as_bson(
-            &format!(
-                "city-gtfs/{}",
-                agency.path
-            ),
-            agency.short_code,
-        );
+        let this_gtfs =
+            initialize_gtfs_as_bson(&format!("city-gtfs/{}", agency.path), agency.short_code);
         if let Some(gtfs) = result.get_mut(&agency.city) {
             gtfs.merge(this_gtfs)
         } else {

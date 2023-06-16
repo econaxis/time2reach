@@ -1,14 +1,14 @@
 use crate::calendar::{Calendar, CalendarException, Service};
-use rstar::PointDistance;
+use crate::shape::Shape;
 use crate::IdType;
 use gtfs_structures::RawTrip;
 use rkyv::{Archive, Deserialize, Serialize};
+use rstar::primitives::{GeomWithData, Line};
+use rstar::PointDistance;
+use rstar::RTree;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
-use rstar::primitives::{GeomWithData, Line};
-use rstar::RTree;
-use crate::shape::Shape;
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
@@ -151,7 +151,7 @@ pub struct StopTime {
     pub trip_id: IdType,
 
     pub index_of_stop_time: usize,
-    pub shape_index: f32
+    pub shape_index: f32,
 }
 
 /// A physical stop, station or area. See <https://gtfs.org/reference/static/#stopstxt>
@@ -305,8 +305,6 @@ pub struct Gtfs1 {
     pub agency_id: u8,
 }
 
-
-
 pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<IdType, T> {
     let mut hashmap = HashMap::new();
     for v in vec {
@@ -316,14 +314,11 @@ pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashM
     hashmap
 }
 
-
 fn convert_shapes(mut shape: Vec<Shape>) -> HashMap<IdType, Vec<Shape>> {
     shape.sort_by(|a, b| a.id.cmp(&b.id));
 
     let mut answer = HashMap::new();
-    for shape_seq in shape.group_by(|a, b| {
-        a.id == b.id
-    }) {
+    for shape_seq in shape.group_by(|a, b| a.id == b.id) {
         let shape_id = shape_seq[0].id;
         let mut shape_vec = shape_seq.to_vec();
         shape_vec.sort_by(|a, b| a.sequence.cmp(&b.sequence));
@@ -375,7 +370,7 @@ impl From<Gtfs0> for Gtfs1 {
             routes: vec_to_hashmap(a.routes, |route| route.id),
             trips,
             calendar,
-            agency_id: a.agency_id
+            agency_id: a.agency_id,
         };
         process_stop_times_with_shape_dist_travelled(&mut self_);
 
@@ -384,26 +379,37 @@ impl From<Gtfs0> for Gtfs1 {
 }
 
 fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
-    let geo_shape: HashMap<_, _> = gtfs.shapes.iter().map(|(id, shape)| {
+    let geo_shape: HashMap<_, _> = gtfs
+        .shapes
+        .iter()
+        .map(|(id, shape)| {
+            let mut edge_index_iter = 0;
 
-        let mut edge_index_iter = 0;
-
-        let edges: Vec<GeomWithData<Line<[f64; 2]>, usize>> = shape.windows(2).map(|edge| {
-            let geo_line_string = Shape::to_geo_types(edge).0;
-            match geo_line_string.as_slice() {
-                [a, b] => {
-                    let line = Line {
-                        from: [a.x, a.y],
-                        to: [b.x, b.y]
-                    };
-                    edge_index_iter += 1;
-                    GeomWithData::new(line, edge_index_iter - 1)
-                },
-                _ => {panic!("incorrect geo length")}
-            }
-        }).collect();
-        (id.clone(), RTree::<GeomWithData<Line<[f64; 2]>, usize>>::bulk_load(edges))
-    }).collect();
+            let edges: Vec<GeomWithData<Line<[f64; 2]>, usize>> = shape
+                .windows(2)
+                .map(|edge| {
+                    let geo_line_string = Shape::to_geo_types(edge).0;
+                    match geo_line_string.as_slice() {
+                        [a, b] => {
+                            let line = Line {
+                                from: [a.x, a.y],
+                                to: [b.x, b.y],
+                            };
+                            edge_index_iter += 1;
+                            GeomWithData::new(line, edge_index_iter - 1)
+                        }
+                        _ => {
+                            panic!("incorrect geo length")
+                        }
+                    }
+                })
+                .collect();
+            (
+                id.clone(),
+                RTree::<GeomWithData<Line<[f64; 2]>, usize>>::bulk_load(edges),
+            )
+        })
+        .collect();
 
     for trip in gtfs.trips.values_mut() {
         for stop_time in &mut trip.stop_times {
@@ -419,7 +425,8 @@ fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
             if length < 1e-6 {
                 stop_time.shape_index = nearest_shape_edge.data as f32;
             } else {
-                let fraction = (nearest_point.distance_2(&nearest_shape_edge.geom().from) / length).sqrt();
+                let fraction =
+                    (nearest_point.distance_2(&nearest_shape_edge.geom().from) / length).sqrt();
 
                 assert!(fraction <= 1.0 && fraction >= 0.0);
                 stop_time.shape_index = fraction as f32 + nearest_shape_edge.data as f32;
@@ -432,7 +439,9 @@ impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
         let agency_id = AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
         Self {
-            shapes: a.shapes.unwrap_or(Ok(vec![]))
+            shapes: a
+                .shapes
+                .unwrap_or(Ok(vec![]))
                 .unwrap_or_default()
                 .into_iter()
                 .map(|a| Shape::from_with_agency_id(agency_id, a))
@@ -467,23 +476,19 @@ impl From<LibraryGTFS> for Gtfs0 {
                 .trips
                 .unwrap()
                 .into_iter()
-                .map(|a| {
-                    Trip::from_with_agency_id(agency_id, a)
-                })
+                .map(|a| Trip::from_with_agency_id(agency_id, a))
                 .collect(),
             stop_times: a
                 .stop_times
                 .unwrap()
                 .into_iter()
-                .map(|st| {
-                    StopTime {
-                        arrival_time: st.arrival_time,
-                        stop_sequence: st.stop_sequence,
-                        stop_id: (agency_id, try_parse_id(&st.stop_id)),
-                        trip_id: (agency_id, try_parse_id(&st.trip_id)),
-                        index_of_stop_time: 0,
-                        shape_index: -1.0,
-                    }
+                .map(|st| StopTime {
+                    arrival_time: st.arrival_time,
+                    stop_sequence: st.stop_sequence,
+                    stop_id: (agency_id, try_parse_id(&st.stop_id)),
+                    trip_id: (agency_id, try_parse_id(&st.trip_id)),
+                    index_of_stop_time: 0,
+                    shape_index: -1.0,
                 })
                 .collect(),
             agency_id,

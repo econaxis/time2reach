@@ -32,13 +32,11 @@ fn test_1() {
 
 pub fn get_agency_id_from_short_name(short_name: &str) -> u8 {
     let map = AGENCY_MAP.lock().unwrap();
-    println!("{:?} {:?}", map, short_name);
     *map.get(&short_name.to_ascii_uppercase()).unwrap()
 }
 pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
     info!("Loading schedules for {path}");
     let file = File::create_new(format!("{path}-1.rkyv"));
-
 
     let result: Gtfs1 = if let Ok(mut file) = file {
         info!("GTFS not detected! Creating new");
@@ -51,8 +49,7 @@ pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
         let mut file = File::open(format!("{path}-1.rkyv")).unwrap();
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes).unwrap();
-        unsafe { rkyv::from_bytes_unchecked::<Gtfs1>(&bytes) }
-            .unwrap()
+        unsafe { rkyv::from_bytes_unchecked::<Gtfs1>(&bytes) }.unwrap()
     };
     let sample_id = result.stops.keys().next().unwrap();
     let mut map = AGENCY_MAP.lock().unwrap();

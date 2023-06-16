@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
-import { Header } from './app'
 import { formatDuration, formatTime } from "./format-details";
+import { Header } from "./control-sidebar";
 
 export function TimeSliderInner({ duration, setDuration, text, min, max, formatFunc }) {
 

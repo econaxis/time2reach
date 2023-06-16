@@ -93,7 +93,7 @@ pub fn generate_reach_times(
         walking_time: Time(0.0),
         walking_length_m: 0.0,
         boarding_stop_time_idx: 0,
-        get_off_stop_time_idx: 0
+        get_off_stop_time_idx: 0,
     });
 
     while let Some((item, id)) = rs.trips_arena.pop_front() {
@@ -146,8 +146,7 @@ fn all_stops_along_trip(
         .get_by_id(previous_transfer_id)
         .is_free_transfer;
     let stop_times = &gtfs.trips[&trip_id].stop_times;
-    let (boarding_stop, stop_time_index) =
-        get_stop_from_stop_seq_no(stop_times, start_sequence_no);
+    let (boarding_stop, stop_time_index) = get_stop_from_stop_seq_no(stop_times, start_sequence_no);
 
     for (_stops_travelled, st) in stop_times[stop_time_index as usize + 1..]
         .iter()
@@ -170,7 +169,7 @@ fn all_stops_along_trip(
             walking_time: transfer_walking_time,
             walking_length_m: transfer_walking_length as f32,
             boarding_stop_time_idx: boarding_stop.index_of_stop_time,
-            get_off_stop_time_idx: st.index_of_stop_time
+            get_off_stop_time_idx: st.index_of_stop_time,
         };
 
         let id = explore_queue.add_to_explore(current_inprogress_trip);
@@ -193,7 +192,7 @@ fn explore_from_point(
     let current_trip = &gtfs.trips.get(&ip.trip_id);
 
     for (stop, distance) in data.0.nearest_neighbor_iter_with_distance_2(&ip.point) {
-        if distance > 600.0 * 600.0 {
+        if distance > 800.0 * 800.0 {
             // Exceeds the walking threshold.
             break;
         }
@@ -257,7 +256,8 @@ fn explore_from_point(
                     );
                     routes_already_taken.insert(route_info.clone());
                     break;
-                } else {
+                } else if (is_valid_agency) {
+                    println!("Removed because {} {} {}", is_valid_agency, service_runs_on_day(), is_valid_mode());
                     continue;
                 }
             }
@@ -265,13 +265,3 @@ fn explore_from_point(
     }
 }
 
-// #[inline(never)]
-// fn is_first_reacher(answer: &TimeToReachRTree, point: &[f64; 2], this_timestamp: u32) -> bool {
-//     for already_reached in answer.tree.locate_within_distance(*point, 75.0 * 75.0) {
-//         let time_to_walk_there = (already_reached.distance_2(point).sqrt() / WALKING_SPEED) as u32;
-//         if already_reached.data.timestamp + time_to_walk_there <= this_timestamp {
-//             return false;
-//         }
-//     }
-//     true
-// }

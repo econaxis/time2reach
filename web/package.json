@@ -32,7 +32,8 @@
         "postcss": "^8.4.21",
         "preact": "^10.13.0",
         "prettier": "^2.8.3",
-        "react-query": "^3.39.3"
+        "react-query": "^3.39.3",
+        "vite-plugin-svgr": "^3.2.0"
     },
     "prettier": {
         "tabWidth": 4,

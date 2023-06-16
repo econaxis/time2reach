@@ -1,6 +1,10 @@
-import { type FC } from 'preact/compat'
 import { Fragment } from 'preact'
-import { Sidebar } from "./app";
+import { Sidebar } from "./control-sidebar"
+import { ReactComponent as Bus } from '../svg/bus.svg'
+import {ReactComponent as Train } from '../svg/train.svg'
+import {ReactComponent as Tram } from '../svg/tram.svg'
+import {ReactComponent as Subway } from '../svg/subway.svg'
+
 
 interface TripDetailsInner {
     time: number
@@ -88,6 +92,14 @@ export function formatTime (secs: number): string {
 //     rail: <i className="fa-solid fa-train"></i>
 // }
 
+const SVG_ICONS = {
+    bus: <Bus style={{display: 'inline', width: '12px', height: '12px'}}/>,
+    tram: <Tram style={{display: 'inline', width: '12px', height: '12px'}}/>,
+    train: <Train style={{display: 'inline', width: '12px', height: '12px'}}/>,
+    subway: <Subway style={{display: 'inline', width: '12px', height: '12px'}}/>
+}
+
+
 function ModeIcon ({
         mode,
         boarding,
@@ -95,7 +107,8 @@ function ModeIcon ({
         text_color
     }
 ) {
-    const icon = null
+    console.log("React component is", Bus)
+    const icon = SVG_ICONS[mode]
 
     const styleString = {
         'background-color': background_color,

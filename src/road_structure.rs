@@ -20,7 +20,7 @@ use serde::ser::SerializeTuple;
 use crate::reach_data::ReachData;
 
 pub type EdgeId = u64;
-const MAX_WALKING_HOURS: f64 = 0.40;
+const MAX_WALKING_HOURS: f64 = 0.50;
 
 #[derive(Clone)]
 struct EdgeData {

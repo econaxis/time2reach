@@ -99,15 +99,12 @@ impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
 #[derive(Debug, Archive, Serialize, Deserialize)]
 pub struct CalendarExceptionList(HashMap<u32, CalendarException>);
 
-
-
 impl CalendarExceptionList {
-    fn runs_on_date(&self, date: NaiveDate) -> bool {
+    fn runs_on_date(&self, date: NaiveDate) -> Option<bool> {
         let ord = date.ordinal0();
         self.0
             .get(&ord)
             .map(|exc| exc.exception_type == Exception::Added)
-            .unwrap_or(false)
     }
 }
 
@@ -116,7 +113,6 @@ pub struct Calendar {
     pub services: HashMap<IdType, Service>,
     pub exceptions: HashMap<IdType, CalendarExceptionList>,
 }
-
 
 impl Calendar {
     pub fn extend(&mut self, other: Calendar) {
@@ -128,8 +124,9 @@ impl Calendar {
         let exception = self
             .exceptions
             .get(&service_id)
-            .map(|a| a.runs_on_date(date));
+            .and_then(|a| a.runs_on_date(date));
 
+        println!("Calendar service {:?} {:?} {:?}", service_id, normal, exception);
         match (normal, exception) {
             (None, None) => true,
             _ => normal.unwrap_or(false) || exception.unwrap_or(false),

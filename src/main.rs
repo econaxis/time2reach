@@ -14,16 +14,16 @@ mod gtfs_processing;
 mod gtfs_setup;
 mod gtfs_wrapper;
 mod in_progress_trip;
+mod path_usage;
 mod projection;
 mod reach_data;
 mod road_structure;
 mod serialization;
+mod shape;
 mod time;
 mod time_to_reach;
 mod trips_arena;
 mod web;
-mod path_usage;
-mod shape;
 
 use crate::gtfs_wrapper::DirectionType;
 
@@ -32,8 +32,8 @@ use std::collections::HashSet;
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
 
-use std::time::Instant;
 use log::LevelFilter;
+use std::time::Instant;
 
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
 use crate::projection::PROJSTRING;
@@ -43,9 +43,9 @@ use configuration::Configuration;
 use gtfs_wrapper::LibraryGTFS;
 
 use crate::agencies::City;
+use crate::formatter::time_to_point;
 use time::Time;
 use trips_arena::TripsArena;
-use crate::formatter::time_to_point;
 
 const WALKING_SPEED: f64 = 1.42;
 const STRAIGHT_WALKING_SPEED: f64 = 1.30;
@@ -122,7 +122,10 @@ fn main1() {
 }
 
 fn main() {
-    env_logger::builder().filter_level(LevelFilter::Debug).parse_default_env().init();
+    env_logger::builder()
+        .filter_level(LevelFilter::Debug)
+        .parse_default_env()
+        .init();
 
     if false {
         main1();

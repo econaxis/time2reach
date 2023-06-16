@@ -17,19 +17,29 @@ use std::convert::Infallible;
 use std::hash::{Hash, Hasher};
 use std::ops::DerefMut;
 
-use std::sync::{Arc, Mutex};
 use lru::LruCache;
+use std::sync::{Arc, Mutex};
 
 use warp::{Filter, Reply};
 
+use geo_types::Coord;
+use geojson::PointType;
 use std::num::NonZeroUsize;
+use warp::body::form;
 lazy_static! {
-    pub static ref CACHE: Mutex<LruCache<u64, Value>> = Mutex::new(LruCache::new(NonZeroUsize::new(15).unwrap()));
+    pub static ref CACHE: Mutex<LruCache<u64, Value>> =
+        Mutex::new(LruCache::new(NonZeroUsize::new(15).unwrap()));
 }
 fn round_f64_for_hash(x: f64) -> u64 {
     (x * 10000.0).round() as u64
 }
-fn cache_key(lat: f64, lng: f64, include_agencies: &[String], include_modes: &[String], start_time: u64) -> u64 {
+fn cache_key(
+    lat: f64,
+    lng: f64,
+    include_agencies: &[String],
+    include_modes: &[String],
+    start_time: u64,
+) -> u64 {
     let mut hasher = DefaultHasher::new();
     hasher.write_u64(round_f64_for_hash(lat));
     hasher.write_u64(round_f64_for_hash(lng));
@@ -59,7 +69,7 @@ fn check_cache<'a>(
     lng: f64,
     include_agencies: &[String],
     include_modes: &[String],
-    start_time: u64
+    start_time: u64,
 ) -> Result<&'a Value, u64> {
     let hash = cache_key(lat, lng, include_agencies, include_modes, start_time);
     cache.get(&hash).ok_or(hash)
@@ -80,7 +90,6 @@ fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
     None
 }
 
-
 fn process_coordinates(
     ad: Arc<AllAppData>,
     lat: f64,
@@ -88,7 +97,7 @@ fn process_coordinates(
     include_agencies: Vec<String>,
     include_modes: Vec<String>,
     start_time: u64,
-    prev_request_id: Option<RequestId>
+    prev_request_id: Option<RequestId>,
 ) -> impl Reply {
     let city = check_city(&ad, lat, lng);
 
@@ -106,7 +115,14 @@ fn process_coordinates(
 
     let mut cache = CACHE.lock().unwrap();
 
-    let cache_key = match check_cache(&mut cache, lat, lng, &include_agencies, &include_modes, start_time) {
+    let cache_key = match check_cache(
+        &mut cache,
+        lat,
+        lng,
+        &include_agencies,
+        &include_modes,
+        start_time,
+    ) {
         Ok(reply) => return warp::reply::json(reply),
         Err(key) => key,
     };
@@ -120,7 +136,6 @@ fn process_coordinates(
         .iter()
         .map(|ag| get_agency_id_from_short_name(ag))
         .collect();
-
 
     time_to_reach::generate_reach_times(
         gtfs,
@@ -147,7 +162,6 @@ fn process_coordinates(
         .map(|edge_time| (edge_time.edge_id, edge_time.time as u32))
         .collect();
 
-
     let rs_list_index = ad.rs_list.push(rs);
     let request_id = RequestId {
         rs_list_index,
@@ -164,7 +178,7 @@ fn process_coordinates(
 
 struct RoadStructureList {
     inner: LruCache<usize, RoadStructure>,
-    counter: usize
+    counter: usize,
 }
 
 impl RoadStructureList {
@@ -189,7 +203,7 @@ impl RoadStructureList {
     fn new(max: usize) -> Self {
         RoadStructureList {
             inner: LruCache::new(NonZeroUsize::new(max).unwrap()),
-            counter: 0
+            counter: 0,
         }
     }
 }
@@ -231,7 +245,7 @@ pub struct CalculateRequest {
     pub start_time: u64,
 
     #[serde(rename = "previousRequestId")]
-    pub previous_request_id: Option<RequestId>
+    pub previous_request_id: Option<RequestId>,
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -290,6 +304,10 @@ pub struct RequestId {
     city: City,
 }
 
+fn to_point_type(c: &Coord) -> PointType {
+    vec![c.x, c.y]
+}
+
 fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
     let latlng = req.latlng;
     let city = req.request_id.city;
@@ -331,10 +349,31 @@ fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
     let mut has_free_transfer_from_prev = false;
 
     let path_shape = formatter.construct_shape();
-    let geojson = geojson::Feature::try_from(geojson::Value::from(&path_shape)).unwrap();
 
+    let mut features: Vec<_> = path_shape
+        .0
+        .iter()
+        .map(|a| geojson::Feature::from(geojson::Geometry::from(a)))
+        .collect();
 
-    for trip in formatter.trips {
+    let mut features_points: Vec<_> = path_shape
+        .0
+        .iter()
+        .map(|a| {
+            let first_point = a.0.first().unwrap();
+            let last_point = a.0.last().unwrap();
+
+            let geom_multipoint = geojson::Value::MultiPoint(vec![
+                to_point_type(first_point),
+                to_point_type(last_point),
+            ]);
+
+            geojson::Feature::from(geom_multipoint)
+        })
+        .collect();
+
+    let features_zip_iter = features.iter_mut().zip(&mut features_points);
+    for ((feature, feature_point), trip) in features_zip_iter.zip(&formatter.trips) {
         if trip.current_route.route_id == NULL_ID {
             // Begin of trip. Skip here.
             continue;
@@ -343,6 +382,9 @@ fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
         let route = &ad.gtfs.routes[&trip.current_route.route_id];
         let boarding_stop = &ad.gtfs.stops[&trip.boarding_stop_id];
         let exit_stop = &ad.gtfs.stops[&trip.get_off_stop_id];
+
+        feature.set_property("color", route.color.clone());
+        feature_point.set_property("color", route.color.clone());
 
         let exit_stop_msg = if has_free_transfer_from_prev {
             format!("{} (stay on vehicle)", exit_stop.name)
@@ -377,6 +419,13 @@ fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
     }
 
     details_list.reverse();
+
+    features.extend(features_points);
+    let geojson = geojson::FeatureCollection {
+        bbox: None,
+        features,
+        foreign_members: None,
+    };
 
     let response = json!({
         "details": details_list,
@@ -419,7 +468,15 @@ pub async fn main() {
         .and(warp::path!("hello"))
         .and(warp::body::json())
         .map(|ad: Arc<AllAppData>, req: CalculateRequest| {
-            process_coordinates(ad, req.latitude, req.longitude, req.agencies, req.modes, req.start_time, req.previous_request_id)
+            process_coordinates(
+                ad,
+                req.latitude,
+                req.longitude,
+                req.agencies,
+                req.modes,
+                req.start_time,
+                req.previous_request_id,
+            )
         });
 
     let details = warp::post()
@@ -428,7 +485,9 @@ pub async fn main() {
         .and(warp::body::json())
         .map(get_trip_details);
 
-    let agencies_endpoint = warp::get().and(warp::path!("agencies")).map(|| warp::reply::json(&agencies()));
+    let agencies_endpoint = warp::get()
+        .and(warp::path!("agencies"))
+        .map(|| warp::reply::json(&agencies()));
 
     let routes = hello
         .or(details)
