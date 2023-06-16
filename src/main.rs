@@ -76,7 +76,7 @@ fn direction_to_bool(d: &DirectionType) -> bool {
 
 fn main1() {
     let gtfs = setup_gtfs();
-    let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
+    let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&gtfs);
 
     let mut rs = RoadStructure::new();
     let time = Instant::now();

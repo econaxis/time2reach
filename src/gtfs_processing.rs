@@ -78,7 +78,7 @@ impl StopsWithTrips {
             self.0.insert(stop_time.stop_id, rp);
         }
     }
-    pub fn to_spatial(self, gtfs: &Gtfs1) -> SpatialStopsWithTrips {
+    pub fn into_spatial(self, gtfs: &Gtfs1) -> SpatialStopsWithTrips {
         let mut points_data = Vec::new();
 
         for (stop_id, trips_with_time) in self.0 {

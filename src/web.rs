@@ -1,11 +1,9 @@
 use crate::agencies::{agencies, City, load_all_gtfs};
 use crate::configuration::Configuration;
-use crate::formatter::{get_route_mode, time_to_point};
-use crate::gtfs_processing::SpatialStopsWithTrips;
 use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::gtfs_wrapper::RouteType;
-use crate::road_structure::{EdgeId, RoadStructureInner};
-use crate::{Gtfs1, gtfs_setup, NULL_ID, RoadStructure, Time, time_to_reach, trip_details, WALKING_SPEED};
+use crate::road_structure::{EdgeId};
+use crate::{Gtfs1, gtfs_setup, RoadStructure, Time, time_to_reach, trip_details};
 use lazy_static::lazy_static;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -21,9 +19,6 @@ use lru::LruCache;
 use std::sync::{Arc, Mutex};
 
 use warp::{Filter, Reply};
-
-use geo_types::Coord;
-use geojson::PointType;
 use std::num::NonZeroUsize;
 use crate::trip_details::CalculateRequest;
 use crate::web_app_data::{AllAppData, CityAppData};
@@ -61,7 +56,7 @@ fn cache_key(
 }
 
 fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> Arc<Mutex<CityAppData>> {
-    let data = gtfs_setup::generate_stops_trips(&gtfs).to_spatial(&gtfs);
+    let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&gtfs);
 
     CityAppData::new(gtfs, data, city)
 }
@@ -139,6 +134,11 @@ fn process_coordinates(
         .map(|ag| get_agency_id_from_short_name(ag))
         .collect();
 
+    let modes = include_modes
+        .iter()
+        .map(|x| RouteType::from(x.as_ref()))
+        .collect();
+
     time_to_reach::generate_reach_times(
         gtfs,
         spatial_stops,
@@ -151,10 +151,7 @@ fn process_coordinates(
                 longitude: lng,
             },
             agency_ids,
-            modes: include_modes
-                .iter()
-                .map(|x| RouteType::from(x.as_ref()))
-                .collect(),
+            modes,
         },
     );
 

@@ -47,11 +47,6 @@ pub struct TimeFormatter {
     secs: Time,
 }
 
-impl TimeFormatter {
-    fn new(s: Time) -> Self {
-        TimeFormatter { secs: s }
-    }
-}
 
 impl Display for TimeFormatter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
