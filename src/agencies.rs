@@ -1,10 +1,10 @@
 use crate::gtfs_setup::initialize_gtfs_as_bson;
 use crate::gtfs_wrapper::Gtfs1;
+use log::info;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
-use log::info;
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub enum City {
@@ -139,7 +139,6 @@ pub fn agencies() -> Vec<&'static Agency> {
             path: "vancouver-translink",
             short_code: "VANCOUVER-TRANSLINK",
         },
-
         // Montreal
         Agency {
             public_name: "Montreal STM",
@@ -149,10 +148,12 @@ pub fn agencies() -> Vec<&'static Agency> {
         },
     ];
 
-    return vec![&AGENCY_TORONTO[2]];
     if cfg!(feature = "all-cities") {
         AGENCY_TORONTO.iter().collect()
     } else {
-        AGENCY_TORONTO.iter().filter(|x| x.city == City::Toronto).collect()
+        AGENCY_TORONTO
+            .iter()
+            .filter(|x| x.city == City::Toronto)
+            .collect()
     }
 }

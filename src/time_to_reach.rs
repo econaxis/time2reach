@@ -78,7 +78,7 @@ pub fn generate_reach_times(
     rs: &mut RoadStructure,
     config: Configuration,
 ) {
-    const MAX_TRANSFERS: u8 = 1;
+    const MAX_TRANSFERS: u8 = 4;
     let location = config.location;
     rs.trips_arena.add_to_explore(InProgressTrip {
         trip_id: NULL_ID,
@@ -108,17 +108,15 @@ pub fn generate_reach_times(
             continue;
         }
 
-        if item.get_off_stop_id != NULL_ID || true {
-            rs.add_observation(
-                &item.point,
-                ReachData {
-                    timestamp: item.exit_time + TRANSIT_EXIT_PENALTY,
-                    progress_trip_id: Some(id),
-                    transfers: item.total_transfers,
-                    walking_length: 0.0,
-                },
-            );
-        }
+        rs.add_observation(
+            &item.point,
+            ReachData {
+                timestamp: item.exit_time + TRANSIT_EXIT_PENALTY,
+                progress_trip_id: Some(id),
+                transfers: item.total_transfers,
+                walking_length: 0.0,
+            },
+        );
         explore_from_point(gtfs, data, item, id, &mut rs.trips_arena, &config);
     }
 }
@@ -149,10 +147,7 @@ fn all_stops_along_trip(
     let stop_times = &gtfs.trips[&trip_id].stop_times;
     let (boarding_stop, stop_time_index) = get_stop_from_stop_seq_no(stop_times, start_sequence_no);
 
-    for (_stops_travelled, st) in stop_times[stop_time_index + 1..]
-        .iter()
-        .enumerate()
-    {
+    for (_stops_travelled, st) in stop_times[stop_time_index + 1..].iter().enumerate() {
         let stop = &gtfs.stops[&st.stop_id];
         let point = projection::project_stop(stop);
         let timestamp = st.arrival_time.unwrap();
@@ -267,4 +262,3 @@ fn explore_from_point(
 
     panic!();
 }
-

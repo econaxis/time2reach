@@ -22,9 +22,9 @@ mod serialization;
 mod shape;
 mod time;
 mod time_to_reach;
+mod trip_details;
 mod trips_arena;
 mod web;
-mod trip_details;
 mod web_app_data;
 
 use crate::gtfs_wrapper::DirectionType;

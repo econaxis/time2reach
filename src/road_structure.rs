@@ -67,8 +67,6 @@ impl<'a> Iterator for NodeEdgesIteratorMut<'a> {
     }
 }
 
-
-
 impl NodeEdges {
     fn iter(&self) -> NodeEdgesIteratorMut<'_> {
         NodeEdgesIteratorMut { n: self, idx: 0 }

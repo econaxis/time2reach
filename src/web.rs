@@ -1,9 +1,9 @@
-use crate::agencies::{agencies, City, load_all_gtfs};
+use crate::agencies::{agencies, load_all_gtfs, City};
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::gtfs_wrapper::RouteType;
-use crate::road_structure::{EdgeId};
-use crate::{Gtfs1, gtfs_setup, RoadStructure, Time, time_to_reach, trip_details};
+use crate::road_structure::EdgeId;
+use crate::{gtfs_setup, time_to_reach, trip_details, Gtfs1, RoadStructure, Time};
 use lazy_static::lazy_static;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -18,10 +18,10 @@ use std::ops::DerefMut;
 use lru::LruCache;
 use std::sync::{Arc, Mutex};
 
-use warp::{Filter, Reply};
-use std::num::NonZeroUsize;
 use crate::trip_details::CalculateRequest;
 use crate::web_app_data::{AllAppData, CityAppData};
+use std::num::NonZeroUsize;
+use warp::{Filter, Reply};
 
 lazy_static! {
     pub static ref CACHE: Mutex<LruCache<u64, Value>> =
@@ -257,11 +257,14 @@ pub async fn main() {
         .with(cors_policy)
         .with(log);
 
-
     if cfg!(feature = "https") {
-        warp::serve(routes).tls().key_path("certificates/privkey.pem").cert_path("certificates/fullchain.pem").run(([0, 0, 0, 0], 3030)).await;
+        warp::serve(routes)
+            .tls()
+            .key_path("certificates/privkey.pem")
+            .cert_path("certificates/fullchain.pem")
+            .run(([0, 0, 0, 0], 3030))
+            .await;
     } else {
         warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
     }
-
 }

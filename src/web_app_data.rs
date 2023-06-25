@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use lru::LruCache;
-use std::num::NonZeroUsize;
-use crate::{City, Gtfs1, RoadStructure};
 use crate::gtfs_processing::SpatialStopsWithTrips;
 use crate::road_structure::RoadStructureInner;
+use crate::{City, Gtfs1, RoadStructure};
+use lru::LruCache;
+use std::collections::HashMap;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, Mutex};
 
 pub struct CityAppData {
     pub gtfs: Gtfs1,

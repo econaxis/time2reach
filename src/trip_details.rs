@@ -1,13 +1,13 @@
-use std::sync::Arc;
-use serde_json::json;
-use warp::Reply;
+use crate::formatter::get_route_mode;
+use crate::web::RequestId;
+use crate::web_app_data::AllAppData;
+use crate::{time_to_point, LatLng, NULL_ID, WALKING_SPEED};
 use geo_types::Coord;
 use geojson::PointType;
-use crate::{LatLng, NULL_ID, time_to_point, WALKING_SPEED};
-use crate::formatter::get_route_mode;
-use crate::web::{RequestId};
-use serde::{Serialize, Deserialize};
-use crate::web_app_data::AllAppData;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::sync::Arc;
+use warp::Reply;
 
 #[derive(Deserialize)]
 pub struct CalculateRequest {

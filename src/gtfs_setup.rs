@@ -25,7 +25,6 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
     result
 }
 
-
 pub fn get_agency_id_from_short_name(short_name: &str) -> u8 {
     let map = AGENCY_MAP.lock().unwrap();
     *map.get(&short_name.to_ascii_uppercase()).unwrap()

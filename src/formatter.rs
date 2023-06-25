@@ -47,7 +47,6 @@ pub struct TimeFormatter {
     pub(crate) secs: Time,
 }
 
-
 impl Display for TimeFormatter {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let secs = self.secs.as_u32();

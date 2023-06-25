@@ -1,7 +1,7 @@
+use crate::formatter::TimeFormatter;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
-use crate::formatter::TimeFormatter;
 
 #[derive(PartialOrd, PartialEq, Copy, Clone, Debug)]
 pub struct Time(pub f64);
@@ -26,7 +26,7 @@ impl Time {
     }
 
     pub fn format(&self) -> String {
-        return format!("{}", TimeFormatter {secs: self.clone()})
+        return format!("{}", TimeFormatter { secs: self.clone() });
     }
 }
 
