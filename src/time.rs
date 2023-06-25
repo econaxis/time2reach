@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
+use crate::formatter::TimeFormatter;
 
 #[derive(PartialOrd, PartialEq, Copy, Clone, Debug)]
 pub struct Time(pub f64);
@@ -22,6 +23,10 @@ impl Time {
     pub(crate) const MAX: Time = Time(f64::MAX);
     pub fn as_u32(&self) -> u32 {
         self.0 as u32
+    }
+
+    pub fn format(&self) -> String {
+        return format!("{}", TimeFormatter {secs: self.clone()})
     }
 }
 

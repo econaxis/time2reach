@@ -153,7 +153,8 @@ fn all_stops_along_trip(
         .iter()
         .enumerate()
     {
-        let point = projection::project_stop(&gtfs.stops[&st.stop_id]);
+        let stop = &gtfs.stops[&st.stop_id];
+        let point = projection::project_stop(stop);
         let timestamp = st.arrival_time.unwrap();
 
         let current_inprogress_trip = InProgressTrip {
@@ -215,6 +216,7 @@ fn explore_from_point(
             };
 
             for next_bus in route_pickup.range(starting_buspickup..) {
+                let trip = &gtfs.trips[&next_bus.trip_id];
                 assert!(next_bus.timestamp >= this_timestamp);
 
                 let is_valid_agency = config.agency_ids.contains(&next_bus.trip_id.0);
@@ -257,11 +259,12 @@ fn explore_from_point(
                     );
                     routes_already_taken.insert(route_info.clone());
                     break;
-                } else if is_valid_agency {
-                    continue;
+                } else {
                 }
             }
         }
     }
+
+    panic!();
 }
 

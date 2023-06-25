@@ -13,12 +13,14 @@ pub struct RoutePickupTimes(pub HashMap<RouteStopSequence, BTreeSet<BusPickupInf
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct RouteStopSequence {
     pub route_id: IdType,
+    pub shape_id: Option<IdType>,
     pub direction: bool,
 }
 
 impl Default for RouteStopSequence {
     fn default() -> Self {
         Self {
+            shape_id: None,
             route_id: NULL_ID,
             direction: false,
         }
@@ -29,6 +31,7 @@ impl RoutePickupTimes {
     fn add_route_pickup_time(&mut self, trip: &Trip, stop_time: &StopTime) {
         let route_stop_sequence = RouteStopSequence {
             route_id: trip.route_id,
+            shape_id: trip.shape_id,
             direction: crate::direction_to_bool(&trip.direction_id.unwrap()),
         };
 

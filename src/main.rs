@@ -88,7 +88,7 @@ fn main1() {
             &mut rs,
             Configuration {
                 // start_time: Time(3600.0 * 13.0),
-                start_time: Time(3600.0 * 17.0 + 60.0 * 40.0),
+                start_time: Time(3600.0 * 17.0 + 60.0 * 20.0),
                 duration_secs: 3600.0 * 1.5,
                 location: LatLng::from_lat_lng(43.64466712433209, -79.38041754904549),
                 agency_ids: HashSet::from([gtfs.agency_id]),
@@ -102,7 +102,7 @@ fn main1() {
             [43.71675866093244, -79.74566916652475],
             true,
         );
-        println!("{}", fmter.unwrap());
+        // println!("{}", fmter.unwrap());
     }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
 
@@ -129,7 +129,7 @@ fn main() {
         .parse_default_env()
         .init();
 
-    if true {
+    if false {
         main1();
     } else {
         let rt = tokio::runtime::Runtime::new().unwrap();

@@ -44,7 +44,7 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
 }
 
 pub struct TimeFormatter {
-    secs: Time,
+    pub(crate) secs: Time,
 }
 
 
