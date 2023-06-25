@@ -88,9 +88,9 @@ fn main1() {
             &mut rs,
             Configuration {
                 // start_time: Time(3600.0 * 13.0),
-                start_time: Time(3600.0 * 13.0),
+                start_time: Time(3600.0 * 17.0 + 60.0 * 40.0),
                 duration_secs: 3600.0 * 1.5,
-                location: LatLng::from_lat_lng(43.69679924308685, -79.82260848623213),
+                location: LatLng::from_lat_lng(43.64466712433209, -79.38041754904549),
                 agency_ids: HashSet::from([gtfs.agency_id]),
                 modes: vec![],
             },
@@ -129,7 +129,7 @@ fn main() {
         .parse_default_env()
         .init();
 
-    if false {
+    if true {
         main1();
     } else {
         let rt = tokio::runtime::Runtime::new().unwrap();

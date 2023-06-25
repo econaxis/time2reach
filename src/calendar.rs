@@ -126,7 +126,6 @@ impl Calendar {
             .get(&service_id)
             .and_then(|a| a.runs_on_date(date));
 
-        println!("Calendar service {:?} {:?} {:?}", service_id, normal, exception);
         match (normal, exception) {
             (None, None) => true,
             _ => normal.unwrap_or(false) || exception.unwrap_or(false),

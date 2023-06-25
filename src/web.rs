@@ -257,5 +257,11 @@ pub async fn main() {
         .with(cors_policy)
         .with(log);
 
-    warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
+
+    if cfg!(feature = "https") {
+        warp::serve(routes).tls().key_path("certificates/privkey.pem").cert_path("certificates/fullchain.pem").run(([0, 0, 0, 0], 3030)).await;
+    } else {
+        warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
+    }
+
 }

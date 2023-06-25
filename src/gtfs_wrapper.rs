@@ -412,6 +412,9 @@ fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
         .collect();
 
     for trip in gtfs.trips.values_mut() {
+        if trip.shape_id.is_none() {
+            continue;
+        }
         for stop_time in &mut trip.stop_times {
             let stop = &gtfs.stops[&stop_time.stop_id];
             let shape_rstar = &geo_shape[&trip.shape_id.unwrap()];

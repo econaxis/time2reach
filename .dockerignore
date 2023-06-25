@@ -8,9 +8,7 @@ node_modules
 venv
 cache
 **/.DS_Store
-web/public/Montreal.gpkg
-web/public/NewYorkCity.gpkg
-web/public/Vancouver.gpkg
 city-gtfs/*.rkyv
 Dockerfile
 web/dist
+.git

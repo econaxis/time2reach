@@ -25,10 +25,6 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
     result
 }
 
-#[test]
-fn test_1() {
-    initialize_gtfs_as_bson("/Users/henry.nguyen@snapcommerce.com/Downloads/gtfs-test1");
-}
 
 pub fn get_agency_id_from_short_name(short_name: &str) -> u8 {
     let map = AGENCY_MAP.lock().unwrap();

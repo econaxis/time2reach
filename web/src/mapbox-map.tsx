@@ -78,13 +78,18 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
         currentMap.on("mouseover", "transit-layer", async (e) => {
             const nearbyFeatures = currentMap.queryRenderedFeatures(e.point)
-            if (nearbyFeatures.length === 0) return
+            if (nearbyFeatures.length === 0) {
+                console.log("no nearby features found")
+                return
+            }
 
             currentMap.getCanvas().style.cursor = "crosshair"
             const feature = nearbyFeatures[0]
             const seconds = getTimeData().raw[feature.id]
 
-            if (!seconds) return
+            if (!seconds) {
+                return
+            }
 
             const detailResponse = await getDetails(
                 getTimeData(),

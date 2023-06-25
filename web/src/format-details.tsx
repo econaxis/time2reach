@@ -107,7 +107,6 @@ function ModeIcon ({
         text_color
     }
 ) {
-    console.log("React component is", Bus)
     const icon = SVG_ICONS[mode]
 
     const styleString = {
@@ -124,7 +123,6 @@ function ModeIcon ({
         </Fragment>
     }
 
-    console.log("Mode Icon inner", inner)
     return <span className="rounded p-0.5 px-1" style={styleString}>
         {inner}
     </span>

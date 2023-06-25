@@ -15,7 +15,24 @@ predefined = "web_mercator"
 [[tileset]]
 name = "all_cities"
 
-extent = [-80.92591413637992,43.20691728340927, -78.52793183891616, 44.034922140597025]
+#extent = [ 45.287289604799454, -73.99780596599936,45.74763391904646, -73.35964694939565]
+# New York City
+#extent = [
+#    40.39865884215855,
+#    -74.10978944228054,
+#
+#    41.1118967693351 ,
+#    -73.60672750343336
+#]
+
+# Vancouver
+
+#extent = [
+#    49.14300779025667,
+#    -123.26949900034515,
+#    49.31936004616406,
+#    -122.67464806527876
+#]
 
 
 [[tileset.layer]]
@@ -30,12 +47,17 @@ buffer_size = 0
 query_limit = 1000000
 
 
-[cache.s3]
-bucket="timetoreach-tiles"
-access_key="AKIA3DIAOJLS3KMRGIXW"
-secret_key="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"
-region="us-east-1"
-endpoint="s3.us-east-1.amazonaws.com"
+# [cache.s3]
+# bucket="timetoreach-tiles"
+# access_key="AKIA3DIAOJLS3KMRGIXW"
+# secret_key="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"
+# region="us-east-1"
+# endpoint="s3.us-east-1.amazonaws.com"
+
+[cache.file]
+base = "/tmp/vancouver-cache"
+baseurl = "http://example.com/tiles"
+
 
 
 [webserver]

@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
+use log::info;
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub enum City {
@@ -53,7 +54,15 @@ pub struct Agency {
 pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
     let mut result: HashMap<City, Gtfs1> = HashMap::new();
 
-    for agency in agencies() {
+    let agencies_ = agencies();
+
+    print!("Using agencies: ");
+    for ag in &agencies_ {
+        print!(" {}", ag.public_name);
+    }
+    println!();
+
+    for agency in agencies_ {
         let this_gtfs =
             initialize_gtfs_as_bson(&format!("city-gtfs/{}", agency.path), agency.short_code);
         if let Some(gtfs) = result.get_mut(&agency.city) {
@@ -66,8 +75,8 @@ pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
     result
 }
 
-pub const fn agencies<'a>() -> &'a [Agency] {
-    &[
+pub fn agencies() -> Vec<&'static Agency> {
+    const AGENCY_TORONTO: [Agency; 11] = [
         Agency {
             public_name: "TTC",
             path: "ttc",
@@ -104,41 +113,46 @@ pub const fn agencies<'a>() -> &'a [Agency] {
             path: "miway",
             short_code: "MIWAY",
         },
-        // Agency {
-        //     public_name: "GRT (Kitchener/Waterloo)",
-        //     city: City::Toronto,
-        //     path: "waterloo_grt",
-        //     short_code: "GRT",
-        // },
-        // // New York City
-        // Agency {
-        //     public_name: "MTA Subway",
-        //     city: City::NewYorkCity,
-        //     path: "nyc-subway",
-        //     short_code: "NYC-SUBWAY",
-        // },
-        // Agency {
-        //     public_name: "MTA Bus",
-        //     city: City::NewYorkCity,
-        //     path: "nyc-bus",
-        //     short_code: "NYC-BUS",
-        // },
-        //
-
+        Agency {
+            public_name: "GRT (Kitchener/Waterloo)",
+            city: City::Toronto,
+            path: "waterloo_grt",
+            short_code: "GRT",
+        },
+        // New York City
+        Agency {
+            public_name: "MTA Subway",
+            city: City::NewYorkCity,
+            path: "nyc-subway",
+            short_code: "NYC-SUBWAY",
+        },
+        Agency {
+            public_name: "MTA Bus",
+            city: City::NewYorkCity,
+            path: "nyc-bus",
+            short_code: "NYC-BUS",
+        },
         // Vancouver
-        // Agency {
-        //     public_name: "Vancouver Translink",
-        //     city: City::Vancouver,
-        //     path: "vancouver-translink",
-        //     short_code: "VANCOUVER-TRANSLINK",
-        // },
-        //
-        // // Montreal
-        // Agency {
-        //     public_name: "Montreal STM",
-        //     city: City::Montreal,
-        //     path: "montreal",
-        //     short_code: "MONTREAL",
-        // },
-    ]
+        Agency {
+            public_name: "Vancouver Translink",
+            city: City::Vancouver,
+            path: "vancouver-translink",
+            short_code: "VANCOUVER-TRANSLINK",
+        },
+
+        // Montreal
+        Agency {
+            public_name: "Montreal STM",
+            city: City::Montreal,
+            path: "montreal",
+            short_code: "MONTREAL",
+        },
+    ];
+
+    return vec![&AGENCY_TORONTO[2]];
+    if cfg!(feature = "all-cities") {
+        AGENCY_TORONTO.iter().collect()
+    } else {
+        AGENCY_TORONTO.iter().filter(|x| x.city == City::Toronto).collect()
+    }
 }

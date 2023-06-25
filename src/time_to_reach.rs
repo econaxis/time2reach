@@ -78,6 +78,7 @@ pub fn generate_reach_times(
     rs: &mut RoadStructure,
     config: Configuration,
 ) {
+    const MAX_TRANSFERS: u8 = 1;
     let location = config.location;
     rs.trips_arena.add_to_explore(InProgressTrip {
         trip_id: NULL_ID,
@@ -100,7 +101,7 @@ pub fn generate_reach_times(
         if item.exit_time > config.start_time + config.duration_secs {
             continue;
         }
-        if item.total_transfers >= 6 {
+        if item.total_transfers >= MAX_TRANSFERS {
             continue;
         }
         if !rs.is_first_reacher_to_stop(item.get_off_stop_id, &item.point, item.exit_time) {
@@ -257,7 +258,6 @@ fn explore_from_point(
                     routes_already_taken.insert(route_info.clone());
                     break;
                 } else if is_valid_agency {
-                    println!("Removed because {} {} {}", is_valid_agency, service_runs_on_day(), is_valid_mode());
                     continue;
                 }
             }
