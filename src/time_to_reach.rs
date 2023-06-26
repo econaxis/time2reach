@@ -259,6 +259,4 @@ fn explore_from_point(
             }
         }
     }
-
-    panic!();
 }
