@@ -47,6 +47,10 @@ NYC_2 = (40.94121411047778, -73.78936332225874)
 
 # to_explore.put(Explore.from_latlong(*NYC_1, 7))
 to_explore.put(Explore.from_latlong(*NYC_2, 7))
+to_explore.put(Explore.from_latlong(*VANCOUVER_TL, 7))
+to_explore.put(Explore.from_latlong(*VANCOUVER_BR, 7))
+to_explore.put(Explore.from_latlong(*MONTREAL_1, 7))
+to_explore.put(Explore.from_latlong(*MONTREAL_2, 7))
 
 to_explore_calculated = set()
 MAX_ZOOM = 16

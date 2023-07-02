@@ -24,9 +24,10 @@ function addMVTLayer (currentMap: mapboxgl.Map) {
             "line-join": "round"
         },
         paint: {
-            "line-opacity": 0.3,
-            "line-color": defaultColor,
-            "line-width": 3.3
+            "line-opacity": 0.4,
+            // "line-color": defaultColor,
+            "line-color": "#930293",
+            "line-width": 3.8
         }
     })
 }
@@ -101,7 +102,10 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
             const path: GeoJSON.Feature = detailResponse.path
 
-            geojsonSource.setData(path)
+            if (path) {
+                console.log("Setting geojson data", path)
+                geojsonSource.setData(path)
+            }
         })
         currentMap.on("mouseleave", "transit-layer", (e) => {
             currentMap.getCanvas().style.cursor = ""
@@ -163,15 +167,20 @@ export function MapboxMap ({
     }, [])
 
     useEffect(() => {
-        if (!currentOptions) return
+        if (!currentOptions?.agencies) {
+            console.log("CO agencies not defined", currentOptions)
+            return
+        }
         if (!currentLatLng) return
         if (mapboxLoading) return
         if (!map) return
 
         setSpinnerLoading(true)
-        void TimeColorMapper.fetch(currentLatLng, currentOptions.startTime, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
+        console.log("Current options are", currentLatLng, currentOptions)
+        TimeColorMapper.fetch(currentLatLng, currentOptions.startTime, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
             timeData.current = data
 
+            console.log("Setting paint property")
             map.setPaintProperty("transit-layer", "line-color", [
                 "coalesce",
                 ["get", ["to-string", ["id"]], ["literal", data.m]],
@@ -181,6 +190,9 @@ export function MapboxMap ({
             map.once("render", () => {
                 setSpinnerLoading(false)
             })
+        }).catch(err => {
+            console.error("Error in timecolormapper.fetch")
+            throw err
         })
     }, [currentOptions, currentLatLng, map, mapboxLoading])
 

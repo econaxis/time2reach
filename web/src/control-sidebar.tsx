@@ -122,12 +122,37 @@ const MODES = [
 ]
 
 export function ControlSidebar ({ setOptions, currentCity }) {
-    const agencies = useRef<object | null>(null)
-    const modes = useRef<object | null>(null)
+    const {
+        isLoading,
+        data
+    } = useAgencies()
+
+    if (isLoading) return null
+    if (!data) throw new Error("data is null")
+
+    const filtered = data.map(ag => {
+        return {
+            shouldShow: ag.city === currentCity,
+            ...ag
+        }
+    })
+    const agencies = useRef<object>(filtered)
+    const modes = useRef<object>(MODES)
 
     const [duration, setDuration] = useState(3600 * 1.5)
     const [startTime, setStartTime] = useState(17 * 3600 + 40 * 60)
 
+    const triggerRefetch = () => {
+        console.log("Setting options", agencies.current, modes.current)
+        setOptions({
+            duration,
+            startTime,
+            agencies: agencies.current,
+            modes: modes.current
+        })
+    }
+
+    useEffect(triggerRefetch, [])
     useEffect(() => {
         triggerRefetch()
     }, [duration, startTime])
@@ -143,29 +168,8 @@ export function ControlSidebar ({ setOptions, currentCity }) {
         triggerRefetch()
     }
 
-    const triggerRefetch = () => {
-        setOptions({
-            duration,
-            startTime,
-            agencies: agencies.current,
-            modes: modes.current
-        })
-    }
 
-    const {
-        isLoading,
-        data
-    } = useAgencies()
 
-    if (isLoading) return null
-    if (!data) throw new Error("data is null")
-
-    const filtered = data.map(ag => {
-        return {
-            shouldShow: ag.city === currentCity,
-            ...ag
-        }
-    })
 
     return <Sidebar zi={10} positioning="top-0 right-0">
         <p className="text-gray-700">
