@@ -183,6 +183,7 @@ impl RoadStructureInner {
         base_time: &ReachData,
         to_explore: &mut VecDeque<(NodeId, ReachData)>,
         node_best_times: &mut BestTimes<NodeId>,
+        do_edge_based_search: bool
     ) {
         if node_best_times
             .get(&node)
@@ -192,18 +193,22 @@ impl RoadStructureInner {
             return;
         }
 
-        for edge_ in self.all_edges_from_node(node) {
-            let edge = &self.edges[edge_];
+        if do_edge_based_search {
+            for edge_ in self.all_edges_from_node(node) {
+                let edge = &self.edges[edge_];
 
-            let other_node = edge.get_other_node(node);
-            let time_to_other_node = base_time.with_time_and_dist(
-                base_time.timestamp + edge.length / WALKING_SPEED,
-                edge.length,
-            );
-            if node_best_times.set_best_time(other_node, time_to_other_node.clone()) {
-                // This node has it's best time beat.
-                to_explore.push_back((other_node, time_to_other_node));
+                let other_node = edge.get_other_node(node);
+                let time_to_other_node = base_time.with_time_and_dist(
+                    base_time.timestamp + edge.length / WALKING_SPEED,
+                    edge.length,
+                );
+                if node_best_times.set_best_time(other_node, time_to_other_node.clone()) {
+                    // This node has it's best time beat.
+                    to_explore.push_back((other_node, time_to_other_node));
+                }
             }
+        } else {
+            node_best_times.set_best_time(node, base_time.clone());
         }
     }
 
@@ -228,6 +233,14 @@ impl RoadStructureInner {
     ) -> impl Iterator<Item = &GeomWithData<[f64; 2], NodeId>> + '_ {
         self.nodes_rtree.nearest_neighbor_iter(point).take(number)
     }
+
+    pub fn distance_nearest_nodes_to_point(
+        &self,
+        point: [f64; 2],
+        distance_squared: f64
+    ) -> impl Iterator<Item = &GeomWithData<[f64; 2], NodeId>> + '_ {
+        self.nodes_rtree.locate_within_distance(point, distance_squared)
+    }
     pub fn explore_from_point(
         &self,
         point: &[f64; 2],
@@ -237,7 +250,7 @@ impl RoadStructureInner {
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
 
-        for closest_node in self.n_nearest_nodes_to_point(point, 6) {
+        for closest_node in self.distance_nearest_nodes_to_point(point.clone(), 1000.0 * 1000.0) {
             let distance_to_closest_node = closest_node.distance_2(point).sqrt();
             let time_to_closest_node = distance_to_closest_node / STRAIGHT_WALKING_SPEED;
 
@@ -249,23 +262,27 @@ impl RoadStructureInner {
                 ),
                 &mut queue,
                 node_best_times,
+                // Don't do edge based search, only distance search
+                false
             );
+
         }
 
-        while let Some((item, rd)) = queue.pop_back() {
-            let set_time = rd.timestamp;
-            let time = node_best_times.get(&item).unwrap().timestamp;
-            if time != set_time {
-                assert!(time < set_time);
-                continue;
-            }
-
-            if time - base_time.timestamp >= Time(3600.0 * MAX_WALKING_HOURS) {
-                continue;
-            }
-
-            self.explore_from_node(item, &rd, &mut queue, node_best_times);
-        }
+        // Unused because we don't want to explore based on road positions anymore
+        // while let Some((item, rd)) = queue.pop_back() {
+        //     let set_time = rd.timestamp;
+        //     let time = node_best_times.get(&item).unwrap().timestamp;
+        //     if time != set_time {
+        //         assert!(time < set_time);
+        //         continue;
+        //     }
+        //
+        //     if time - base_time.timestamp >= Time(3600.0 * MAX_WALKING_HOURS) {
+        //         continue;
+        //     }
+        //
+        //     self.explore_from_node(item, &rd, &mut queue, node_best_times);
+        // }
     }
 
     pub fn new(city: City) -> Self {
