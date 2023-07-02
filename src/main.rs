@@ -95,7 +95,7 @@ fn main1() {
                 modes: vec![],
             },
         );
-        let fmter = time_to_point(
+        let _fmter = time_to_point(
             &rs,
             &rs.trips_arena,
             &gtfs,

@@ -1,6 +1,6 @@
 use crate::gtfs_setup::initialize_gtfs_as_bson;
 use crate::gtfs_wrapper::Gtfs1;
-use log::info;
+
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
