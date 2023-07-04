@@ -1,5 +1,7 @@
+import { BG_WHITE_COLOR } from "./app";
+
 export function CityPill ({ name, onClick, isCurrent }) {
-    const classes = "bg-white p-1 px-3 mx-1 rounded-full drop-shadow-xl shadow-inner font-medium text-gray-900 bg-gray-100 font-sans "
+    const classes = `${BG_WHITE_COLOR} p-1 px-3 mx-1 rounded-full drop-shadow-xl shadow-inner font-medium text-gray-900 bg-gray-100 font-sans `
     const hover = "hover:bg-gray-200 "
     const active = "active:bg-gray-400 "
 

@@ -26,6 +26,7 @@ mod trip_details;
 mod trips_arena;
 mod web;
 mod web_app_data;
+mod web_cache;
 
 use crate::gtfs_wrapper::DirectionType;
 
@@ -34,7 +35,6 @@ use std::collections::HashSet;
 use chrono::NaiveDate;
 use lazy_static::lazy_static;
 
-use log::LevelFilter;
 use std::time::Instant;
 
 use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
@@ -80,7 +80,7 @@ fn main1() {
 
     let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..1 {
+    for _ in 0..15 {
         rs.clear_data();
         time_to_reach::generate_reach_times(
             &gtfs,
@@ -106,26 +106,11 @@ fn main1() {
     }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
 
-    // dbg!(answer.tree.size());
-    //
-    // let mut tg = TimeGrid::new(&answer, MAP_RESOLUTION, MAP_RESOLUTION);
-    // tg.process(&answer);
-    // gt.write_to_raster(&mut tg);
-    // let mut file = File::create("observations.rmp").unwrap();
-    // file.write(
-    //     &rmp_serde::to_vec_named(&MapSerialize {
-    //         map: unsafe { serialization::to_bytebuf(tg.map) },
-    //         x: tg.x_samples,
-    //         y: tg.y_samples,
-    //     })
-    //     .unwrap(),
-    // )
-    // .unwrap();
 }
 
 fn main() {
     env_logger::builder()
-        .filter_level(LevelFilter::Debug)
+        .parse_filters("debug,warp=info,hyper=info")
         .parse_default_env()
         .init();
 

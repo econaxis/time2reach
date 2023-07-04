@@ -9,6 +9,12 @@ use crate::IdType;
 use gtfs_structures::CalendarDate;
 
 #[derive(Archive, Serialize, Deserialize, Debug)]
+#[archive(check_bytes)]
+pub struct NaiveDate1(u32);
+
+
+#[derive(Archive, Serialize, Deserialize, Debug)]
+#[archive(check_bytes)]
 pub struct Service {
     pub id: IdType,
     pub monday: bool,
@@ -20,14 +26,14 @@ pub struct Service {
     pub sunday: bool,
 
     // Date of the form YYYYMMDD, so strcmp corresponds to date compare
-    pub start_date: NaiveDate,
-    pub end_date: NaiveDate,
+    pub start_date: NaiveDate1,
+    pub end_date: NaiveDate1,
 }
 
 impl FromWithAgencyId<gtfs_structures::Calendar> for Service {
     fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Calendar) -> Self
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         Service {
             id: (agency_id, try_parse_id(&f.id)),
@@ -38,8 +44,8 @@ impl FromWithAgencyId<gtfs_structures::Calendar> for Service {
             friday: f.friday,
             saturday: f.saturday,
             sunday: f.sunday,
-            start_date: f.start_date,
-            end_date: f.end_date,
+            start_date: NaiveDate1(f.start_date.ordinal0()),
+            end_date: NaiveDate1(f.end_date.ordinal0()),
         }
     }
 }
@@ -59,6 +65,7 @@ impl Service {
 }
 
 #[derive(Serialize, Deserialize, Archive, PartialEq, Eq, Debug)]
+#[archive(check_bytes)]
 pub enum Exception {
     Added,
     Deleted,
@@ -74,29 +81,31 @@ impl From<gtfs_structures::Exception> for Exception {
 }
 
 #[derive(Serialize, Deserialize, Archive, Debug)]
+#[archive(check_bytes)]
 pub struct CalendarException {
     /// Identifier of the service that is modified at this date
     pub service_id: IdType,
     /// Date where the service will be added or deleted
-    pub date: NaiveDate,
+    pub date: NaiveDate1,
     /// Is the service added or deleted
     pub exception_type: Exception,
 }
 
 impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
     fn from_with_agency_id(agency_id: u8, f: CalendarDate) -> Self
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         Self {
             service_id: (agency_id, try_parse_id(&f.service_id)),
-            date: f.date,
+            date: NaiveDate1(f.date.ordinal0()),
             exception_type: f.exception_type.into(),
         }
     }
 }
 
 #[derive(Debug, Archive, Serialize, Deserialize)]
+#[archive(check_bytes)]
 pub struct CalendarExceptionList(HashMap<u32, CalendarException>);
 
 impl CalendarExceptionList {
@@ -109,6 +118,7 @@ impl CalendarExceptionList {
 }
 
 #[derive(Debug, Default, Archive, Serialize, Deserialize)]
+#[archive(check_bytes)]
 pub struct Calendar {
     pub services: HashMap<IdType, Service>,
     pub exceptions: HashMap<IdType, CalendarExceptionList>,
@@ -139,11 +149,11 @@ impl Calendar {
 
         for exc in exceptions_list {
             if let Some(inner) = exceptions.get_mut(&exc.service_id) {
-                inner.0.insert(exc.date.ordinal0(), exc);
+                inner.0.insert(exc.date.0, exc);
             } else {
                 exceptions.insert(
                     exc.service_id,
-                    CalendarExceptionList([(exc.date.ordinal0(), exc)].into()),
+                    CalendarExceptionList([(exc.date.0, exc)].into()),
                 );
             }
         }

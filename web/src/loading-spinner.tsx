@@ -1,3 +1,5 @@
+import { Fragment } from "preact";
+
 export function LoadingSpinner ({ display }) {
 
     if (display) {
@@ -24,6 +26,8 @@ export function LoadingSpinner ({ display }) {
             </svg>
         </div>
     }
+
+    return <Fragment/>
 }
 
 // export default function setLoading(loading: boolean) {

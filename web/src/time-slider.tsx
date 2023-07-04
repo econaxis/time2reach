@@ -28,7 +28,7 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
             min={min}
             max={max}
             value={duration}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer"
             onMouseUp={onChange}
         />
     </div>

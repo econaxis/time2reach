@@ -7,6 +7,7 @@ use geojson::PointType;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
+use std::time::Duration;
 use warp::Reply;
 
 #[derive(Deserialize)]
@@ -66,12 +67,14 @@ pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Rep
     let latlng = req.latlng;
     let city = req.request_id.city;
     let ad = ad.ads.get(&city).unwrap();
-    let mut ad = ad.lock().unwrap();
 
-    ad.rs_list.pre_get(req.request_id.rs_list_index);
-    let rs_option = ad.rs_list.get(req.request_id.rs_list_index);
+    ad.rs_list.write().unwrap().pre_get(req.request_id.rs_list_index);
+
+    let rs_list = ad.rs_list.read().unwrap();
+    let rs_option = rs_list.get(req.request_id.rs_list_index);
+
     if rs_option.is_none() {
-        return warp::reply::json(&"Invalid");
+        return warp::reply::json(&"Invalid -- request ID not found");
     }
 
     let rs = rs_option.unwrap();
@@ -92,7 +95,7 @@ pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Rep
     let mut details_list = Vec::new();
 
     let final_walking_time = formatter.final_walking_length as f64 / WALKING_SPEED;
-    if final_walking_time >= 30.0 {
+    if final_walking_time >= 40.0 {
         details_list.push(TripDetails::Walking(TripDetailsWalking {
             time: final_walking_time,
             length: formatter.final_walking_length,
@@ -137,7 +140,18 @@ pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Rep
         let boarding_stop = &ad.gtfs.stops[&trip.boarding_stop_id];
         let exit_stop = &ad.gtfs.stops[&trip.get_off_stop_id];
 
+        let mode = get_route_mode(&ad.gtfs, trip);
+
+        // Vary line-width based on how advanced the mode is
+        let line_width = match mode {
+            "rail" => 4.9,
+            "subway" => 4.3,
+            "tram" => 3.4,
+            _ => 2.6
+        };
+
         feature.set_property("color", route.color.clone());
+        feature.set_property("line_width", line_width);
         feature_point.set_property("color", route.color.clone());
 
         let exit_stop_msg = if has_free_transfer_from_prev {
@@ -146,7 +160,7 @@ pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Rep
             exit_stop.name.clone()
         };
         details_list.push(TripDetails::Transit(TripDetailsTransit {
-            mode: get_route_mode(&ad.gtfs, trip),
+            mode,
             background_color: route.color.clone(),
             text_color: route.text_color.clone(),
             boarding: TripDetailsInner {

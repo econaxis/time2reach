@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "preact/hooks"
 import mapboxgl, { type GeoJSONSource } from "mapbox-gl"
 import { TimeColorMapper } from "./colors"
-import { defaultColor } from "./ol"
 import { mvtUrl } from "./dev-api"
 import { getDetails } from "./get_data"
 import { DetailPopup, type TripDetailsTransit } from "./format-details"
 import { startingLocation } from "./app"
 import { Fragment } from "preact"
+
+export const defaultColor = 'rgba(182,182,182,0.14)'
+
+const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
+    type: "FeatureCollection",
+    features: []
+}
 
 function addMVTLayer (currentMap: mapboxgl.Map) {
     currentMap.addSource("some id", {
@@ -26,8 +32,8 @@ function addMVTLayer (currentMap: mapboxgl.Map) {
         paint: {
             "line-opacity": 0.4,
             // "line-color": defaultColor,
-            "line-color": "#930293",
-            "line-width": 3.8
+            "line-color": "#8f8f8f",
+            "line-width": 3.5
         }
     })
 }
@@ -47,7 +53,7 @@ function addGeoJsonLayer (currentMap: mapboxgl.Map): GeoJSONSource {
         },
         paint: {
             "line-color": ['get', 'color'],
-            "line-width": 3,
+            "line-width": ['get', 'line_width'],
             "line-opacity": 0.7
         }
     })
@@ -66,19 +72,24 @@ function addGeoJsonLayer (currentMap: mapboxgl.Map): GeoJSONSource {
     return currentMap.getSource("geojson-path") as GeoJSONSource
 }
 
-function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.LngLat) => void, getTimeData: () => TimeColorMapper, doneCallback: () => void, setDetailPopupInfo: (TripDetailsTransit, number) => void) {
-    currentMap.on("load", async () => {
+function bufferPoint(point: mapboxgl.Point): [mapboxgl.Point, mapboxgl.Point] {
+    const buffer = new mapboxgl.Point(5, 5);
+    return [point.sub(buffer), point.add(buffer)]
+}
+
+function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.LngLat) => void, getTimeData: () => TimeColorMapper, doneCallback: () => void, setDetailPopupInfo: (TripDetailsTransit?, number?) => void) {
+    currentMap.on("load", () => {
         addMVTLayer(currentMap)
 
         const geojsonSource = addGeoJsonLayer(currentMap)
 
-        currentMap.on("dblclick", async (e) => {
+        currentMap.on("dblclick", (e) => {
             e.preventDefault()
             setLatLng(e.lngLat)
         })
 
-        currentMap.on("mouseover", "transit-layer", async (e) => {
-            const nearbyFeatures = currentMap.queryRenderedFeatures(e.point)
+        const hoverCallback = (e) => {
+            const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point))
             if (nearbyFeatures.length === 0) {
                 console.log("no nearby features found")
                 return
@@ -86,30 +97,35 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
             currentMap.getCanvas().style.cursor = "crosshair"
             const feature = nearbyFeatures[0]
+            if (!feature.id) return
+
             const seconds = getTimeData().raw[feature.id]
 
-            if (!seconds) {
-                return
-            }
+            if (!seconds) return
 
-            const detailResponse = await getDetails(
+            getDetails(
                 getTimeData(),
                 e.lngLat
-            )
+            ).then(detailResponse => {
+                const details: TripDetailsTransit[] = detailResponse.details
+                setDetailPopupInfo(details, seconds)
 
-            const details: TripDetailsTransit[] = detailResponse.details
-            setDetailPopupInfo(details, seconds)
+                const path: GeoJSON.Feature = detailResponse.path
 
-            const path: GeoJSON.Feature = detailResponse.path
-
-            if (path) {
-                console.log("Setting geojson data", path)
-                geojsonSource.setData(path)
-            }
-        })
-        currentMap.on("mouseleave", "transit-layer", (e) => {
+                if (path) {
+                    console.log("Setting geojson data", path)
+                    geojsonSource.setData(path)
+                }
+            }).catch(e => {
+                throw e
+            })
+        }
+        currentMap.on("mouseover", "transit-layer", hoverCallback)
+        currentMap.on("click", "transit-layer", hoverCallback)
+        currentMap.on("mouseleave", "transit-layer", () => {
             currentMap.getCanvas().style.cursor = ""
-            geojsonSource.setData(null)
+            geojsonSource.setData(EMPTY_GEOJSON)
+            setDetailPopupInfo(null, null)
         })
 
         doneCallback()
@@ -139,7 +155,8 @@ export function MapboxMap ({
     }
 
     const setDetailPopupInfo = (details, seconds) => {
-        setDetailPopup({
+        if (!details || !seconds) setDetailPopup(null)
+        else setDetailPopup({
             details, seconds
         })
     }
@@ -204,6 +221,7 @@ export function MapboxMap ({
 
     return <Fragment>
         {detailPopup ? <DetailPopup details={detailPopup.details} arrival_time={detailPopup.seconds} /> : null}
-        <div ref={mapContainer} className="map w-screen h-screen overflow-none"></div>
+        {/* @ts-expect-error ref and mapContainer doesn't match types */}
+        <div ref={mapContainer} className="map w-screen h-screen overflow-none"/>
     </Fragment>
 }

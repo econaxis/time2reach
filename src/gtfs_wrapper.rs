@@ -15,6 +15,7 @@ pub type LibraryGTFS = gtfs_structures::RawGtfs;
 static AGENCY_COUNT: AtomicU8 = AtomicU8::new(0);
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[archive(check_bytes)]
 pub enum RouteType {
     /// Tram, Streetcar, Light rail. Any light rail or street level system within a metropolitan area
     Tramway,
@@ -63,6 +64,7 @@ impl From<gtfs_structures::RouteType> for RouteType {
 }
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, Copy)]
+#[archive(check_bytes)]
 pub enum DirectionType {
     /// Travel in one direction (e.g. outbound travel).
     #[default]
@@ -81,6 +83,7 @@ impl From<gtfs_structures::DirectionType> for DirectionType {
 }
 
 #[derive(Debug, Archive, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[archive(check_bytes)]
 pub enum LocationType {
     /// Stop (or Platform). A location where passengers board or disembark from a transit vehicle. Is called a platform when defined within a parent_station
     #[default]
@@ -138,6 +141,7 @@ pub fn try_parse_id(a: &str) -> u64 {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Archive)]
+#[archive(check_bytes)]
 pub struct StopTime {
     /// Arrival time of the stop time.
     /// It's an option since the intermediate stops can have have no arrival
@@ -156,6 +160,7 @@ pub struct StopTime {
 
 /// A physical stop, station or area. See <https://gtfs.org/reference/static/#stopstxt>
 #[derive(Debug, Serialize, Deserialize, Clone, Default, Archive)]
+#[archive(check_bytes)]
 pub struct Stop {
     /// Unique technical identifier (not for the traveller) of the stop
     pub id: IdType,
@@ -190,6 +195,7 @@ impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, Archive)]
+#[archive(check_bytes)]
 pub enum Availability1 {
     /// No information if the service is available
     #[default]
@@ -203,6 +209,7 @@ pub enum Availability1 {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Archive)]
+#[archive(check_bytes)]
 pub struct Trip {
     /// Unique technical identifier (not for the traveller) for the Trip
     pub id: IdType,
@@ -225,6 +232,7 @@ pub struct Trip {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Archive)]
+#[archive(check_bytes)]
 pub struct Route {
     /// Unique technical (not for the traveller) identifier for the route
     pub id: IdType,
@@ -277,6 +285,7 @@ impl FromWithAgencyId<RawTrip> for Trip {
 }
 
 #[derive(Default, Serialize, Deserialize, Archive)]
+#[archive(check_bytes)]
 pub struct Gtfs0 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: Vec<Stop>,
@@ -292,6 +301,7 @@ pub struct Gtfs0 {
 }
 
 #[derive(Archive, Serialize, Deserialize)]
+#[archive(check_bytes)]
 pub struct Gtfs1 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: HashMap<IdType, Stop>,

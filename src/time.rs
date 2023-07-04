@@ -3,12 +3,18 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, Div, Mul, Sub};
 
-#[derive(PartialOrd, PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Time(pub f64);
 
 impl Display for Time {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl PartialOrd for Time {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 impl Ord for Time {
@@ -25,6 +31,7 @@ impl Time {
         self.0 as u32
     }
 
+    #[allow(dead_code)]
     pub fn format(&self) -> String {
         return format!("{}", TimeFormatter { secs: self.clone() });
     }

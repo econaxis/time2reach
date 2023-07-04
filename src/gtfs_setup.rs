@@ -25,15 +25,18 @@ pub fn generate_stops_trips(gtfs: &Gtfs1) -> StopsWithTrips {
     result
 }
 
-pub fn get_agency_id_from_short_name(short_name: &str) -> u8 {
+pub fn get_agency_id_from_short_name(short_name: &str) -> Option<u8> {
     let map = AGENCY_MAP.lock().unwrap();
-    *map.get(&short_name.to_ascii_uppercase()).unwrap()
+    map.get(&short_name.to_ascii_uppercase()).copied()
 }
 pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
     info!("Loading schedules for {path}");
     let file = File::create_new(format!("{path}-1.rkyv"));
 
     let result: Gtfs1 = if let Ok(mut file) = file {
+        if cfg!(feature = "prod") {
+            panic!("Prod deployment -- not allowed to parse GTFS txt files. Not found {path}-1.rkyv file");
+        }
         info!("GTFS not detected! Creating new");
         let gtfs = Gtfs1::from(Gtfs0::from(LibraryGTFS::from_path(path).unwrap()));
         let bytes = rkyv::to_bytes::<_, 1024>(&gtfs).unwrap();
@@ -44,7 +47,7 @@ pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
         let mut file = File::open(format!("{path}-1.rkyv")).unwrap();
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes).unwrap();
-        unsafe { rkyv::from_bytes_unchecked::<Gtfs1>(&bytes) }.unwrap()
+        rkyv::from_bytes::<Gtfs1>(&bytes).unwrap()
     };
     let sample_id = result.stops.keys().next().unwrap();
     let mut map = AGENCY_MAP.lock().unwrap();

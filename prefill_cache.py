@@ -53,7 +53,7 @@ to_explore.put(Explore.from_latlong(*MONTREAL_1, 7))
 to_explore.put(Explore.from_latlong(*MONTREAL_2, 7))
 
 to_explore_calculated = set()
-MAX_ZOOM = 16
+MAX_ZOOM = 13
 while not to_explore.empty():
     explore = to_explore.get_nowait()
     to_explore_calculated.add(explore)
@@ -83,10 +83,10 @@ with FuturesSession() as session:
         r = session.get(f'{url}/{coord.zoom}/{coord.x}/{coord.y}.pbf')
         futures.append(r)
 
-        if len(futures) > 50:
+        if len(futures) > 80:
             for future in as_completed(futures):
                 resp = future.result()
-                resp.raise_for_status()
+#                 resp.raise_for_status()
                 print("Completed! ", resp, len(resp.content), f"{completed} out of {len(to_explore_calculated)}")
                 completed += 1
             futures = []

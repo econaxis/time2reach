@@ -154,6 +154,7 @@ pub fn agencies() -> Vec<&'static Agency> {
         AGENCY_TORONTO
             .iter()
             .filter(|x| x.city == City::Toronto)
+            .take(3)
             .collect()
     }
 }

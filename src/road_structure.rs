@@ -6,11 +6,10 @@ use proj::Proj;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use serde::{Serialize, Serializer};
-use std::cell::UnsafeCell;
 use std::collections::{HashMap, VecDeque};
 
 use log::info;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::agencies::City;
 use crate::best_times::BestTimes;
@@ -43,8 +42,6 @@ impl EdgeData {
 
 #[derive(Default)]
 struct NodeEdges(
-    // Terminal([EdgeId; 1]),
-    // Straight([EdgeId; 2]),
     Vec<EdgeId>,
 );
 
@@ -79,15 +76,11 @@ impl NodeEdges {
 type NodeId = u64;
 
 pub struct RoadStructureInner {
-    dataset: Dataset,
     nodes_rtree: RTree<GeomWithData<[f64; 2], NodeId>>,
-    nodes_rtree_cache: UnsafeCell<HashMap<IdType, NodeId>>,
+    nodes_rtree_cache: Mutex<HashMap<IdType, NodeId>>,
     nodes: HashMap<NodeId, NodeEdges>,
     edges: HashMap<EdgeId, EdgeData>,
 }
-
-unsafe impl Send for RoadStructureInner {}
-unsafe impl Sync for RoadStructureInner {}
 
 pub struct RoadStructure {
     pub rs: Arc<RoadStructureInner>,
@@ -212,17 +205,17 @@ impl RoadStructureInner {
         }
     }
 
-    fn nearest_node_to_point(&self, point: &[f64; 2], cache_key: Option<IdType>) -> &NodeId {
+    fn nearest_node_to_point(&self, point: &[f64; 2], cache_key: Option<IdType>) -> NodeId {
         if let Some(cache_key) = cache_key {
-            let cache = unsafe { &mut *self.nodes_rtree_cache.get() };
+            let mut cache = self.nodes_rtree_cache.lock().unwrap();
 
             let nodeid = cache
                 .entry(cache_key)
                 .or_insert_with(|| self.nodes_rtree.nearest_neighbor(point).unwrap().data);
-            nodeid
+            *nodeid
         } else {
             let starting_edge_geom = self.nodes_rtree.nearest_neighbor(point).unwrap();
-            &starting_edge_geom.data
+            starting_edge_geom.data
         }
     }
 
@@ -247,10 +240,18 @@ impl RoadStructureInner {
         base_time: ReachData,
         node_best_times: &mut BestTimes<NodeId>,
     ) {
+        const EDGE_BASED_SEARCH: bool = false;
+
+
+        const WALKING_DISTANCE: f64 = if EDGE_BASED_SEARCH {
+            100.0
+        } else {
+            1000.0
+        };
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
 
-        for closest_node in self.distance_nearest_nodes_to_point(point.clone(), 1000.0 * 1000.0) {
+        for closest_node in self.distance_nearest_nodes_to_point(point.clone(), WALKING_DISTANCE * WALKING_DISTANCE) {
             let distance_to_closest_node = closest_node.distance_2(point).sqrt();
             let time_to_closest_node = distance_to_closest_node / STRAIGHT_WALKING_SPEED;
 
@@ -263,26 +264,28 @@ impl RoadStructureInner {
                 &mut queue,
                 node_best_times,
                 // Don't do edge based search, only distance search
-                false
+                EDGE_BASED_SEARCH
             );
 
         }
 
-        // Unused because we don't want to explore based on road positions anymore
-        // while let Some((item, rd)) = queue.pop_back() {
-        //     let set_time = rd.timestamp;
-        //     let time = node_best_times.get(&item).unwrap().timestamp;
-        //     if time != set_time {
-        //         assert!(time < set_time);
-        //         continue;
-        //     }
-        //
-        //     if time - base_time.timestamp >= Time(3600.0 * MAX_WALKING_HOURS) {
-        //         continue;
-        //     }
-        //
-        //     self.explore_from_node(item, &rd, &mut queue, node_best_times);
-        // }
+        if EDGE_BASED_SEARCH {
+            // Unused because we don't want to explore based on road positions anymore
+            while let Some((item, rd)) = queue.pop_back() {
+                let set_time = rd.timestamp;
+                let time = node_best_times.get(&item).unwrap().timestamp;
+                if time != set_time {
+                    assert!(time < set_time);
+                    continue;
+                }
+
+                if time - base_time.timestamp >= Time(3600.0 * MAX_WALKING_HOURS) {
+                    continue;
+                }
+
+                self.explore_from_node(item, &rd, &mut queue, node_best_times, EDGE_BASED_SEARCH);
+            }
+        }
     }
 
     pub fn new(city: City) -> Self {
@@ -297,20 +300,21 @@ impl RoadStructureInner {
             Dataset::open_ex(format!("web/public/{}.gpkg", city.get_gpkg_path()), options).unwrap();
 
         let mut s = Self {
-            dataset,
+            // dataset,
             nodes_rtree: Default::default(),
-            nodes_rtree_cache: UnsafeCell::new(HashMap::new()),
+            nodes_rtree_cache: Mutex::new(HashMap::new()),
             nodes: Default::default(),
             edges: Default::default(),
         };
 
-        let mut edges_layer = s.dataset.layer_by_name("edges").unwrap();
-        let mut nodes_layer = s.dataset.layer_by_name("nodes").unwrap();
+        let mut edges_layer = dataset.layer_by_name("edges").unwrap();
+        let mut nodes_layer = dataset.layer_by_name("nodes").unwrap();
 
         let spatialref = edges_layer.spatial_ref().unwrap();
 
         let proj = Proj::new_known_crs(&spatialref.to_proj4().unwrap(), PROJSTRING, None).unwrap();
 
+        let mut nodes_rtree_vec = Vec::new();
         for feature in nodes_layer.features() {
             let osmid = feature
                 .field("osmid")
@@ -324,9 +328,11 @@ impl RoadStructureInner {
             let point: Point = geo.try_into().unwrap();
 
             let point = proj.project(point, false).unwrap();
-            s.nodes_rtree
-                .insert(GeomWithData::new([point.x(), point.y()], osmid));
+            nodes_rtree_vec
+                .push(GeomWithData::new([point.x(), point.y()], osmid));
         }
+
+        s.nodes_rtree = RTree::bulk_load(nodes_rtree_vec);
 
         for feature in edges_layer.features() {
             let from_node = feature

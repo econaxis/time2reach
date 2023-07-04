@@ -1,80 +1,35 @@
-use crate::agencies::{agencies, load_all_gtfs, City};
+use crate::agencies::{agencies, City, load_all_gtfs};
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::gtfs_wrapper::RouteType;
 use crate::road_structure::EdgeId;
-use crate::{gtfs_setup, time_to_reach, trip_details, Gtfs1, RoadStructure, Time};
-use lazy_static::lazy_static;
+use crate::{Gtfs1, gtfs_setup, RoadStructure, Time, time_to_reach, trip_details};
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use serde_json::Value;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
-use std::hash::{Hash, Hasher};
-use std::ops::DerefMut;
 
-use lru::LruCache;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
+use std::time::Instant;
 
-use crate::trip_details::CalculateRequest;
+use crate::trip_details::{CalculateRequest};
 use crate::web_app_data::{AllAppData, CityAppData};
-use std::num::NonZeroUsize;
-use warp::{Filter, Reply};
+use warp::{Filter, Rejection, Reply};
+use warp::http::HeaderValue;
+use warp::hyper::StatusCode;
+use crate::web_cache::{check_cache, insert_cache};
 
-lazy_static! {
-    pub static ref CACHE: Mutex<LruCache<u64, Value>> =
-        Mutex::new(LruCache::new(NonZeroUsize::new(15).unwrap()));
-}
-fn round_f64_for_hash(x: f64) -> u64 {
-    (x * 10000.0).round() as u64
-}
-fn cache_key(
-    lat: f64,
-    lng: f64,
-    include_agencies: &[String],
-    include_modes: &[String],
-    start_time: u64,
-) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    hasher.write_u64(round_f64_for_hash(lat));
-    hasher.write_u64(round_f64_for_hash(lng));
 
-    "AGENCY".hash(&mut hasher);
-    for agency in include_agencies {
-        agency.hash(&mut hasher);
-    }
 
-    "MODE".hash(&mut hasher);
-    for mode in include_modes {
-        mode.hash(&mut hasher);
-    }
-
-    start_time.hash(&mut hasher);
-    hasher.finish()
-}
-
-fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> Arc<Mutex<CityAppData>> {
+fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> CityAppData {
     let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&gtfs);
 
-    CityAppData::new(gtfs, data, city)
-}
-fn check_cache<'a>(
-    cache: &'a mut LruCache<u64, Value>,
-    lat: f64,
-    lng: f64,
-    include_agencies: &[String],
-    include_modes: &[String],
-    start_time: u64,
-) -> Result<&'a Value, u64> {
-    let hash = cache_key(lat, lng, include_agencies, include_modes, start_time);
-    cache.get(&hash).ok_or(hash)
+    CityAppData::new1(gtfs, data, city)
 }
 
 fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
     for (city, data) in &ad.ads {
-        let data = data.lock().unwrap();
         let is_near_point = data.spatial.is_near_point(LatLng {
             latitude: lat,
             longitude: lng,
@@ -86,6 +41,7 @@ fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
     }
     None
 }
+
 
 fn process_coordinates(
     ad: Arc<AllAppData>,
@@ -103,26 +59,22 @@ fn process_coordinates(
     }
     let city = city.unwrap();
     let ad = &ad.ads.get(&city).unwrap();
-    let mut ad = ad.lock().unwrap();
-    let ad = ad.deref_mut();
 
     if let Some(req) = prev_request_id {
-        ad.rs_list.remove(req.rs_list_index);
+        ad.rs_list.write().unwrap().remove(req.rs_list_index);
     }
 
-    let mut cache = CACHE.lock().unwrap();
-
     let cache_key = match check_cache(
-        &mut cache,
         lat,
         lng,
         &include_agencies,
         &include_modes,
         start_time,
     ) {
-        Ok(reply) => return warp::reply::json(reply),
+        Ok(reply) => return reply,
         Err(key) => key,
     };
+
 
     let gtfs = &ad.gtfs;
     let spatial_stops = &ad.spatial;
@@ -131,12 +83,12 @@ fn process_coordinates(
 
     let agency_ids: HashSet<u8> = include_agencies
         .iter()
-        .map(|ag| get_agency_id_from_short_name(ag))
+        .filter_map(|ag| get_agency_id_from_short_name(ag))
         .collect();
 
     let modes = include_modes
         .iter()
-        .map(|x| RouteType::from(x.as_ref()))
+        .filter_map(|x| RouteType::try_from(x.as_ref()).ok())
         .collect();
 
     time_to_reach::generate_reach_times(
@@ -161,7 +113,7 @@ fn process_coordinates(
         .map(|edge_time| (edge_time.edge_id, edge_time.time as u32))
         .collect();
 
-    let rs_list_index = ad.rs_list.push(rs);
+    let rs_list_index = ad.rs_list.write().unwrap().push(rs);
     let request_id = RequestId {
         rs_list_index,
         city,
@@ -171,8 +123,7 @@ fn process_coordinates(
         "edge_times": edge_times_object
     });
 
-    let cached_response = cache.get_or_insert_mut(cache_key, || response);
-    warp::reply::json(cached_response)
+    insert_cache(cache_key, response)
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -198,13 +149,13 @@ pub struct RequestId {
 
 fn with_appdata(
     ad: Arc<AllAppData>,
-) -> impl Filter<Extract = (Arc<AllAppData>,), Error = Infallible> + Clone {
+) -> impl Filter<Extract=(Arc<AllAppData>, ), Error=Infallible> + Clone {
     warp::any().map(move || ad.clone())
 }
 
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
-    let all_gtfs: HashMap<City, Arc<Mutex<CityAppData>>> = all_gtfs
+    let all_gtfs: HashMap<City, CityAppData> = all_gtfs
         .into_iter()
         .map(|(city, gtfs)| (city, gtfs_to_city_appdata(city, gtfs)))
         .collect();
@@ -239,21 +190,50 @@ pub async fn main() {
                 req.start_time,
                 req.previous_request_id,
             )
-        });
+        })
+        .with(warp::filters::compression::gzip());
 
     let details = warp::post()
         .and(with_appdata(appdata.clone()))
         .and(warp::path!("details"))
         .and(warp::body::json())
-        .map(trip_details::get_trip_details);
+        .map(trip_details::get_trip_details)
+        .with(warp::filters::compression::gzip());
 
     let agencies_endpoint = warp::get()
         .and(warp::path!("agencies"))
-        .map(|| warp::reply::json(&agencies()));
+        .map(|| warp::reply::json(&agencies()))
+        .map(|response: warp::reply::Json| {
+            let mut resp = response.into_response();
+            let headers = resp.headers_mut();
+            headers.append("Cache-Control", HeaderValue::from_static("max-age=18000"));
+            resp
+        });
+
+    let mvt_endpoint = warp::path("mvt")
+        .and(warp::fs::dir("/tmp/vancouver-cache"))
+        .map(|response: warp::filters::fs::File| {
+            let mut resp = response.into_response();
+            let headers = resp.headers_mut();
+            headers.append("Content-Encoding", HeaderValue::from_static("gzip"));
+            headers.append("Content-Type", HeaderValue::from_static("application/x-protobuf"));
+            headers.append("Cache-Control", HeaderValue::from_static("max-age=18000"));
+            resp
+        })
+        .recover(|x: Rejection|  {
+            async {
+                if x.is_not_found() {
+                    Result::<StatusCode, Rejection>::Ok(StatusCode::NO_CONTENT)
+                } else {
+                    Result::<StatusCode, Rejection>::Err(x)
+                }
+            }
+        });
 
     let routes = hello
         .or(details)
         .or(agencies_endpoint)
+        .or(mvt_endpoint)
         .with(cors_policy)
         .with(log);
 
@@ -265,6 +245,6 @@ pub async fn main() {
             .run(([0, 0, 0, 0], 3030))
             .await;
     } else {
-        warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
+        warp::serve(routes.clone()).run(([0, 0, 0, 0], 3030)).await;
     }
 }

@@ -1,3 +1,0 @@
-route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
-1,848,"100","100","",3,,000000,FFFFFF
-invalid_type,848,"100","100","",42,,000000,FFFFFF

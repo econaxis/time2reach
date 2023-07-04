@@ -8,7 +8,7 @@ node_modules
 venv
 cache
 **/.DS_Store
-city-gtfs/*.rkyv
+city-gtfs/**.txt
 Dockerfile
 web/dist
 .git

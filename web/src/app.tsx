@@ -7,6 +7,9 @@ import { QueryClient, QueryClientProvider } from "react-query"
 import { LoadingSpinner } from "./loading-spinner"
 import { MapboxMap } from "./mapbox-map"
 import { ControlSidebar } from "./control-sidebar"
+import { BlurBackground, WelcomePopup } from "./welcome-popup";
+
+export const BG_WHITE_COLOR = "bg-slate-200"
 
 const CITY_LOCATION = {
     Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),
@@ -25,6 +28,8 @@ export function App () {
     const [currentCity, setCurrentCity] = useState("Toronto")
     const [spinner, setSpinner] = useState(true)
 
+    const [popupAccepted, setPopupAccepted] = useState(false)
+
     const cityLocation = CITY_LOCATION[currentCity]
     const setCityFromPill = (cityName: string) => {
         setCurrentCity(cityName)
@@ -33,13 +38,16 @@ export function App () {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <LoadingSpinner display={spinner}/>
-            <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City']}
-                               setLocation={setCityFromPill} currentCity={currentCity} />
-            <MapboxMap currentOptions={currentOptions} currentLatLng={currentStartingLoc}
-                       setLatLng={setCurrentStartingLoc}
-                       currentPos={cityLocation} setSpinnerLoading={setSpinner} />
-            <ControlSidebar setOptions={setCurrentOptions} currentCity={currentCity} />
+            {popupAccepted ? null : <WelcomePopup acceptedPopupCallback={setPopupAccepted}/>}
+            <BlurBackground enabled = {!popupAccepted}>
+                <LoadingSpinner display={spinner}/>
+                <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City']}
+                                   setLocation={setCityFromPill} currentCity={currentCity} />
+                <MapboxMap currentOptions={currentOptions} currentLatLng={currentStartingLoc}
+                           setLatLng={setCurrentStartingLoc}
+                           currentPos={cityLocation} setSpinnerLoading={setSpinner} />
+                <ControlSidebar setOptions={setCurrentOptions} currentCity={currentCity} />
+            </BlurBackground>
         </QueryClientProvider>
     )
 }

@@ -1,2 +1,0 @@
-fare_id,price,currency_type,payment_method,transfers,agency_id
-"50","1.50","EUR","0","","1"

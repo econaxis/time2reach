@@ -7,7 +7,7 @@ viewer = false
 dbconn = "postgresql://henry@localhost:5432/data"
 name = "dbconn"
 default = true
-connection_timeout=30000000
+connection_timeout=30000000000
 
 [grid]
 predefined = "web_mercator"
@@ -44,7 +44,7 @@ geometry_type = "LINESTRING"
 srid = 4326
 buffer_size = 0
 #make_valid = true
-query_limit = 1000000
+query_limit = 1000000000
 
 
 # [cache.s3]

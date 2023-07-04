@@ -13,6 +13,6 @@ docker rm main &> /dev/null  || :
 sleep 1
 
 echo "Running new container"
-docker run --rm --name main -p 443:3030 --log-driver=gcplogs ghcr.io/econaxis/test:latest
+docker run --rm --name main -d -p 443:3030 -v /tmp/vancouver-cache:/tmp/vancouver-cache:ro  ghcr.io/econaxis/test:latest
 
 docker logs main -f

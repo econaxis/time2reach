@@ -22,6 +22,8 @@ export function getColor0To1 (value: number): string {
 
   value = Math.sqrt(value)
   value = mapper(value)
+
+  value = 1 - value
   return cmap[Math.trunc(value * NSHADES)]
 }
 

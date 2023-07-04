@@ -58,14 +58,18 @@ impl Display for TimeFormatter {
     }
 }
 
-impl From<&str> for RouteType {
-    fn from(value: &str) -> Self {
+impl TryFrom<&str> for RouteType {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "bus" => RouteType::Bus,
-            "tram" => RouteType::Tramway,
-            "subway" => RouteType::Subway,
-            "rail" => RouteType::Rail,
-            _ => panic!("{}", value),
+            "bus" => Ok(RouteType::Bus),
+            "tram" => Ok(RouteType::Tramway),
+            "subway" => Ok(RouteType::Subway),
+            "rail" => Ok(RouteType::Rail),
+            _ => {
+                log::warn!("Unknown route type: {}", value);
+                Err(format!("Unknown route type: {}", value))
+            },
         }
     }
 }

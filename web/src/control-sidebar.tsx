@@ -2,6 +2,7 @@ import { useQuery } from "react-query"
 import { useEffect, useRef, useState } from "preact/hooks"
 import { TimeSlider } from "./time-slider"
 import { baseUrl } from "./dev-api"
+import { BG_WHITE_COLOR } from "./app"
 
 interface Agency {
     agencyCode: string
@@ -9,12 +10,14 @@ interface Agency {
     city: string
 }
 
+export interface AgencyEntryProps {
+    setSelectValue: (value: string, status: string) => void
+}
 export function AgencyEntry ({
                                 agencyCode,
                                 agencyLongName,
                                 setSelectValue
-                            }: Agency | object) {
-
+                            }: Agency & AgencyEntryProps) {
     const onChange = (element: any) => {
         setSelectValue(agencyCode, element.target.checked)
     }
@@ -59,7 +62,7 @@ export function AgencyForm ({
         updateValues(values.current)
     }
     const agencyList = agencies.filter(ag => ag.shouldShow || ag.shouldShow === undefined).map((ag) => (
-        <AgencyEntry {...ag} setSelectValue={setSelectValue} />
+        <AgencyEntry {...ag} setSelectValue={setSelectValue} key = {ag.agencyCode} />
     ))
 
     return (
@@ -73,13 +76,17 @@ export function AgencyForm ({
     )
 }
 
-export function Sidebar ({ children, zi, positioning }) {
-    let classes = "absolute m-5 w-3/12 p-5 bg-white border border-gray-200 rounded-lg shadow "
-    classes += positioning || ""
+export interface SidebarProps {
+    positioning?: string
+    children?: any[]
+    zi?: number
+}
+export function Sidebar ({ children, zi, positioning }: SidebarProps) {
+    let classes = `absolute m-5 w-3/12 p-5 ${BG_WHITE_COLOR} border border-slate-400 rounded-lg drop-shadow-2xl shadow-inner `
+    classes += positioning ?? ""
 
     return (
-        <div className={classes} style={{ zIndex: zi || 0 }}>
-
+        <div className={classes} style={{ zIndex: zi ?? 0 }}>
             {children}
         </div>
     )
@@ -167,9 +174,6 @@ export function ControlSidebar ({ setOptions, currentCity }) {
         modes.current = modes1
         triggerRefetch()
     }
-
-
-
 
     return <Sidebar zi={10} positioning="top-0 right-0">
         <p className="text-gray-700">

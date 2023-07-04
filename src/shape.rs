@@ -4,6 +4,7 @@ use geo_types::{Coord, LineString};
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default, Archive, Clone)]
+#[archive(check_bytes)]
 pub struct Shape {
     pub id: IdType,
     pub latitude: f64,

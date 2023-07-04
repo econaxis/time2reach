@@ -4,30 +4,27 @@ use crate::{City, Gtfs1, RoadStructure};
 use lru::LruCache;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 pub struct CityAppData {
     pub gtfs: Gtfs1,
     pub spatial: SpatialStopsWithTrips,
     pub rs_template: Arc<RoadStructureInner>,
-    pub rs_list: RoadStructureList,
+    pub rs_list: RwLock<RoadStructureList>,
 }
 
 pub struct AllAppData {
-    pub ads: HashMap<City, Arc<Mutex<CityAppData>>>,
+    pub ads: HashMap<City, CityAppData>,
 }
 
 impl CityAppData {
-    pub fn new(gtfs: Gtfs1, spatial: SpatialStopsWithTrips, city: City) -> Arc<Mutex<CityAppData>> {
-        Arc::new(Mutex::new(Self::new1(gtfs, spatial, city)))
-    }
-    fn new1(gtfs: Gtfs1, spatial: SpatialStopsWithTrips, city: City) -> CityAppData {
+    pub(crate) fn new1(gtfs: Gtfs1, spatial: SpatialStopsWithTrips, city: City) -> CityAppData {
         let rs = RoadStructureInner::new(city);
         CityAppData {
             gtfs,
             spatial,
             rs_template: Arc::new(rs),
-            rs_list: RoadStructureList::new(20),
+            rs_list: RwLock::new(RoadStructureList::new(20)),
         }
     }
 }

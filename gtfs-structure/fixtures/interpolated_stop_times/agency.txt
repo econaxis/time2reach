@@ -1,3 +1,0 @@
-agency_name,agency_url,agency_timezone,agency_lang
-"BIBUS",http://www.bibus.fr,Europe/Paris,fr
-"Ter",http://www.sncf.com,Europe/Paris,fr
