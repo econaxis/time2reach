@@ -6,14 +6,18 @@ use crate::{projection, BusPickupInfo, IdType, NULL_ID};
 use rstar::primitives::GeomWithData;
 use rstar::RTree;
 use std::collections::{BTreeSet, HashMap};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use rustc_hash::FxHashMap;
 
 #[derive(Default, Debug)]
-pub struct RoutePickupTimes(pub HashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
+pub struct RoutePickupTimes(pub FxHashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct RouteStopSequence {
     pub route_id: IdType,
     pub shape_id: Option<IdType>,
+    pub headsign_hash: u64,
     pub direction: bool,
 }
 
@@ -22,6 +26,7 @@ impl Default for RouteStopSequence {
         Self {
             shape_id: None,
             route_id: NULL_ID,
+            headsign_hash: 0,
             direction: false,
         }
     }
@@ -32,6 +37,11 @@ impl RoutePickupTimes {
         let route_stop_sequence = RouteStopSequence {
             route_id: trip.route_id,
             shape_id: trip.shape_id,
+            headsign_hash: trip.trip_headsign.as_ref().map(|x| {
+                let mut s = DefaultHasher::new();
+                x.hash(&mut s);
+                s.finish()
+            }).unwrap_or(0),
             direction: crate::direction_to_bool(&trip.direction_id.unwrap()),
         };
 
@@ -50,7 +60,7 @@ impl RoutePickupTimes {
 }
 
 #[derive(Default)]
-pub struct StopsWithTrips(pub HashMap<IdType, RoutePickupTimes>);
+pub struct StopsWithTrips(pub FxHashMap<IdType, RoutePickupTimes>);
 
 #[derive(Debug)]
 pub struct StopsData {

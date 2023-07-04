@@ -2,9 +2,9 @@ use crate::gtfs_processing::SpatialStopsWithTrips;
 use crate::road_structure::RoadStructureInner;
 use crate::{City, Gtfs1, RoadStructure};
 use lru::LruCache;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::num::NonZeroUsize;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 pub struct CityAppData {
     pub gtfs: Gtfs1,
@@ -14,7 +14,7 @@ pub struct CityAppData {
 }
 
 pub struct AllAppData {
-    pub ads: HashMap<City, CityAppData>,
+    pub ads: FxHashMap<City, CityAppData>,
 }
 
 impl CityAppData {

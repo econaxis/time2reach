@@ -1,16 +1,16 @@
 use crate::reach_data::ReachData;
 use serde::Serialize;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::hash::Hash;
 
 pub struct BestTimes<T: Hash + Copy + PartialEq + Eq + Serialize> {
-    inner: HashMap<T, ReachData>,
+    inner: FxHashMap<T, ReachData>,
 }
 
 impl<T: Hash + Copy + PartialEq + Eq + Serialize> BestTimes<T> {
     pub fn new() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner:FxHashMap::default(),
         }
     }
     fn add(&mut self, key: T, data: ReachData) {

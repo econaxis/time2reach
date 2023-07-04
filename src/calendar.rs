@@ -1,6 +1,6 @@
 use rkyv::{Archive, Deserialize, Serialize};
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use chrono::{Datelike, NaiveDate, Weekday};
 
@@ -51,6 +51,7 @@ impl FromWithAgencyId<gtfs_structures::Calendar> for Service {
 }
 
 impl Service {
+    #[inline]
     pub fn runs_on_date(&self, date: NaiveDate) -> bool {
         match date.weekday() {
             Weekday::Mon => self.monday,
@@ -106,9 +107,10 @@ impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
 
 #[derive(Debug, Archive, Serialize, Deserialize)]
 #[archive(check_bytes)]
-pub struct CalendarExceptionList(HashMap<u32, CalendarException>);
+pub struct CalendarExceptionList(FxHashMap<u32, CalendarException>);
 
 impl CalendarExceptionList {
+    #[inline]
     fn runs_on_date(&self, date: NaiveDate) -> Option<bool> {
         let ord = date.ordinal0();
         self.0
@@ -120,8 +122,8 @@ impl CalendarExceptionList {
 #[derive(Debug, Default, Archive, Serialize, Deserialize)]
 #[archive(check_bytes)]
 pub struct Calendar {
-    pub services: HashMap<IdType, Service>,
-    pub exceptions: HashMap<IdType, CalendarExceptionList>,
+    pub services: FxHashMap<IdType, Service>,
+    pub exceptions: FxHashMap<IdType, CalendarExceptionList>,
 }
 
 impl Calendar {
@@ -131,29 +133,31 @@ impl Calendar {
     }
     pub fn runs_on_date(&self, service_id: IdType, date: NaiveDate) -> bool {
         let normal = self.services.get(&service_id).map(|a| a.runs_on_date(date));
-        let exception = self
-            .exceptions
-            .get(&service_id)
-            .and_then(|a| a.runs_on_date(date));
 
-        match (normal, exception) {
-            (None, None) => true,
-            _ => normal.unwrap_or(false) || exception.unwrap_or(false),
-        }
+        normal.or_else(|| {
+            self
+                .exceptions
+                .get(&service_id)
+                .and_then(|a| a.runs_on_date(date))
+        });
+
+        normal.unwrap_or(true)
     }
 
     pub fn parse(calendar: Vec<Service>, exceptions_list: Vec<CalendarException>) -> Self {
         let services = vec_to_hashmap(calendar, |a| a.id);
 
-        let mut exceptions: HashMap<IdType, CalendarExceptionList> = HashMap::new();
+        let mut exceptions: FxHashMap<IdType, CalendarExceptionList> = FxHashMap::default();
 
         for exc in exceptions_list {
             if let Some(inner) = exceptions.get_mut(&exc.service_id) {
                 inner.0.insert(exc.date.0, exc);
             } else {
+                let service_id = exc.service_id;
+                let cal_exception_list = FxHashMap::from_iter([(exc.date.0, exc)]);
                 exceptions.insert(
-                    exc.service_id,
-                    CalendarExceptionList([(exc.date.0, exc)].into()),
+                    service_id,
+                    CalendarExceptionList(cal_exception_list),
                 );
             }
         }

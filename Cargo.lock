@@ -2019,6 +2019,7 @@ dependencies = [
  "proj",
  "rkyv",
  "rstar",
+ "rustc-hash",
  "serde",
  "serde_json",
  "tokio",

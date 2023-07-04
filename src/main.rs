@@ -30,10 +30,8 @@ mod web_cache;
 
 use crate::gtfs_wrapper::DirectionType;
 
-use std::collections::HashSet;
-
-use chrono::NaiveDate;
-use lazy_static::lazy_static;
+use rustc_hash::FxHashSet;
+use std::hash::Hash;
 
 use std::time::Instant;
 
@@ -56,9 +54,6 @@ pub const TRANSIT_EXIT_PENALTY: f64 = 15.0;
 type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
-lazy_static! {
-    pub static ref PRESENT_DAY: NaiveDate = NaiveDate::from_ymd_opt(2023, 04, 04).unwrap();
-}
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct BusPickupInfo {
@@ -80,7 +75,7 @@ fn main1() {
 
     let mut rs = RoadStructure::new();
     let time = Instant::now();
-    for _ in 0..15 {
+    for _ in 0..40 {
         rs.clear_data();
         time_to_reach::generate_reach_times(
             &gtfs,
@@ -89,9 +84,9 @@ fn main1() {
             Configuration {
                 // start_time: Time(3600.0 * 13.0),
                 start_time: Time(3600.0 * 17.0 + 60.0 * 20.0),
-                duration_secs: 3600.0 * 1.5,
+                duration_secs: 3600.0 * 2.0,
                 location: LatLng::from_lat_lng(43.64466712433209, -79.38041754904549),
-                agency_ids: HashSet::from([gtfs.agency_id]),
+                agency_ids: FxHashSet::from_iter([gtfs.agency_id]),
                 modes: vec![],
             },
         );

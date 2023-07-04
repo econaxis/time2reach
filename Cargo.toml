@@ -25,6 +25,7 @@ rkyv = {version = "0.7.42", features=["validation"]}
 tokio = {version="1.28.2", features=["full"]}
 
 env_logger = "0.10.0"
+rustc-hash = "1.1.0"
 [workspace]
 members = ["gtfs-structure"]
 
@@ -37,3 +38,4 @@ prod = ["https", "all-cities"]
 
 [profile.release]
 lto = false
+#debug = true

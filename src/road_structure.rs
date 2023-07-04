@@ -7,6 +7,7 @@ use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use serde::{Serialize, Serializer};
 use std::collections::{HashMap, VecDeque};
+use rustc_hash::FxHashMap;
 
 use log::info;
 use std::sync::{Arc, Mutex};
@@ -77,9 +78,9 @@ type NodeId = u64;
 
 pub struct RoadStructureInner {
     nodes_rtree: RTree<GeomWithData<[f64; 2], NodeId>>,
-    nodes_rtree_cache: Mutex<HashMap<IdType, NodeId>>,
-    nodes: HashMap<NodeId, NodeEdges>,
-    edges: HashMap<EdgeId, EdgeData>,
+    nodes_rtree_cache: Mutex<FxHashMap<IdType, NodeId>>,
+    nodes: FxHashMap<NodeId, NodeEdges>,
+    edges: FxHashMap<EdgeId, EdgeData>,
 }
 
 pub struct RoadStructure {
@@ -241,12 +242,10 @@ impl RoadStructureInner {
         node_best_times: &mut BestTimes<NodeId>,
     ) {
         const EDGE_BASED_SEARCH: bool = false;
-
-
         const WALKING_DISTANCE: f64 = if EDGE_BASED_SEARCH {
             100.0
         } else {
-            1000.0
+            800.0
         };
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
@@ -300,9 +299,8 @@ impl RoadStructureInner {
             Dataset::open_ex(format!("web/public/{}.gpkg", city.get_gpkg_path()), options).unwrap();
 
         let mut s = Self {
-            // dataset,
             nodes_rtree: Default::default(),
-            nodes_rtree_cache: Mutex::new(HashMap::new()),
+            nodes_rtree_cache: Mutex::new(FxHashMap::default()),
             nodes: Default::default(),
             edges: Default::default(),
         };

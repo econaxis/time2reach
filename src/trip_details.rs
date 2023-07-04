@@ -7,7 +7,6 @@ use geojson::PointType;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
-use std::time::Duration;
 use warp::Reply;
 
 #[derive(Deserialize)]

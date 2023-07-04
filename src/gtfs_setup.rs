@@ -3,7 +3,7 @@ use crate::{Gtfs0, Gtfs1, LibraryGTFS};
 use id_arena::Id;
 use lazy_static::lazy_static;
 use log::info;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 
@@ -11,7 +11,7 @@ use crate::gtfs_processing::StopsWithTrips;
 use crate::in_progress_trip::InProgressTrip;
 use std::sync::Mutex;
 lazy_static! {
-    static ref AGENCY_MAP: Mutex<HashMap<String, u8>> = Mutex::new(HashMap::new());
+    static ref AGENCY_MAP: Mutex<FxHashMap<String, u8>> = Mutex::new(FxHashMap::default());
 }
 
 #[inline(never)]

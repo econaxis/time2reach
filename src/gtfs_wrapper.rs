@@ -7,7 +7,7 @@ use rstar::primitives::{GeomWithData, Line};
 use rstar::PointDistance;
 use rstar::RTree;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
@@ -120,8 +120,8 @@ pub trait FromWithAgencyId<From> {
 }
 
 thread_local! {
-    static ID_MAP: RefCell<HashMap<String, u64>> = {
-        RefCell::new(HashMap::new())
+    static ID_MAP: RefCell<FxHashMap<String, u64>> = {
+        RefCell::new(FxHashMap::default())
     };
 }
 pub fn try_parse_id(a: &str) -> u64 {
@@ -304,19 +304,19 @@ pub struct Gtfs0 {
 #[archive(check_bytes)]
 pub struct Gtfs1 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
-    pub stops: HashMap<IdType, Stop>,
+    pub stops: FxHashMap<IdType, Stop>,
     /// All routes by `route_id`
-    pub routes: HashMap<IdType, Route>,
+    pub routes: FxHashMap<IdType, Route>,
     /// All trips by `trip_id`
-    pub trips: HashMap<IdType, Trip>,
-    pub shapes: HashMap<IdType, Vec<Shape>>,
+    pub trips: FxHashMap<IdType, Trip>,
+    pub shapes: FxHashMap<IdType, Vec<Shape>>,
 
     pub calendar: Calendar,
     pub agency_id: u8,
 }
 
-pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashMap<IdType, T> {
-    let mut hashmap = HashMap::new();
+pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> FxHashMap<IdType, T> {
+    let mut hashmap = FxHashMap::default();
     for v in vec {
         let id = accessor(&v);
         hashmap.insert(id, v);
@@ -324,10 +324,10 @@ pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> HashM
     hashmap
 }
 
-fn convert_shapes(mut shape: Vec<Shape>) -> HashMap<IdType, Vec<Shape>> {
+fn convert_shapes(mut shape: Vec<Shape>) -> FxHashMap<IdType, Vec<Shape>> {
     shape.sort_by(|a, b| a.id.cmp(&b.id));
 
-    let mut answer = HashMap::new();
+    let mut answer =FxHashMap::default();
     for shape_seq in shape.group_by(|a, b| a.id == b.id) {
         let shape_id = shape_seq[0].id;
         let mut shape_vec = shape_seq.to_vec();
@@ -343,7 +343,7 @@ impl From<Gtfs0> for Gtfs1 {
 
         let stops = vec_to_hashmap(a.stops, |stop| stop.id);
         let shapes = convert_shapes(a.shapes);
-        let mut trips: HashMap<IdType, Trip> = a
+        let mut trips: FxHashMap<IdType, Trip> = a
             .trips
             .into_iter()
             .map(|a| {
@@ -389,7 +389,7 @@ impl From<Gtfs0> for Gtfs1 {
 }
 
 fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
-    let geo_shape: HashMap<_, _> = gtfs
+    let geo_shape: FxHashMap<_, _> = gtfs
         .shapes
         .iter()
         .map(|(id, shape)| {

@@ -15,7 +15,8 @@ const CITY_LOCATION = {
     Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),
     "New York City": new mapboxgl.LngLat(-74.0060, 40.7128),
     Montreal: new mapboxgl.LngLat(-73.5674, 45.5019),
-    Vancouver: new mapboxgl.LngLat(-123.1207, 49.2827)
+    Vancouver: new mapboxgl.LngLat(-123.1207, 49.2827),
+    "Kitchener-Waterloo": new mapboxgl.LngLat(-80.4935412978086, 43.45134086953097)
 }
 
 export const startingLocation = CITY_LOCATION.Toronto
@@ -41,7 +42,7 @@ export function App () {
             {popupAccepted ? null : <WelcomePopup acceptedPopupCallback={setPopupAccepted}/>}
             <BlurBackground enabled = {!popupAccepted}>
                 <LoadingSpinner display={spinner}/>
-                <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City']}
+                <CityPillContainer cities={['Toronto', 'Montreal', 'Vancouver', 'New York City', "Kitchener-Waterloo"]}
                                    setLocation={setCityFromPill} currentCity={currentCity} />
                 <MapboxMap currentOptions={currentOptions} currentLatLng={currentStartingLoc}
                            setLatLng={setCurrentStartingLoc}

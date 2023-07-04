@@ -4,6 +4,7 @@ use crate::{BusPickupInfo, IdType};
 use id_arena::{Arena, Id};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
+use rustc_hash::FxHashMap;
 
 #[derive(PartialEq, Eq, Debug)]
 struct HeapIdTrip {
@@ -25,23 +26,24 @@ impl Ord for HeapIdTrip {
 pub struct TripsArena {
     explore_queue: BinaryHeap<HeapIdTrip>,
     // TripID -> stop sequence number of boarding
-    trips_already_taken: HashMap<IdType, u16>,
+    trips_already_taken: FxHashMap<IdType, u16>,
 
     // StopID -> Earliest Arrival time
-    stop_arrival_times: HashMap<IdType, Time>,
+    stop_arrival_times: FxHashMap<IdType, Time>,
     arena: Arena<InProgressTrip>,
 }
 
 impl TripsArena {
     pub fn should_explore(&mut self, bu: &BusPickupInfo) -> bool {
-        // if let Some(sequence_no) = self.trips_already_taken.get(&bu.trip_id) {
-        //     // Don't get on this trip if we have already boarded on an earlier stop
-        //     if sequence_no <= &bu.stop_sequence_no {
-        //         return false;
-        //     }
-        // }
-        self.trips_already_taken
-            .insert(bu.trip_id, bu.stop_sequence_no);
+        if let Some(sequence_no) = self.trips_already_taken.get(&bu.trip_id) {
+            // Don't get on this trip if we have already boarded on an earlier stop
+            if sequence_no <= &bu.stop_sequence_no {
+                return false;
+            }
+        } else {
+            self.trips_already_taken
+                .insert(bu.trip_id, bu.stop_sequence_no);
+        }
         true
     }
     pub(crate) fn add_to_explore(&mut self, item: InProgressTrip) -> Option<Id<InProgressTrip>> {

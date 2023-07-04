@@ -3,7 +3,7 @@ use crate::gtfs_wrapper::Gtfs1;
 
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::str::FromStr;
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -51,8 +51,8 @@ pub struct Agency {
     city: City,
 }
 
-pub fn load_all_gtfs() -> HashMap<City, Gtfs1> {
-    let mut result: HashMap<City, Gtfs1> = HashMap::new();
+pub fn load_all_gtfs() -> FxHashMap<City, Gtfs1> {
+    let mut result: FxHashMap<City, Gtfs1> = FxHashMap::default();
 
     let agencies_ = agencies();
 

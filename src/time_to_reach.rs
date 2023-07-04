@@ -5,11 +5,11 @@ use crate::in_progress_trip::InProgressTrip;
 use crate::reach_data::ReachData;
 use crate::road_structure::RoadStructure;
 use crate::{
-    projection, BusPickupInfo, Gtfs1, IdType, TripsArena, MIN_TRANSFER_SECONDS, NULL_ID,
-    PRESENT_DAY, STRAIGHT_WALKING_SPEED, TRANSIT_EXIT_PENALTY,
+    projection, BusPickupInfo, Gtfs1, IdType, TripsArena, MIN_TRANSFER_SECONDS, NULL_ID, STRAIGHT_WALKING_SPEED, TRANSIT_EXIT_PENALTY,
 };
 use id_arena::Id;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
+use chrono::{Utc};
 
 use crate::time::Time;
 
@@ -101,7 +101,7 @@ pub fn generate_reach_times(
         if item.exit_time > config.start_time + config.duration_secs {
             continue;
         }
-        if item.total_transfers >= MAX_TRANSFERS {
+        if item.total_transfers > MAX_TRANSFERS {
             continue;
         }
         if !rs.is_first_reacher_to_stop(item.get_off_stop_id, &item.point, item.exit_time) {
@@ -185,7 +185,9 @@ fn explore_from_point(
     explore_queue: &mut TripsArena,
     config: &Configuration,
 ) {
-    let mut routes_already_taken = HashSet::from([ip.current_route.clone()]);
+    let today = Utc::now().date_naive();
+
+    let mut routes_already_taken = FxHashSet::from_iter([ip.current_route.clone()]);
     let current_trip = &gtfs.trips.get(&ip.trip_id);
 
     for (stop, distance) in data.0.nearest_neighbor_iter_with_distance_2(&ip.point) {
@@ -199,11 +201,25 @@ fn explore_from_point(
         let transfer_walking_length = distance.sqrt();
         let time_to_stop = transfer_walking_length / STRAIGHT_WALKING_SPEED;
         let this_timestamp = ip.exit_time + time_to_stop + MIN_TRANSFER_SECONDS;
+
+        // Search for route pickup on or after the starting_timestamp
         for (route_info, route_pickup) in stop_d.trips_with_time.0.iter() {
-            // Search for route pickup on or after the starting_timestamp
             if routes_already_taken.contains(route_info) {
                 continue;
             }
+
+            let is_valid_agency = config.agency_ids.contains(&route_info.route_id.0);
+
+            if !is_valid_agency {
+                continue
+            }
+
+            // If the mode is allowed
+            let this_route = &gtfs.routes[&route_info.route_id];
+            if !(config.modes.is_empty() || config.modes.contains(&this_route.route_type)) {
+                continue;
+            }
+
             let starting_buspickup = BusPickupInfo {
                 timestamp: this_timestamp,
                 stop_sequence_no: 0,
@@ -211,20 +227,17 @@ fn explore_from_point(
             };
 
             for next_bus in route_pickup.range(starting_buspickup..) {
-                let _trip = &gtfs.trips[&next_bus.trip_id];
-                assert!(next_bus.timestamp >= this_timestamp);
+                debug_assert!(next_bus.timestamp >= this_timestamp);
 
-                let is_valid_agency = config.agency_ids.contains(&next_bus.trip_id.0);
 
                 let this_trip = &gtfs.trips[&next_bus.trip_id];
-                let this_route = &gtfs.routes[&this_trip.route_id];
 
-                let is_valid_mode =
-                    || config.modes.is_empty() || config.modes.contains(&this_route.route_type);
-                let service_runs_on_day = || {
-                    gtfs.calendar
-                        .runs_on_date(this_trip.service_id, *PRESENT_DAY)
-                };
+
+                // If the service runs today
+                if !gtfs.calendar
+                    .runs_on_date(this_trip.service_id, today) {
+                    continue
+                }
 
                 let is_free_tranfer = this_trip.block_id.is_some()
                     && this_trip.block_id.as_ref()
@@ -236,10 +249,7 @@ fn explore_from_point(
                     ip.total_transfers + 1
                 };
 
-                if is_valid_agency
-                    && service_runs_on_day()
-                    && is_valid_mode()
-                    && explore_queue.should_explore(next_bus)
+                if explore_queue.should_explore(next_bus)
                 {
                     all_stops_along_trip(
                         gtfs,
