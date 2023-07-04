@@ -3,23 +3,18 @@
 #![feature(file_create_new)]
 #![feature(vec_into_raw_parts)]
 
-extern crate core;
-
 mod agencies;
 mod best_times;
-mod calendar;
 mod configuration;
 mod formatter;
 mod gtfs_processing;
 mod gtfs_setup;
-mod gtfs_wrapper;
 mod in_progress_trip;
 mod path_usage;
 mod projection;
 mod reach_data;
 mod road_structure;
 mod serialization;
-mod shape;
 mod time;
 mod time_to_reach;
 mod trip_details;
@@ -28,19 +23,19 @@ mod web;
 mod web_app_data;
 mod web_cache;
 
-use crate::gtfs_wrapper::DirectionType;
+use gtfs_structure_2::gtfs_wrapper::DirectionType;
 
 use rustc_hash::FxHashSet;
 use std::hash::Hash;
 
+use gtfs_structure_2::IdType;
 use std::time::Instant;
 
-use crate::gtfs_wrapper::{Gtfs0, Gtfs1};
 use crate::projection::PROJSTRING;
 use crate::road_structure::RoadStructure;
 use crate::web::LatLng;
 use configuration::Configuration;
-use gtfs_wrapper::LibraryGTFS;
+use gtfs_structure_2::gtfs_wrapper::{Gtfs0, Gtfs1};
 
 use crate::agencies::City;
 use crate::formatter::time_to_point;
@@ -51,9 +46,7 @@ const WALKING_SPEED: f64 = 1.42;
 const STRAIGHT_WALKING_SPEED: f64 = 1.30;
 pub const MIN_TRANSFER_SECONDS: f64 = 5.0;
 pub const TRANSIT_EXIT_PENALTY: f64 = 15.0;
-type IdType = (u8, u64);
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
-
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct BusPickupInfo {
@@ -100,7 +93,6 @@ fn main1() {
         // println!("{}", fmter.unwrap());
     }
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
-
 }
 
 fn main() {

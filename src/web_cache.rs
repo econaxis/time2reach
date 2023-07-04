@@ -1,15 +1,15 @@
-use std::collections::hash_map::DefaultHasher;
-use serde_json::value::Value;
-use std::hash::{Hash, Hasher};
 use lazy_static::lazy_static;
-use warp::reply::Json;
-use std::sync::Mutex;
 use lru::LruCache;
+use serde_json::value::Value;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
+use std::sync::Mutex;
+use warp::reply::Json;
 
 lazy_static! {
     static ref CACHE: Mutex<LruCache<u64, Value>> =
-        Mutex::new(LruCache::new(NonZeroUsize::new(50).unwrap()));
+        Mutex::new(LruCache::new(NonZeroUsize::new(100).unwrap()));
 }
 fn round_f64_for_hash(x: f64) -> u64 {
     (x * 10000.0).round() as u64

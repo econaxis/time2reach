@@ -1,0 +1,15 @@
+[package]
+name = "gtfs-structure-2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gtfs-structures = {path="../gtfs-structure"}
+rkyv = {version = "0.7.42", features=["validation"]}
+
+rustc-hash = "1.1.0"
+rstar = "0.11.0"
+chrono = {version = "0.4.24", features = ["rkyv"]}
+geo-types = "0.7.8"

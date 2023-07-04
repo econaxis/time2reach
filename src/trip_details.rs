@@ -7,6 +7,7 @@ use geojson::PointType;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
+use warp::body::form;
 use warp::Reply;
 
 #[derive(Deserialize)]
@@ -62,21 +63,24 @@ fn to_point_type(c: &Coord) -> PointType {
     vec![c.x, c.y]
 }
 
-pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Reply {
+pub fn get_trip_details(
+    ad: Arc<AllAppData>,
+    req: GetDetailsRequest,
+) -> Result<warp::reply::Json, &'static str> {
     let latlng = req.latlng;
     let city = req.request_id.city;
-    let ad = ad.ads.get(&city).unwrap();
+    let ad = ad.ads.get(&city).ok_or("Provided city not valid")?;
 
-    ad.rs_list.write().unwrap().pre_get(req.request_id.rs_list_index);
+    ad.rs_list
+        .write()
+        .unwrap()
+        .pre_get(req.request_id.rs_list_index);
 
     let rs_list = ad.rs_list.read().unwrap();
     let rs_option = rs_list.get(req.request_id.rs_list_index);
 
-    if rs_option.is_none() {
-        return warp::reply::json(&"Invalid -- request ID not found");
-    }
+    let rs = rs_option.ok_or("Invalid -- request ID not found")?;
 
-    let rs = rs_option.unwrap();
     let formatter = time_to_point(
         rs,
         &rs.trips_arena,
@@ -85,11 +89,7 @@ pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Rep
         true,
     );
 
-    if formatter.is_none() {
-        return warp::reply::json(&"None");
-    }
-
-    let formatter = formatter.unwrap();
+    let formatter = formatter.ok_or("No formatter found -- probably point could not be reached")?;
 
     let mut details_list = Vec::new();
 
@@ -146,7 +146,7 @@ pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Rep
             "rail" => 4.9,
             "subway" => 4.3,
             "tram" => 3.4,
-            _ => 2.6
+            _ => 2.6,
         };
 
         feature.set_property("color", route.color.clone());
@@ -198,5 +198,5 @@ pub fn get_trip_details(ad: Arc<AllAppData>, req: GetDetailsRequest) -> impl Rep
         "details": details_list,
         "path": geojson
     });
-    warp::reply::json(&response)
+    Ok(warp::reply::json(&response))
 }

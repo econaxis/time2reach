@@ -1,10 +1,12 @@
 use crate::in_progress_trip::InProgressTrip;
 use crate::time::Time;
-use crate::{BusPickupInfo, IdType};
+use crate::BusPickupInfo;
+use gtfs_structure_2::IdType;
+
 use id_arena::{Arena, Id};
+use rustc_hash::FxHashMap;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-use rustc_hash::FxHashMap;
 
 #[derive(PartialEq, Eq, Debug)]
 struct HeapIdTrip {

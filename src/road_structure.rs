@@ -1,13 +1,14 @@
-use crate::{IdType, TripsArena, PROJSTRING, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
+use crate::{TripsArena, PROJSTRING, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
 use gdal::vector::LayerAccess;
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
 use geo_types::Point;
+use gtfs_structure_2::IdType;
 use proj::Proj;
 use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
+use rustc_hash::FxHashMap;
 use serde::{Serialize, Serializer};
 use std::collections::{HashMap, VecDeque};
-use rustc_hash::FxHashMap;
 
 use log::info;
 use std::sync::{Arc, Mutex};
@@ -42,9 +43,7 @@ impl EdgeData {
 }
 
 #[derive(Default)]
-struct NodeEdges(
-    Vec<EdgeId>,
-);
+struct NodeEdges(Vec<EdgeId>);
 
 struct NodeEdgesIteratorMut<'a> {
     n: &'a NodeEdges,
@@ -177,7 +176,7 @@ impl RoadStructureInner {
         base_time: &ReachData,
         to_explore: &mut VecDeque<(NodeId, ReachData)>,
         node_best_times: &mut BestTimes<NodeId>,
-        do_edge_based_search: bool
+        do_edge_based_search: bool,
     ) {
         if node_best_times
             .get(&node)
@@ -231,9 +230,10 @@ impl RoadStructureInner {
     pub fn distance_nearest_nodes_to_point(
         &self,
         point: [f64; 2],
-        distance_squared: f64
+        distance_squared: f64,
     ) -> impl Iterator<Item = &GeomWithData<[f64; 2], NodeId>> + '_ {
-        self.nodes_rtree.locate_within_distance(point, distance_squared)
+        self.nodes_rtree
+            .locate_within_distance(point, distance_squared)
     }
     pub fn explore_from_point(
         &self,
@@ -242,15 +242,13 @@ impl RoadStructureInner {
         node_best_times: &mut BestTimes<NodeId>,
     ) {
         const EDGE_BASED_SEARCH: bool = false;
-        const WALKING_DISTANCE: f64 = if EDGE_BASED_SEARCH {
-            100.0
-        } else {
-            800.0
-        };
+        const WALKING_DISTANCE: f64 = if EDGE_BASED_SEARCH { 100.0 } else { 800.0 };
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
 
-        for closest_node in self.distance_nearest_nodes_to_point(point.clone(), WALKING_DISTANCE * WALKING_DISTANCE) {
+        for closest_node in
+            self.distance_nearest_nodes_to_point(point.clone(), WALKING_DISTANCE * WALKING_DISTANCE)
+        {
             let distance_to_closest_node = closest_node.distance_2(point).sqrt();
             let time_to_closest_node = distance_to_closest_node / STRAIGHT_WALKING_SPEED;
 
@@ -263,9 +261,8 @@ impl RoadStructureInner {
                 &mut queue,
                 node_best_times,
                 // Don't do edge based search, only distance search
-                EDGE_BASED_SEARCH
+                EDGE_BASED_SEARCH,
             );
-
         }
 
         if EDGE_BASED_SEARCH {
@@ -326,8 +323,7 @@ impl RoadStructureInner {
             let point: Point = geo.try_into().unwrap();
 
             let point = proj.project(point, false).unwrap();
-            nodes_rtree_vec
-                .push(GeomWithData::new([point.x(), point.y()], osmid));
+            nodes_rtree_vec.push(GeomWithData::new([point.x(), point.y()], osmid));
         }
 
         s.nodes_rtree = RTree::bulk_load(nodes_rtree_vec);

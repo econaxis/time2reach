@@ -1,4 +1,4 @@
-use crate::gtfs_wrapper::Stop;
+use gtfs_structure_2::gtfs_wrapper::Stop;
 use proj::Proj;
 
 pub static PROJSTRING: &str =

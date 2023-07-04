@@ -1,5 +1,5 @@
 use crate::trips_arena::TripsArena;
-use crate::{Gtfs0, Gtfs1, LibraryGTFS};
+use gtfs_structure_2::gtfs_wrapper::{Gtfs0, Gtfs1, LibraryGTFS};
 use id_arena::Id;
 use lazy_static::lazy_static;
 use log::info;
@@ -47,7 +47,12 @@ pub fn initialize_gtfs_as_bson(path: &str, short_name: &str) -> Gtfs1 {
         let mut file = File::open(format!("{path}-1.rkyv")).unwrap();
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes).unwrap();
-        rkyv::from_bytes::<Gtfs1>(&bytes).unwrap()
+
+        if cfg!(feature = "prod") {
+            rkyv::from_bytes::<Gtfs1>(&bytes).unwrap()
+        } else {
+            unsafe { rkyv::from_bytes_unchecked(&bytes) }.unwrap()
+        }
     };
     let sample_id = result.stops.keys().next().unwrap();
     let mut map = AGENCY_MAP.lock().unwrap();

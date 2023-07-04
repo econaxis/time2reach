@@ -6,8 +6,8 @@ use rkyv::{Archive, Deserialize, Serialize};
 use rstar::primitives::{GeomWithData, Line};
 use rstar::PointDistance;
 use rstar::RTree;
-use std::cell::RefCell;
 use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
@@ -42,6 +42,19 @@ pub enum RouteType {
     Taxi,
     /// (extended) any other value
     Other(i32),
+}
+
+impl TryFrom<&str> for RouteType {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "bus" => Ok(RouteType::Bus),
+            "tram" => Ok(RouteType::Tramway),
+            "subway" => Ok(RouteType::Subway),
+            "rail" => Ok(RouteType::Rail),
+            _ => Err(format!("Unknown route type: {}", value)),
+        }
+    }
 }
 
 impl From<gtfs_structures::RouteType> for RouteType {
@@ -327,7 +340,7 @@ pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> FxHas
 fn convert_shapes(mut shape: Vec<Shape>) -> FxHashMap<IdType, Vec<Shape>> {
     shape.sort_by(|a, b| a.id.cmp(&b.id));
 
-    let mut answer =FxHashMap::default();
+    let mut answer = FxHashMap::default();
     for shape_seq in shape.group_by(|a, b| a.id == b.id) {
         let shape_id = shape_seq[0].id;
         let mut shape_vec = shape_seq.to_vec();

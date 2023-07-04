@@ -1,6 +1,6 @@
-use crate::gtfs_wrapper::RouteType;
 use crate::time::Time;
 use crate::web::LatLng;
+use gtfs_structure_2::gtfs_wrapper::RouteType;
 use rustc_hash::FxHashSet;
 
 pub struct Configuration {

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gtfs-structures = {path="gtfs-structure"}
+gtfs-structure-2 = {path="gtfs-structure-2"}
 rstar = "0.11.0"
 proj = { version = "0.27.0" }
 lazy_static = "1.4.0"
@@ -27,7 +27,7 @@ tokio = {version="1.28.2", features=["full"]}
 env_logger = "0.10.0"
 rustc-hash = "1.1.0"
 [workspace]
-members = ["gtfs-structure"]
+members = ["gtfs-structure", "gtfs-structure-2"]
 
 [features]
 default = []
@@ -35,7 +35,3 @@ default = []
 https = []
 all-cities = []
 prod = ["https", "all-cities"]
-
-[profile.release]
-lto = false
-#debug = true

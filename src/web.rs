@@ -1,27 +1,25 @@
-use crate::agencies::{agencies, City, load_all_gtfs};
+use crate::agencies::{agencies, load_all_gtfs, City};
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
-use crate::gtfs_wrapper::RouteType;
 use crate::road_structure::EdgeId;
-use crate::{Gtfs1, gtfs_setup, RoadStructure, Time, time_to_reach, trip_details};
+use crate::{gtfs_setup, time_to_reach, trip_details, Gtfs1, RoadStructure, Time};
+use gtfs_structure_2::gtfs_wrapper::RouteType;
 use log::info;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
-use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::convert::Infallible;
 
-use std::sync::{Arc};
+use std::sync::Arc;
 
-use crate::trip_details::{CalculateRequest};
+use crate::trip_details::CalculateRequest;
 use crate::web_app_data::{AllAppData, CityAppData};
-use warp::{Filter, Rejection, Reply};
+use crate::web_cache::{check_cache, insert_cache};
 use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
-use crate::web_cache::{check_cache, insert_cache};
-
-
+use warp::{Filter, Rejection, Reply};
 
 fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> CityAppData {
     let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&gtfs);
@@ -42,7 +40,6 @@ fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
     }
     None
 }
-
 
 fn process_coordinates(
     ad: Arc<AllAppData>,
@@ -65,17 +62,10 @@ fn process_coordinates(
         ad.rs_list.write().unwrap().remove(req.rs_list_index);
     }
 
-    let cache_key = match check_cache(
-        lat,
-        lng,
-        &include_agencies,
-        &include_modes,
-        start_time,
-    ) {
+    let cache_key = match check_cache(lat, lng, &include_agencies, &include_modes, start_time) {
         Ok(reply) => return reply,
         Err(key) => key,
     };
-
 
     let gtfs = &ad.gtfs;
     let spatial_stops = &ad.spatial;
@@ -150,7 +140,7 @@ pub struct RequestId {
 
 fn with_appdata(
     ad: Arc<AllAppData>,
-) -> impl Filter<Extract=(Arc<AllAppData>, ), Error=Infallible> + Clone {
+) -> impl Filter<Extract = (Arc<AllAppData>,), Error = Infallible> + Clone {
     warp::any().map(move || ad.clone())
 }
 
@@ -199,6 +189,11 @@ pub async fn main() {
         .and(warp::path!("details"))
         .and(warp::body::json())
         .map(trip_details::get_trip_details)
+        .map(|result: Result<warp::reply::Json, &'static str>| {
+            result.map(|a| a.into_response()).unwrap_or_else(|err| {
+                warp::reply::with_status(err, StatusCode::INTERNAL_SERVER_ERROR).into_response()
+            })
+        })
         .with(warp::filters::compression::gzip());
 
     let agencies_endpoint = warp::get()
@@ -217,17 +212,18 @@ pub async fn main() {
             let mut resp = response.into_response();
             let headers = resp.headers_mut();
             headers.append("Content-Encoding", HeaderValue::from_static("gzip"));
-            headers.append("Content-Type", HeaderValue::from_static("application/x-protobuf"));
+            headers.append(
+                "Content-Type",
+                HeaderValue::from_static("application/x-protobuf"),
+            );
             headers.append("Cache-Control", HeaderValue::from_static("max-age=18000"));
             resp
         })
-        .recover(|x: Rejection|  {
-            async {
-                if x.is_not_found() {
-                    Result::<StatusCode, Rejection>::Ok(StatusCode::NO_CONTENT)
-                } else {
-                    Result::<StatusCode, Rejection>::Err(x)
-                }
+        .recover(|x: Rejection| async {
+            if x.is_not_found() {
+                Result::<StatusCode, Rejection>::Ok(StatusCode::NO_CONTENT)
+            } else {
+                Result::<StatusCode, Rejection>::Err(x)
             }
         });
 

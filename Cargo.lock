@@ -748,6 +748,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
+name = "gtfs-structure-2"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "geo-types",
+ "gtfs-structures",
+ "rkyv",
+ "rstar",
+ "rustc-hash",
+]
+
+[[package]]
 name = "gtfs-structures"
 version = "0.33.0"
 dependencies = [
@@ -2011,7 +2023,7 @@ dependencies = [
  "gdal",
  "geo-types",
  "geojson",
- "gtfs-structures",
+ "gtfs-structure-2",
  "id-arena",
  "lazy_static",
  "log",

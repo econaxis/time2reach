@@ -12,7 +12,6 @@ use gtfs_structures::CalendarDate;
 #[archive(check_bytes)]
 pub struct NaiveDate1(u32);
 
-
 #[derive(Archive, Serialize, Deserialize, Debug)]
 #[archive(check_bytes)]
 pub struct Service {
@@ -32,8 +31,8 @@ pub struct Service {
 
 impl FromWithAgencyId<gtfs_structures::Calendar> for Service {
     fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Calendar) -> Self
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         Service {
             id: (agency_id, try_parse_id(&f.id)),
@@ -94,8 +93,8 @@ pub struct CalendarException {
 
 impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
     fn from_with_agency_id(agency_id: u8, f: CalendarDate) -> Self
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         Self {
             service_id: (agency_id, try_parse_id(&f.service_id)),
@@ -135,8 +134,7 @@ impl Calendar {
         let normal = self.services.get(&service_id).map(|a| a.runs_on_date(date));
 
         normal.or_else(|| {
-            self
-                .exceptions
+            self.exceptions
                 .get(&service_id)
                 .and_then(|a| a.runs_on_date(date))
         });
@@ -155,10 +153,7 @@ impl Calendar {
             } else {
                 let service_id = exc.service_id;
                 let cal_exception_list = FxHashMap::from_iter([(exc.date.0, exc)]);
-                exceptions.insert(
-                    service_id,
-                    CalendarExceptionList(cal_exception_list),
-                );
+                exceptions.insert(service_id, CalendarExceptionList(cal_exception_list));
             }
         }
         Self {

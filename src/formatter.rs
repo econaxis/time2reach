@@ -1,10 +1,10 @@
-use crate::gtfs_wrapper::RouteType;
 use crate::in_progress_trip::InProgressTrip;
-use crate::shape::Shape;
 use crate::time::Time;
 use crate::trips_arena::TripsArena;
 use crate::{gtfs_setup, Gtfs1, RoadStructure, NULL_ID, WALKING_SPEED};
 use geo_types::{LineString, MultiLineString};
+use gtfs_structure_2::gtfs_wrapper::RouteType;
+use gtfs_structure_2::shape::Shape;
 use rstar::PointDistance;
 use std::fmt::{Display, Formatter};
 
@@ -35,7 +35,14 @@ impl<'a, 'b> InProgressTripsFormatter<'a, 'b> {
                     if trip.trip_id == NULL_ID {
                         None
                     } else {
-                        Some(construct_shape_for_ip_trip(self.gtfs, trip))
+                        let path = construct_shape_for_ip_trip(self.gtfs, trip);
+
+                        if path.0.len() <= 1 {
+                            log::warn!("Invalid path detected: {:?}", trip);
+                            None
+                        } else {
+                            Some(path)
+                        }
                     }
                 })
                 .collect(),
@@ -55,22 +62,6 @@ impl Display for TimeFormatter {
         let seconds = secs % 60;
 
         f.write_fmt(format_args!("{:02}:{:02}:{:02}", hours, minutes, seconds))
-    }
-}
-
-impl TryFrom<&str> for RouteType {
-    type Error = String;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "bus" => Ok(RouteType::Bus),
-            "tram" => Ok(RouteType::Tramway),
-            "subway" => Ok(RouteType::Subway),
-            "rail" => Ok(RouteType::Rail),
-            _ => {
-                log::warn!("Unknown route type: {}", value);
-                Err(format!("Unknown route type: {}", value))
-            },
-        }
     }
 }
 

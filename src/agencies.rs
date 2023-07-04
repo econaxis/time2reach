@@ -1,9 +1,9 @@
 use crate::gtfs_setup::initialize_gtfs_as_bson;
-use crate::gtfs_wrapper::Gtfs1;
+use gtfs_structure_2::gtfs_wrapper::Gtfs1;
 
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use serde::Serialize;
-use rustc_hash::FxHashMap;
 use std::str::FromStr;
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -154,7 +154,7 @@ pub fn agencies() -> Vec<&'static Agency> {
         AGENCY_TORONTO
             .iter()
             .filter(|x| x.city == City::Toronto)
-            .take(3)
+            .take(1)
             .collect()
     }
 }

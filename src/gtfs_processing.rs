@@ -1,14 +1,15 @@
-use crate::gtfs_wrapper::{Gtfs1, StopTime, Trip};
 use crate::projection::project_lng_lat;
 use crate::time::Time;
 use crate::web::LatLng;
-use crate::{projection, BusPickupInfo, IdType, NULL_ID};
+use crate::{projection, BusPickupInfo, NULL_ID};
+use gtfs_structure_2::gtfs_wrapper::{Gtfs1, StopTime, Trip};
+use gtfs_structure_2::IdType;
 use rstar::primitives::GeomWithData;
 use rstar::RTree;
-use std::collections::{BTreeSet, HashMap};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use rustc_hash::FxHashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeSet, HashMap};
+use std::hash::{Hash, Hasher};
 
 #[derive(Default, Debug)]
 pub struct RoutePickupTimes(pub FxHashMap<RouteStopSequence, BTreeSet<BusPickupInfo>>);
@@ -37,11 +38,15 @@ impl RoutePickupTimes {
         let route_stop_sequence = RouteStopSequence {
             route_id: trip.route_id,
             shape_id: trip.shape_id,
-            headsign_hash: trip.trip_headsign.as_ref().map(|x| {
-                let mut s = DefaultHasher::new();
-                x.hash(&mut s);
-                s.finish()
-            }).unwrap_or(0),
+            headsign_hash: trip
+                .trip_headsign
+                .as_ref()
+                .map(|x| {
+                    let mut s = DefaultHasher::new();
+                    x.hash(&mut s);
+                    s.finish()
+                })
+                .unwrap_or(0),
             direction: crate::direction_to_bool(&trip.direction_id.unwrap()),
         };
 

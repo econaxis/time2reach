@@ -1,6 +1,6 @@
 use crate::gtfs_processing::RouteStopSequence;
 use crate::time::Time;
-use crate::IdType;
+use gtfs_structure_2::IdType;
 use id_arena::Id;
 
 #[derive(Debug, Clone)]

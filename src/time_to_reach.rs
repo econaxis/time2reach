@@ -1,15 +1,18 @@
 use crate::configuration::Configuration;
 use crate::gtfs_processing::{RouteStopSequence, SpatialStopsWithTrips};
-use crate::gtfs_wrapper::StopTime;
 use crate::in_progress_trip::InProgressTrip;
 use crate::reach_data::ReachData;
 use crate::road_structure::RoadStructure;
 use crate::{
-    projection, BusPickupInfo, Gtfs1, IdType, TripsArena, MIN_TRANSFER_SECONDS, NULL_ID, STRAIGHT_WALKING_SPEED, TRANSIT_EXIT_PENALTY,
+    projection, BusPickupInfo, Gtfs1, TripsArena, MIN_TRANSFER_SECONDS, NULL_ID,
+    STRAIGHT_WALKING_SPEED, TRANSIT_EXIT_PENALTY,
 };
+use gtfs_structure_2::gtfs_wrapper::StopTime;
+use gtfs_structure_2::IdType;
+
+use chrono::Utc;
 use id_arena::Id;
 use rustc_hash::FxHashSet;
-use chrono::{Utc};
 
 use crate::time::Time;
 
@@ -211,7 +214,7 @@ fn explore_from_point(
             let is_valid_agency = config.agency_ids.contains(&route_info.route_id.0);
 
             if !is_valid_agency {
-                continue
+                continue;
             }
 
             // If the mode is allowed
@@ -229,14 +232,11 @@ fn explore_from_point(
             for next_bus in route_pickup.range(starting_buspickup..) {
                 debug_assert!(next_bus.timestamp >= this_timestamp);
 
-
                 let this_trip = &gtfs.trips[&next_bus.trip_id];
 
-
                 // If the service runs today
-                if !gtfs.calendar
-                    .runs_on_date(this_trip.service_id, today) {
-                    continue
+                if !gtfs.calendar.runs_on_date(this_trip.service_id, today) {
+                    continue;
                 }
 
                 let is_free_tranfer = this_trip.block_id.is_some()
@@ -249,8 +249,7 @@ fn explore_from_point(
                     ip.total_transfers + 1
                 };
 
-                if explore_queue.should_explore(next_bus)
-                {
+                if explore_queue.should_explore(next_bus) {
                     all_stops_along_trip(
                         gtfs,
                         next_bus.trip_id,
