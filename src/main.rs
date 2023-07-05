@@ -97,7 +97,7 @@ fn main1() {
 
 fn main() {
     env_logger::builder()
-        .parse_filters("debug,warp=info,hyper=info")
+        .parse_filters("debug,warp=info,hyper=info,h2=info")
         .parse_default_env()
         .init();
 

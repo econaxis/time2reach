@@ -1,11 +1,14 @@
 import { BG_WHITE_COLOR } from "./app"
 import { useEffect } from "preact/hooks"
+import track from "./analytics";
 
 export function WelcomePopup ({ acceptedPopupCallback }) {
     useEffect(() => {
         const storedData = localStorage.getItem('popup-accepted')
         if (storedData) {
             acceptedPopupCallback(true)
+        } else {
+            track("welcome-popup-shown", {})
         }
     }, [])
 

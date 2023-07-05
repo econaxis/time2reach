@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "preact/hooks"
 import mapboxgl, { type GeoJSONSource } from "mapbox-gl"
-import { TimeColorMapper } from "./colors"
+import { ColorLegend, TimeColorMapper } from "./colors"
 import { mvtUrl } from "./dev-api"
 import { getDetails } from "./get_data"
 import { DetailPopup, type TripDetailsTransit } from "./format-details"
 import { startingLocation } from "./app"
 import { Fragment } from "preact"
+import track from "./analytics"
 
-export const defaultColor = 'rgba(182,182,182,0.14)'
+export const defaultColor = "rgba(182,182,182,0.14)"
 
 const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
@@ -52,8 +53,8 @@ function addGeoJsonLayer (currentMap: mapboxgl.Map): GeoJSONSource {
             "line-cap": "butt"
         },
         paint: {
-            "line-color": ['get', 'color'],
-            "line-width": ['get', 'line_width'],
+            "line-color": ["get", "color"],
+            "line-width": ["get", "line_width"],
             "line-opacity": 0.7
         }
     })
@@ -63,17 +64,17 @@ function addGeoJsonLayer (currentMap: mapboxgl.Map): GeoJSONSource {
         type: "circle",
         source: "geojson-path",
         paint: {
-            "circle-color": ['get', 'color'],
+            "circle-color": ["get", "color"],
             "circle-radius": 5.2
         },
-        filter: ['==', '$type', 'Point']
+        filter: ["==", "$type", "Point"]
     })
 
     return currentMap.getSource("geojson-path") as GeoJSONSource
 }
 
-function bufferPoint(point: mapboxgl.Point): [mapboxgl.Point, mapboxgl.Point] {
-    const buffer = new mapboxgl.Point(5, 5);
+function bufferPoint (point: mapboxgl.Point): [mapboxgl.Point, mapboxgl.Point] {
+    const buffer = new mapboxgl.Point(5, 5)
     return [point.sub(buffer), point.add(buffer)]
 }
 
@@ -85,6 +86,7 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
         currentMap.on("dblclick", (e) => {
             e.preventDefault()
+            track("dblclick-map-origin-change", { location: e.lngLat.toString() })
             setLatLng(e.lngLat)
         })
 
@@ -112,6 +114,7 @@ function setupMapboxMap (currentMap: mapboxgl.Map, setLatLng: (latlng: mapboxgl.
 
                 const path: GeoJSON.Feature = detailResponse.path
 
+                track('hover-get-path', { location: e.lngLat.toString() })
                 if (path) {
                     console.log("Setting geojson data", path)
                     geojsonSource.setData(path)
@@ -142,6 +145,7 @@ export function MapboxMap ({
     const [map, setMap] = useState<mapboxgl.Map | null>(null)
     const [mapboxLoading, setMapboxLoading] = useState(true)
     const timeData = useRef<TimeColorMapper | null>(null)
+    const [timeDataState, setTimeDataState] = useState<any>(null)
     const mapContainer = useRef<HTMLElement | null>(null)
 
     const [detailPopup, setDetailPopup] = useState<any>(null)
@@ -156,9 +160,11 @@ export function MapboxMap ({
 
     const setDetailPopupInfo = (details, seconds) => {
         if (!details || !seconds) setDetailPopup(null)
-        else setDetailPopup({
-            details, seconds
-        })
+        else {
+            setDetailPopup({
+                details, seconds
+            })
+        }
     }
 
     useEffect(() => {
@@ -193,9 +199,9 @@ export function MapboxMap ({
         if (!map) return
 
         setSpinnerLoading(true)
-        console.log("Current options are", currentLatLng, currentOptions)
         TimeColorMapper.fetch(currentLatLng, currentOptions.startTime, currentOptions.duration, currentOptions.agencies, currentOptions.modes).then(data => {
             timeData.current = data
+            setTimeDataState(timeData.current)
 
             console.log("Setting paint property")
             map.setPaintProperty("transit-layer", "line-color", [
@@ -221,7 +227,10 @@ export function MapboxMap ({
 
     return <Fragment>
         {detailPopup ? <DetailPopup details={detailPopup.details} arrival_time={detailPopup.seconds} /> : null}
+
+        {timeDataState ? <ColorLegend tcm={timeDataState} currentHover={detailPopup?.seconds} /> : null}
+
         {/* @ts-expect-error ref and mapContainer doesn't match types */}
-        <div ref={mapContainer} className="map w-screen h-screen overflow-none"/>
+        <div ref={mapContainer} className="map w-screen h-screen overflow-none" />
     </Fragment>
 }

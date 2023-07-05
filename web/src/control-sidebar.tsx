@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks"
 import { TimeSlider } from "./time-slider"
 import { baseUrl } from "./dev-api"
 import { BG_WHITE_COLOR } from "./app"
+import track from "./analytics";
 
 interface Agency {
     agencyCode: string
@@ -165,12 +166,14 @@ export function ControlSidebar ({ setOptions, currentCity }) {
     }, [duration, startTime])
     const onAgencyChange = (agencies1: object) => {
         console.log("onAgencyChange")
+        track("agency-change", agencies1)
         agencies.current = agencies1
         triggerRefetch()
     }
 
     const onModeChange = (modes1: object) => {
         console.log("onModeChange")
+        track("mode-change", modes1)
         modes.current = modes1
         triggerRefetch()
     }

@@ -1,11 +1,14 @@
 import createColorMap from 'colormap'
 import type mapboxgl from 'mapbox-gl'
-import { baseUrl } from "./dev-api";
+import { baseUrl } from "./dev-api"
+import { BG_WHITE_COLOR } from "./app";
+import { formatDuration } from "./format-details";
+import { Header } from "./control-sidebar";
 
-const NSHADES = 300
+const NSHADES = 80
 export const cmap = createColorMap({
   alpha: 0.4,
-  colormap: 'portland',
+  colormap: 'temperature',
   format: 'hex',
   nshades: NSHADES
 })
@@ -20,11 +23,14 @@ export function getColor0To1 (value: number): string {
     console.log('invalid value', value)
   }
 
-  value = Math.sqrt(value)
-  value = mapper(value)
-
   value = 1 - value
-  return cmap[Math.trunc(value * NSHADES)]
+
+  let index = Math.trunc(value * NSHADES)
+
+  if (index >= cmap.length) index = cmap.length - 1
+  else if (index < 0) index = 0
+
+  return cmap[index]
 }
 
 function objectToTrueValues (obj: Record<string, boolean>): string[] {
@@ -99,4 +105,58 @@ export class TimeColorMapper {
       }
     }
   }
+}
+
+export interface ColorLegendProps {
+  tcm: TimeColorMapper
+  currentHover?: number
+}
+
+function Tick({lpercentage, noRotate, children}) {
+
+  const color = "rgb(38,38,38)"
+  return <div className="absolute left-0 inline-block" style={{left: lpercentage + "%"}}>
+    <span className="inline-block text-xs font-extralight" style={{transform: noRotate ? "" : "translate(-80%, -30%) rotate(45deg)"}}>{children}</span>
+    <svg width="0.5" height="4">
+      <rect x="0" y="0" width="0.5" height="4" fill={color} />
+    </svg>
+  </div>
+}
+
+function TickTriangle({lpercentage}) {
+  return <div className="absolute left-0 inline-block" style={{left: lpercentage + "%", transform: "translateY(9px)", transition: "transform 1s"}}>
+    <span className="inline-block text-md font-extralight">▼</span>
+  </div>
+}
+
+export function ColorLegend ({ tcm, currentHover }: ColorLegendProps) {
+  const numSteps = 12
+  const cssGradient = []
+
+  for (let i = 0; i <= numSteps; i++) {
+    const fraction = i / numSteps
+    const color = getColor0To1(fraction)
+    cssGradient.push(`${color} ${(fraction * 100).toFixed(1)}%`)
+  }
+
+  const spread = tcm.max - tcm.min;
+
+  const ticks: any[] = []
+  for (let i = 0; i <= spread + 1; i += 3600 * 0.5) {
+    const percentage = Math.round(i / spread * 100)
+    const duration = formatDuration(i);
+    const cleaned = duration.substring(1, 5);
+    ticks.push(<Tick key={i.toFixed(0)} lpercentage={percentage}>{cleaned}</Tick>)
+  }
+
+  if (currentHover) ticks.push(<TickTriangle key={"hover"} lpercentage={(currentHover - tcm.min) / spread * 100}/>)
+
+  const cssStyle = "linear-gradient(to right," + cssGradient.join(',') + ")"
+  return <div className={`${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 pb-5 pt-2 px-9 rounded-lg`} style={{width: 400}}>
+      <Header>Legend (Duration of Trip)</Header>
+      <div className="w-full m-auto mt-7 relative left-0 top-0" style={{height: '1.7rem'}}>
+        {ticks}
+      </div>
+      <div className="rounded-md w-full m-auto" style={{ background: cssStyle, height: "1.5rem" }}></div>
+  </div>
 }

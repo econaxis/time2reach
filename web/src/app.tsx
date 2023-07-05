@@ -9,7 +9,7 @@ import { MapboxMap } from "./mapbox-map"
 import { ControlSidebar } from "./control-sidebar"
 import { BlurBackground, WelcomePopup } from "./welcome-popup";
 
-export const BG_WHITE_COLOR = "bg-slate-200"
+export const BG_WHITE_COLOR = "bg-slate-50"
 
 const CITY_LOCATION = {
     Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),

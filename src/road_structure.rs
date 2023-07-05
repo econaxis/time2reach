@@ -21,7 +21,7 @@ use serde::ser::SerializeTuple;
 use crate::reach_data::ReachData;
 
 pub type EdgeId = u64;
-const MAX_WALKING_HOURS: f64 = 0.50;
+const MAX_WALKING_HOURS: f64 = 0.40;
 
 #[derive(Clone)]
 struct EdgeData {
@@ -241,8 +241,8 @@ impl RoadStructureInner {
         base_time: ReachData,
         node_best_times: &mut BestTimes<NodeId>,
     ) {
-        const EDGE_BASED_SEARCH: bool = false;
-        const WALKING_DISTANCE: f64 = if EDGE_BASED_SEARCH { 100.0 } else { 800.0 };
+        const EDGE_BASED_SEARCH: bool = true;
+        const WALKING_DISTANCE: f64 = if EDGE_BASED_SEARCH { 100.0 } else { 1100.0 };
         // Explore all reachable roads from a particular point
         let mut queue = VecDeque::new();
 
@@ -271,7 +271,7 @@ impl RoadStructureInner {
                 let set_time = rd.timestamp;
                 let time = node_best_times.get(&item).unwrap().timestamp;
                 if time != set_time {
-                    assert!(time < set_time);
+                    debug_assert!(time < set_time);
                     continue;
                 }
 

@@ -21,6 +21,8 @@ FROM chef as planner
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 COPY gtfs-structure gtfs-structure
+COPY gtfs-structure-2 gtfs-structure-2
+
 COPY src src
 
 RUN cargo chef prepare --recipe-path recipe.json
