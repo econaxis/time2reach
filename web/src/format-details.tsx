@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import { Fragment } from 'preact'
 import { Sidebar } from "./control-sidebar"
 
@@ -138,10 +140,15 @@ function format_walking_distance (length: number) {
     return `${Math.round(length / 10) * 10} meters`
 }
 
+export interface SmallSpanProps {
+    children: any
+    light?: boolean
+}
+
 function SmallSpan ({
     children,
     light
-}) {
+}: SmallSpanProps) {
     let className
     if (light) {
         className = 'text-xs text-gray-500'
@@ -190,15 +197,21 @@ export function DetailEntryWalking ({ detail }) {
     )
 }
 
+export interface DetailPopupProps {
+    details: TripDetailsTransit[]
+    arrival_time: number
+}
+
 export function DetailPopup ({
     details,
     arrival_time: arrivalTime
-}) {
+}: DetailPopupProps) {
+    let key_count = 0;
     const detailEntries = details.map((d) => {
         if (d.method === 'Walking') {
-            return <DetailEntryWalking detail={d}></DetailEntryWalking>
+            return <DetailEntryWalking key={key_count++} detail={d}></DetailEntryWalking>
         } else {
-            return <DetailEntryTransit detail={d}></DetailEntryTransit>
+            return <DetailEntryTransit key={key_count++} detail={d}></DetailEntryTransit>
         }
     })
 

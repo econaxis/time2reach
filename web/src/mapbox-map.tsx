@@ -148,7 +148,7 @@ export function MapboxMap ({
     const [timeDataState, setTimeDataState] = useState<any>(null)
     const mapContainer = useRef<HTMLElement | null>(null)
 
-    const [detailPopup, setDetailPopup] = useState<any>(null)
+    const [detailPopup, setDetailPopup] = useState<{ details: TripDetailsTransit[], seconds: number } | null>(null)
 
     const getTimeData = (): TimeColorMapper => {
         if (timeData.current != null) {
@@ -158,7 +158,7 @@ export function MapboxMap ({
         }
     }
 
-    const setDetailPopupInfo = (details, seconds) => {
+    const setDetailPopupInfo = (details: TripDetailsTransit[], seconds) => {
         if (!details || !seconds) setDetailPopup(null)
         else {
             setDetailPopup({
@@ -181,10 +181,7 @@ export function MapboxMap ({
             zoom: 12 // starting zoom
         })
         setMap(map)
-
-        const currentMap = map
-
-        setupMapboxMap(currentMap, setLatLng, getTimeData, () => {
+        setupMapboxMap(map, setLatLng, getTimeData, () => {
             setMapboxLoading(false)
         }, setDetailPopupInfo)
     }, [])
@@ -211,7 +208,8 @@ export function MapboxMap ({
             ])
 
             map.once("render", () => {
-                setSpinnerLoading(false)
+                // Takes roughly 300 ms for the map to update
+                setTimeout(() => setSpinnerLoading(false), 300)
             })
         }).catch(err => {
             console.error("Error in timecolormapper.fetch")

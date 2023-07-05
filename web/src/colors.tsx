@@ -4,6 +4,7 @@ import { baseUrl } from "./dev-api"
 import { BG_WHITE_COLOR } from "./app";
 import { formatDuration } from "./format-details";
 import { Header } from "./control-sidebar";
+import type { ComponentChildren } from "preact";
 
 const NSHADES = 80
 export const cmap = createColorMap({
@@ -13,10 +14,10 @@ export const cmap = createColorMap({
   nshades: NSHADES
 })
 
-function mapper (value: number): number {
-  value = 1.1 / (1 + Math.exp(-3 * (2 * value - 1.2))) - 0.03
-  return value
-}
+// function mapper (value: number): number {
+//   value = 1.1 / (1 + Math.exp(-3 * (2 * value - 1.2))) - 0.03
+//   return value
+// }
 
 export function getColor0To1 (value: number): string {
   if (value < 0 || value > 1) {
@@ -94,8 +95,7 @@ export class TimeColorMapper {
       let normalized = this.raw[id] - this.min
       normalized /= spread
 
-      if (normalized > 1.0) {
-      } else {
+      if (normalized <= 1.0) {
         const color = getColor0To1(normalized)
         if (color) {
           this.m[id] = color
@@ -112,26 +112,33 @@ export interface ColorLegendProps {
   currentHover?: number
 }
 
-function Tick({lpercentage, noRotate, children}) {
+export interface TickTriangleProps {
+  lpercentage: number
+}
 
+export interface TickProps extends TickTriangleProps {
+  children: ComponentChildren
+  noRotate?: boolean
+}
+function Tick ({ lpercentage, noRotate, children }: TickProps) {
   const color = "rgb(38,38,38)"
-  return <div className="absolute left-0 inline-block" style={{left: lpercentage + "%"}}>
-    <span className="inline-block text-xs font-extralight" style={{transform: noRotate ? "" : "translate(-80%, -30%) rotate(45deg)"}}>{children}</span>
+  return <div className="absolute left-0 inline-block" style={{ left: `${lpercentage}%` }}>
+    <span className="inline-block text-xs font-extralight" style={{ transform: noRotate ? "" : "translate(-80%, -30%) rotate(45deg)" }}>{children}</span>
     <svg width="0.5" height="4">
       <rect x="0" y="0" width="0.5" height="4" fill={color} />
     </svg>
   </div>
 }
 
-function TickTriangle({lpercentage}) {
-  return <div className="absolute left-0 inline-block" style={{left: lpercentage + "%", transform: "translateY(9px)", transition: "transform 1s"}}>
+function TickTriangle ({ lpercentage }: TickTriangleProps) {
+  return <div className="absolute left-0 inline-block" style={{ left: `${lpercentage}%`, transform: "translateY(9px)", transition: "transform 1s" }}>
     <span className="inline-block text-md font-extralight">▼</span>
   </div>
 }
 
 export function ColorLegend ({ tcm, currentHover }: ColorLegendProps) {
   const numSteps = 12
-  const cssGradient = []
+  const cssGradient: string[] = []
 
   for (let i = 0; i <= numSteps; i++) {
     const fraction = i / numSteps
@@ -152,9 +159,9 @@ export function ColorLegend ({ tcm, currentHover }: ColorLegendProps) {
   if (currentHover) ticks.push(<TickTriangle key={"hover"} lpercentage={(currentHover - tcm.min) / spread * 100}/>)
 
   const cssStyle = "linear-gradient(to right," + cssGradient.join(',') + ")"
-  return <div className={`${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 pb-5 pt-2 px-9 rounded-lg`} style={{width: 400}}>
+  return <div className={`${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 pb-5 pt-2 px-9 rounded-lg`} style={{ width: 400 }}>
       <Header>Legend (Duration of Trip)</Header>
-      <div className="w-full m-auto mt-7 relative left-0 top-0" style={{height: '1.7rem'}}>
+      <div className="w-full m-auto mt-7 relative left-0 top-0" style={{ height: '1.7rem' }}>
         {ticks}
       </div>
       <div className="rounded-md w-full m-auto" style={{ background: cssStyle, height: "1.5rem" }}></div>

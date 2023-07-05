@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import { formatDuration, formatTime } from "./format-details"
 import { Header } from "./control-sidebar"
 import track from "./analytics"
@@ -48,7 +48,7 @@ export function TimeSlider ({ duration, setDuration, startTime, setStartTime }) 
         <div className="mt-2">
             <Header>Time Settings</Header>
 
-            <TimeSliderInner duration={duration} setDuration={setDuration} formatFunc={formatDuration} min="1800" max="5400" text="Maximum duration of trip"/>
+            <TimeSliderInner duration={duration} setDuration={setDuration} formatFunc={formatDuration} min="1800" max="8100" text="Maximum trip duration"/>
             <TimeSliderInner duration={startTime} setDuration={setStartTime} formatFunc={formatTime} min="18000" max="104400" text="Starting time"/>
         </div>
     )

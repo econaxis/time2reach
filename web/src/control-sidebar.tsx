@@ -147,7 +147,7 @@ export function ControlSidebar ({ setOptions, currentCity }) {
     const agencies = useRef<object>(filtered)
     const modes = useRef<object>(MODES)
 
-    const [duration, setDuration] = useState(3600 * 1.5)
+    const [duration, setDuration] = useState(3600 * 1.0)
     const [startTime, setStartTime] = useState(17 * 3600 + 40 * 60)
 
     const triggerRefetch = () => {

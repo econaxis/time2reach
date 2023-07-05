@@ -88,7 +88,7 @@ fn process_coordinates(
         &mut rs,
         Configuration {
             start_time: Time(start_time as f64),
-            duration_secs: 3600.0 * 1.5,
+            duration_secs: 3600.0 * 2.0,
             location: LatLng {
                 latitude: lat,
                 longitude: lng,
