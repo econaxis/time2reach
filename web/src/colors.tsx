@@ -6,25 +6,46 @@ import { formatDuration } from "./format-details";
 import { Header } from "./control-sidebar";
 import type { ComponentChildren } from "preact";
 
-const NSHADES = 80;
-export const cmap = createColorMap({
-    alpha: 0.4,
-    colormap: "temperature",
-    format: "hex",
-    nshades: NSHADES,
-});
+function generateCmap(shades: number = 100): string[] {
+    const endFirstSlope = 8;
+    const SHADES = 120;
+    const firstSlope = 0.7 * SHADES / shades;
+    const cmap = createColorMap({
+        alpha: 0.4,
+        colormap: "temperature",
+        format: "hex",
+        nshades: SHADES + 1,
+    });
 
-// function mapper (value: number): number {
-//   value = 1.1 / (1 + Math.exp(-3 * (2 * value - 1.2))) - 0.03
-//   return value
-// }
+    const at = (index) => {
+        return cmap[cmap.length - Math.round(index)]
+    };
+
+    const answer: string[] = [];
+    let currentY = 0;
+    for (let i = 0; i < endFirstSlope; i++) {
+        currentY = i * firstSlope * SHADES / shades;
+        console.log("currentY", currentY)
+        answer.push(at(currentY));
+    }
+
+    const secondSlope = (SHADES - currentY) / (shades - endFirstSlope);
+
+    while (answer.length < shades) {
+        currentY += secondSlope;
+        console.log("currentY", currentY)
+        answer.push(at(currentY));
+    }
+    return answer;
+}
+
+const NSHADES = 80;
+export const cmap = generateCmap(NSHADES);
 
 export function getColor0To1(value: number): string {
     if (value < 0 || value > 1) {
         console.log("invalid value", value);
     }
-
-    value = 1 - value;
 
     let index = Math.trunc(value * NSHADES);
 
@@ -49,8 +70,8 @@ export class TimeColorMapper {
 
     constructor(requestId: object, edgeTimes: Record<string, number>, durationRange: number) {
         this.m = {};
-        this.min = 9999999999999;
-        this.max = -this.min;
+        this.min = Number.MAX_SAFE_INTEGER;
+        this.max = Number.MIN_SAFE_INTEGER;
         this.raw = {};
         this.request_id = 0;
 
