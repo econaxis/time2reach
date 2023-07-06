@@ -1,85 +1,84 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { Fragment } from 'preact'
-import { Sidebar } from "./control-sidebar"
+import { Fragment } from "preact";
+import { Sidebar } from "./control-sidebar";
 
-import { Bus, Train, Subway, Tram } from './svg-icons'
+import { Bus, Train, Subway, Tram } from "./svg-icons";
 
 interface TripDetailsInner {
-    time: number
-    line: number
-    stop: string
+    time: number;
+    line: number;
+    stop: string;
 }
 
 export interface TripDetailsTransit {
-    background_color: string
-    text_color: string
-    mode: string
-    boarding: TripDetailsInner
-    exit: TripDetailsInner
-    method: string
+    background_color: string;
+    text_color: string;
+    mode: string;
+    boarding: TripDetailsInner;
+    exit: TripDetailsInner;
+    method: string;
 }
 
 export interface TripDetailsWalking {
-    method: string
-    time: number
-    length: number
+    method: string;
+    time: number;
+    length: number;
 }
 
-export type TripDetails = TripDetailsTransit | TripDetailsWalking
+export type TripDetails = TripDetailsTransit | TripDetailsWalking;
 
-function toTitleCase (str: string): string {
+function toTitleCase(str: string): string {
     return str
         .toLowerCase()
         .split(/[\s()-/]/)
         .map(function (word) {
-            return word.charAt(0).toUpperCase() + word.slice(1)
+            return word.charAt(0).toUpperCase() + word.slice(1);
         })
-        .join(' ')
+        .join(" ");
 }
 
-function formatPearsonAirport (str: string): string {
-    const regex = /(PEARSON AIRPORT TERMINAL \d+)/
+function formatPearsonAirport(str: string): string {
+    const regex = /(PEARSON AIRPORT TERMINAL \d+)/;
 
-    const match = str.match(regex)
-    let station = str
-    if (match) {
-        station = match[1]
+    const match = str.match(regex);
+    let station = str;
+    if (match != null) {
+        station = match[1];
     }
-    return station
+    return station;
 }
 
-function formatStop (str: string): string {
-    const regex =
-        /([\w.\s]+) Station - (\bNorth|\bEast|\bSouth|\bWest)bound Platform/g
+function formatStop(str: string): string {
+    const regex = /([\w.\s]+) Station - (\bNorth|\bEast|\bSouth|\bWest)bound Platform/g;
 
-    const match = str.match(regex)
-    let station = str
-    if (match) {
-        const stationName = match[0]
-        station = `${stationName} Station`
+    const match = str.match(regex);
+    let station = str;
+    if (match != null) {
+        const stationName = match[0];
+        station = `${stationName} Station`;
     }
 
-    station = formatPearsonAirport(station)
+    station = formatPearsonAirport(station);
 
-    return toTitleCase(station)
+    return toTitleCase(station);
 }
 
-export function formatDuration (secs: number): string {
-    return new Date(secs * 1000).toISOString().substring(11, 19)
+export function formatDuration(secs: number): string {
+    return new Date(secs * 1000).toISOString().substring(11, 19);
 }
 
-export function formatTime (secs: number): string {
-    const t = new Date((secs % (12 * 3600)) * 1000).toISOString().substring(11, 16)
-    const ampm = secs >= 12 * 3600
-    const nextday = secs >= 24 * 3600
+export function formatTime(secs: number): string {
+    const t = new Date((secs % (12 * 3600)) * 1000).toISOString().substring(11, 16);
+    const ampm = secs >= 12 * 3600;
+    const nextday = secs >= 24 * 3600;
 
     if (nextday) {
-        return t + " am (next day)"
+        return t + " am (next day)";
     } else if (ampm) {
-        return t + " pm"
+        return t + " pm";
     } else {
-        return t + " am"
+        return t + " am";
     }
 }
 
@@ -91,100 +90,92 @@ export function formatTime (secs: number): string {
 // }
 
 const SVG_ICONS = {
-    bus: <Bus style={{ display: 'inline', width: '12px', height: '12px' }}/>,
-    tram: <Tram style={{ display: 'inline', width: '12px', height: '12px' }}/>,
-    train: <Train style={{ display: 'inline', width: '12px', height: '12px' }}/>,
-    subway: <Subway style={{ display: 'inline', width: '12px', height: '12px' }}/>
-}
+    bus: <Bus style={{ display: "inline", width: "12px", height: "12px" }} />,
+    tram: <Tram style={{ display: "inline", width: "12px", height: "12px" }} />,
+    train: <Train style={{ display: "inline", width: "12px", height: "12px" }} />,
+    subway: <Subway style={{ display: "inline", width: "12px", height: "12px" }} />,
+};
 
-function ModeIcon ({
-        mode,
-        boarding,
-        background_color,
-        text_color
-    }
-) {
-    const icon = SVG_ICONS[mode]
+function ModeIcon({ mode, boarding, background_color, text_color }) {
+    const icon = SVG_ICONS[mode];
 
     const styleString = {
-        'background-color': background_color,
-        color: text_color
-    }
+        "background-color": background_color,
+        color: text_color,
+    };
 
-    let inner
-    if (boarding.line.trim() === '') {
-        inner = <Fragment>{icon}</Fragment>
+    let inner;
+    if (boarding.line.trim() === "") {
+        inner = <Fragment>{icon}</Fragment>;
     } else {
-        inner = <Fragment>
-            {icon} {boarding.line.trim()}
-        </Fragment>
+        inner = (
+            <Fragment>
+                {icon} {boarding.line.trim()}
+            </Fragment>
+        );
     }
 
-    return <span className="rounded p-0.5 px-1" style={styleString}>
-        {inner}
-    </span>
+    return (
+        <span className="rounded p-0.5 px-1" style={styleString}>
+            {inner}
+        </span>
+    );
 }
 
-function formatWalkingDuration (secs: number) {
-    const minutes = Math.floor(secs / 60)
-    const seconds = Math.round(secs % 60)
+function formatWalkingDuration(secs: number) {
+    const minutes = Math.floor(secs / 60);
+    const seconds = Math.round(secs % 60);
 
     if (minutes === 0) {
-        return `${seconds}s`
+        return `${seconds}s`;
     } else {
-        return `${minutes}m${seconds}s`
+        return `${minutes}m${seconds}s`;
     }
 }
 
-function format_walking_distance (length: number) {
-    return `${Math.round(length / 10) * 10} meters`
+function format_walking_distance(length: number) {
+    return `${Math.round(length / 10) * 10} meters`;
 }
 
 export interface SmallSpanProps {
-    children: any
-    light?: boolean
+    children: any;
+    light?: boolean;
 }
 
-function SmallSpan ({
-    children,
-    light
-}: SmallSpanProps) {
-    let className
+function SmallSpan({ children, light }: SmallSpanProps) {
+    let className;
     if (light) {
-        className = 'text-xs text-gray-500'
+        className = "text-xs text-gray-500";
     } else {
-        className = 'text-xs text-gray-800'
+        className = "text-xs text-gray-800";
     }
-    return <span className={className}>{children}</span>
+    return <span className={className}>{children}</span>;
 }
 
-export function DetailEntryTransit ({ detail }) {
-    console.assert(detail.method === 'Transit')
+export function DetailEntryTransit({ detail }) {
+    console.assert(detail.method === "Transit");
 
     return (
         <div className="px-1 my-2 border-l-red-200 border-l-4 rounded font-medium">
             <div>
                 <SmallSpan>
-                    <ModeIcon{...detail}></ModeIcon>&nbsp;
+                    <ModeIcon {...detail}></ModeIcon>&nbsp;
                     {formatStop(detail.boarding.stop)}
-                </SmallSpan>&nbsp;
-                <SmallSpan light>
-                    {formatDuration(detail.boarding.time)}
                 </SmallSpan>
+                &nbsp;
+                <SmallSpan light>{formatDuration(detail.boarding.time)}</SmallSpan>
             </div>
             <div>
                 <SmallSpan>Exit at {formatStop(detail.exit.stop)}</SmallSpan>
                 &nbsp;
-                <SmallSpan light>
-                    {formatDuration(detail.exit.time)}
-                </SmallSpan>
+                <SmallSpan light>{formatDuration(detail.exit.time)}</SmallSpan>
             </div>
         </div>
-    )
+    );
 }
 
-export function DetailEntryWalking ({ detail }) {
-    console.assert(detail.method === 'Walking')
+export function DetailEntryWalking({ detail }) {
+    console.assert(detail.method === "Walking");
     return (
         <div className="px-1 my-2 border-l-gray-200 border-l-4 rounded font-medium">
             <div>
@@ -194,35 +185,30 @@ export function DetailEntryWalking ({ detail }) {
                 </SmallSpan>
             </div>
         </div>
-    )
+    );
 }
 
 export interface DetailPopupProps {
-    details: TripDetailsTransit[]
-    arrival_time: number
+    details: TripDetailsTransit[];
+    arrival_time: number;
 }
 
-export function DetailPopup ({
-    details,
-    arrival_time: arrivalTime
-}: DetailPopupProps) {
+export function DetailPopup({ details, arrival_time: arrivalTime }: DetailPopupProps) {
     let key_count = 0;
     const detailEntries = details.map((d) => {
-        if (d.method === 'Walking') {
-            return <DetailEntryWalking key={key_count++} detail={d}></DetailEntryWalking>
+        if (d.method === "Walking") {
+            return <DetailEntryWalking key={key_count++} detail={d}></DetailEntryWalking>;
         } else {
-            return <DetailEntryTransit key={key_count++} detail={d}></DetailEntryTransit>
+            return <DetailEntryTransit key={key_count++} detail={d}></DetailEntryTransit>;
         }
-    })
+    });
 
     return (
-        <Sidebar
-            positioning="bottom-0 right-0 absolute z-50"
-        zi={100}>
+        <Sidebar positioning="bottom-0 right-0 absolute z-50" zi={100}>
             {detailEntries}
             <p className="mt-2 ml-1 text-xs font-bold">
                 Arrival time: {formatDuration(arrivalTime)}
             </p>
         </Sidebar>
-    )
+    );
 }

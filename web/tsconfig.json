@@ -26,7 +26,8 @@
     "jsxImportSource": "preact"
   },
   "include": [
-    "src"
+    "src",
+    "main.tsx"
   ],
   "references": [
     {
