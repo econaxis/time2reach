@@ -55,7 +55,10 @@ export function TimeSlider({ duration, setDuration, startTime, setStartTime }) {
             <TimeSliderInner
                 duration={duration}
                 setDuration={setDuration}
-                formatFunc={formatDuration}
+                formatFunc={(duration) => {
+                    // 00:44:26
+                    return formatDuration(duration).substring(0, 5)
+                }}
                 min="1800"
                 max="8100"
                 text="Maximum trip duration"

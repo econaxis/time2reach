@@ -6,7 +6,7 @@ import { formatDuration } from "./format-details";
 import { Header } from "./control-sidebar";
 import type { ComponentChildren } from "preact";
 
-function generateCmap(shades: number = 100): string[] {
+function generateCmap(shades: number): string[] {
     const endFirstSlope = 8;
     const SHADES = 120;
     const firstSlope = 0.7 * SHADES / shades;
@@ -18,14 +18,13 @@ function generateCmap(shades: number = 100): string[] {
     });
 
     const at = (index) => {
-        return cmap[cmap.length - Math.round(index)]
+        return cmap[cmap.length - Math.round(index) - 1]
     };
 
     const answer: string[] = [];
     let currentY = 0;
     for (let i = 0; i < endFirstSlope; i++) {
         currentY = i * firstSlope * SHADES / shades;
-        console.log("currentY", currentY)
         answer.push(at(currentY));
     }
 
@@ -33,7 +32,6 @@ function generateCmap(shades: number = 100): string[] {
 
     while (answer.length < shades) {
         currentY += secondSlope;
-        console.log("currentY", currentY)
         answer.push(at(currentY));
     }
     return answer;
@@ -184,7 +182,7 @@ function TickTriangle({ lpercentage }: TickTriangleProps) {
 }
 
 export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
-    const numSteps = 12;
+    const numSteps = 10;
     const cssGradient: string[] = [];
 
     for (let i = 0; i <= numSteps; i++) {

@@ -28,7 +28,8 @@
         "@typescript-eslint/semi": "off",
         "multiline-ternary": "off",
         "@typescript-eslint/comma-dangle": "off",
-        "@typescript-eslint/indent": "off"
+        "@typescript-eslint/indent": "off",
+        "@typescript-eslint/space-before-function-paren": ["error", "never"]
     },
     "settings": {}
 }
