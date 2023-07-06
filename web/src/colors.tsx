@@ -5,17 +5,25 @@ import { BG_WHITE_COLOR } from "./app";
 import { formatDuration } from "./format-details";
 import { Header } from "./control-sidebar";
 import type { ComponentChildren } from "preact";
+import { useRef } from "preact/hooks";
 
 function generateCmap(shades: number): string[] {
+    return createColorMap({
+            alpha: 0.4,
+            colormap: "temperature",
+            format: "hex",
+            nshades: shades,
+        }).reverse();
+
     const endFirstSlope = 8;
     const SHADES = 120;
     const firstSlope = 0.7 * SHADES / shades;
-    const cmap = createColorMap({
-        alpha: 0.4,
-        colormap: "temperature",
-        format: "hex",
-        nshades: SHADES + 1,
-    });
+    // const cmap = createColorMap({
+    //     alpha: 0.4,
+    //     colormap: "temperature",
+    //     format: "hex",
+    //     nshades: SHADES + 1,
+    // });
 
     const at = (index) => {
         return cmap[cmap.length - Math.round(index) - 1]
@@ -42,7 +50,7 @@ export const cmap = generateCmap(NSHADES);
 
 export function getColor0To1(value: number): string {
     if (value < 0 || value > 1) {
-        console.log("invalid value", value);
+        return "rgba(72,31,2,0.49)";
     }
 
     let index = Math.trunc(value * NSHADES);
@@ -66,7 +74,7 @@ export class TimeColorMapper {
     max: number;
     request_id: any;
 
-    constructor(requestId: object, edgeTimes: Record<string, number>, durationRange: number) {
+    constructor(requestId: object, edgeTimes: Record<string, number>, durationRange: number, minDuration: number) {
         this.m = {};
         this.min = Number.MAX_SAFE_INTEGER;
         this.max = Number.MIN_SAFE_INTEGER;
@@ -81,6 +89,8 @@ export class TimeColorMapper {
         this.request_id = requestId;
 
         this.max = this.min + durationRange;
+
+        this.min += minDuration;
         this.calculate_colors();
     }
 
@@ -89,7 +99,8 @@ export class TimeColorMapper {
         startTime: number,
         durationRange: number,
         agencies: Record<string, boolean>,
-        modes: Record<string, boolean>
+        modes: Record<string, boolean>,
+        minDuration: number,
     ): Promise<TimeColorMapper> {
         const body = {
             latitude: location.lat,
@@ -97,6 +108,7 @@ export class TimeColorMapper {
             agencies: objectToTrueValues(agencies),
             modes: objectToTrueValues(modes),
             startTime,
+            maxSearchTime: durationRange
         };
 
         const data = await fetch(`${baseUrl}/hello/`, {
@@ -112,7 +124,7 @@ export class TimeColorMapper {
 
         const { request_id: requestId, edge_times: edgeTimes } = js;
 
-        return new TimeColorMapper(requestId, edgeTimes, durationRange);
+        return new TimeColorMapper(requestId, edgeTimes, durationRange, minDuration);
     }
 
     calculate_colors(): void {
@@ -135,17 +147,17 @@ export class TimeColorMapper {
 }
 
 export interface ColorLegendProps {
-    tcm: TimeColorMapper;
-    currentHover?: number;
+    tcm: TimeColorMapper
+    currentHover?: number
 }
 
 export interface TickTriangleProps {
-    lpercentage: number;
+    lpercentage: number
 }
 
 export interface TickProps extends TickTriangleProps {
-    children: ComponentChildren;
-    noRotate?: boolean;
+    children: ComponentChildren
+    noRotate?: boolean
 }
 function Tick({ lpercentage, noRotate, children }: TickProps) {
     const color = "rgb(38,38,38)";
@@ -172,16 +184,19 @@ function TickTriangle({ lpercentage }: TickTriangleProps) {
             className="absolute left-0 inline-block"
             style={{
                 left: `${lpercentage}%`,
-                transform: "translateY(9px)",
-                transition: "transform 1s",
+                transform: "translateY(7px)",
+                transition: 'all 600ms ease',
+                transitionProperty: 'left'
             }}
         >
-            <span className="inline-block text-md font-extralight">▼</span>
+            <span className="inline-block text-lg font-extralight">▼</span>
         </div>
     );
 }
 
 export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
+    const lastTick = useRef<any>(null);
+
     const numSteps = 10;
     const cssGradient: string[] = [];
 
@@ -206,9 +221,12 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
     }
 
     if (currentHover) {
+        lastTick.current = <TickTriangle key={"hover"} lpercentage={((currentHover - tcm.min) / spread) * 100} />;
         ticks.push(
-            <TickTriangle key={"hover"} lpercentage={((currentHover - tcm.min) / spread) * 100} />
+            lastTick.current
         );
+    } else if (lastTick.current) {
+        ticks.push(lastTick.current)
     }
 
     const cssStyle = "linear-gradient(to right," + cssGradient.join(",") + ")";

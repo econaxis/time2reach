@@ -10,6 +10,7 @@ use crate::{
 use gtfs_structure_2::gtfs_wrapper::StopTime;
 use gtfs_structure_2::IdType;
 
+use crate::agencies::City;
 use chrono::Utc;
 use id_arena::Id;
 use rustc_hash::FxHashSet;
@@ -87,7 +88,7 @@ pub fn generate_reach_times(
         trip_id: NULL_ID,
         boarding_time: config.start_time,
         exit_time: config.start_time,
-        point: projection::project_lng_lat(location.longitude, location.latitude),
+        point: projection::project_lng_lat(rs.city(), location.longitude, location.latitude),
         current_route: RouteStopSequence::default(),
         get_off_stop_id: NULL_ID,
         total_transfers: 0,
@@ -120,7 +121,8 @@ pub fn generate_reach_times(
                 walking_length: 0.0,
             },
         );
-        explore_from_point(gtfs, data, item, id, &mut rs.trips_arena, &config);
+        let city = *rs.city();
+        explore_from_point(&city, gtfs, data, item, id, &mut rs.trips_arena, &config);
     }
 }
 
@@ -134,6 +136,7 @@ fn get_stop_from_stop_seq_no(stop_times: &[StopTime], stop_sequence_no: u16) -> 
 }
 
 fn all_stops_along_trip(
+    city: &City,
     gtfs: &Gtfs1,
     trip_id: IdType,
     start_sequence_no: u16,
@@ -152,7 +155,7 @@ fn all_stops_along_trip(
 
     for (_stops_travelled, st) in stop_times[stop_time_index + 1..].iter().enumerate() {
         let stop = &gtfs.stops[&st.stop_id];
-        let point = projection::project_stop(stop);
+        let point = projection::project_stop(city, stop);
         let timestamp = st.arrival_time.unwrap();
 
         let current_inprogress_trip = InProgressTrip {
@@ -181,6 +184,7 @@ fn all_stops_along_trip(
 }
 
 fn explore_from_point(
+    city: &City,
     gtfs: &Gtfs1,
     data: &SpatialStopsWithTrips,
     ip: InProgressTrip,
@@ -251,6 +255,7 @@ fn explore_from_point(
 
                 if explore_queue.should_explore(next_bus) {
                     all_stops_along_trip(
+                        city,
                         gtfs,
                         next_bus.trip_id,
                         next_bus.stop_sequence_no,
@@ -263,7 +268,6 @@ fn explore_from_point(
                     );
                     routes_already_taken.insert(route_info.clone());
                     break;
-                } else {
                 }
             }
         }

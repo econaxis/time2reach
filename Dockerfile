@@ -34,14 +34,18 @@ COPY --from=planner /app/recipe.json recipe.json
 # Build dependencies - this is the caching Docker layer!
 RUN cargo chef cook --release --recipe-path recipe.json --features prod
 # Build application
-COPY . .
+COPY src src
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
+COPY gtfs-structure gtfs-structure
+COPY gtfs-structure-2 gtfs-structure-2
 RUN cargo build --release --features prod
 
 FROM base AS run
 WORKDIR /app
-COPY --from=builder /app/city-gtfs /app/city-gtfs
-COPY --from=builder /app/certificates /app/certificates
-COPY --from=builder /app/web/public /app/web/public
+COPY city-gtfs /app/city-gtfs
+COPY certificates /app/certificates
+COPY web/public /app/web/public
 COPY --from=builder /app/target/release/timetoreach /app/target/release/timetoreach
 
 

@@ -24,7 +24,7 @@ impl CityAppData {
             gtfs,
             spatial,
             rs_template: Arc::new(rs),
-            rs_list: RwLock::new(RoadStructureList::new(20)),
+            rs_list: RwLock::new(RoadStructureList::new(350)),
         }
     }
 }
@@ -46,8 +46,8 @@ impl RoadStructureList {
         self.counter
     }
 
-    pub fn pre_get(&mut self, key: usize) {
-        self.inner.get(&key);
+    pub fn promote(&mut self, key: usize) {
+        self.inner.promote(&key);
     }
     pub fn get(&self, key: usize) -> Option<&RoadStructure> {
         self.inner.peek(&key)

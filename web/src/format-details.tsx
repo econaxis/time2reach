@@ -69,7 +69,13 @@ export function formatDuration(secs: number): string {
 }
 
 export function formatTime(secs: number): string {
-    const t = new Date((secs % (12 * 3600)) * 1000).toISOString().substring(11, 16);
+    let mod_secs;
+    if (secs > 12 * 3600 && secs < 13 * 3600) {
+        mod_secs = secs;
+    } else {
+        mod_secs = secs % (12 * 3600)
+    }
+    const t = new Date(mod_secs * 1000).toISOString().substring(11, 16);
     const ampm = secs >= 12 * 3600;
     const nextday = secs >= 24 * 3600;
 

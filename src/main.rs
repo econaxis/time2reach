@@ -23,19 +23,21 @@ mod web;
 mod web_app_data;
 mod web_cache;
 
+#[macro_use]
+pub(crate) mod cache_function;
+
 use gtfs_structure_2::gtfs_wrapper::DirectionType;
 
 use rustc_hash::FxHashSet;
-use std::hash::Hash;
 
 use gtfs_structure_2::IdType;
 use std::time::Instant;
+use tokio::runtime;
 
-use crate::projection::PROJSTRING;
 use crate::road_structure::RoadStructure;
 use crate::web::LatLng;
 use configuration::Configuration;
-use gtfs_structure_2::gtfs_wrapper::{Gtfs0, Gtfs1};
+use gtfs_structure_2::gtfs_wrapper::Gtfs1;
 
 use crate::agencies::City;
 use crate::formatter::time_to_point;
@@ -43,9 +45,9 @@ use time::Time;
 use trips_arena::TripsArena;
 
 const WALKING_SPEED: f64 = 1.42;
-const STRAIGHT_WALKING_SPEED: f64 = 1.30;
-pub const MIN_TRANSFER_SECONDS: f64 = 5.0;
-pub const TRANSIT_EXIT_PENALTY: f64 = 15.0;
+const STRAIGHT_WALKING_SPEED: f64 = 1.25;
+pub const MIN_TRANSFER_SECONDS: f64 = 10.0;
+pub const TRANSIT_EXIT_PENALTY: f64 = 30.0;
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
@@ -64,9 +66,9 @@ fn direction_to_bool(d: &DirectionType) -> bool {
 
 fn main1() {
     let gtfs = setup_gtfs();
-    let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&gtfs);
+    let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&City::Toronto, &gtfs);
 
-    let mut rs = RoadStructure::new();
+    let mut rs = RoadStructure::new_toronto();
     let time = Instant::now();
     for _ in 0..40 {
         rs.clear_data();
@@ -97,13 +99,18 @@ fn main1() {
 
 fn main() {
     env_logger::builder()
-        .parse_filters("debug,warp=info,hyper=info,h2=info")
+        // .parse_filters("info,timetoreach=debug,warp=debug,hyper=info,h2=info")
+        .parse_filters("debug")
         .parse_default_env()
         .init();
 
     if false {
         main1();
     } else {
+        // let rt = runtime::Builder::new_multi_thread()
+        //     .worker_threads(4)
+        //     .build()
+        //     .unwrap();
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             web::main().await;

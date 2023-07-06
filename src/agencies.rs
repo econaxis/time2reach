@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
 
-#[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum City {
     #[serde(rename = "New York City")]
     NewYorkCity,
@@ -33,6 +33,16 @@ impl FromStr for City {
 }
 
 impl City {
+    pub fn get_city_center(&self) -> [f64; 2] {
+        let coords = match self {
+            City::NewYorkCity => (40.7128, -74.0060), // Center location of New York City (latitude, longitude)
+            City::Vancouver => (49.2827, -123.1207), // Center location of Vancouver (latitude, longitude)
+            City::Toronto => (43.6532, -79.3832), // Center location of Toronto (latitude, longitude)
+            City::Montreal => (45.5017, -73.5673), // Center location of Montreal (latitude, longitude)
+        };
+
+        [coords.0, coords.1]
+    }
     pub fn get_gpkg_path(&self) -> &'static str {
         match self {
             City::NewYorkCity => "NewYorkCity",

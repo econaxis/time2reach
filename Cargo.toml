@@ -24,6 +24,7 @@ geojson = "0.24.1"
 rkyv = {version = "0.7.42", features=["validation"]}
 tokio = {version="1.28.2", features=["full"]}
 
+futures = "0.3.28"
 env_logger = "0.10.0"
 rustc-hash = "1.1.0"
 [workspace]

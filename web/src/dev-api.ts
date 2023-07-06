@@ -1,7 +1,8 @@
 // export const baseUrl: string = "http://localhost:3030"
 // const apiUrl: string = "https://vx18yjnxac.execute-api.us-east-1.amazonaws.com/dev"
 
-export const LOCAL_API: boolean = import.meta.env.MODE === "development" && false;
+export const IS_LOCAL = import.meta.env.MODE === "development";
+export const LOCAL_API: boolean = import.meta.env.MODE === "development";
 
 // const apiUrl: string = "https://d12zadp3znyab3.cloudfront.net"
 // const apiUrl: string =
@@ -11,10 +12,10 @@ export const LOCAL_API: boolean = import.meta.env.MODE === "development" && fals
 // export const baseUrl: string = LOCAL_API ? "http://localhost:3030" : apiUrl
 export const baseUrl: string = LOCAL_API
     ? "http://127.0.0.1:3030"
-    : "https://time2reach.duckdns.org";
+    : "https://api-map.henryn.xyz";
 export const mvtUrl: string = LOCAL_API
     ? "http://127.0.0.1:3030/mvt"
-    : "https://time2reach.duckdns.org/mvt";
+    : "https://api-map.henryn.xyz/mvt";
 // export const mvtUrl: string = LOCAL_API ? 'http://127.0.0.1:6767' : apiUrl
 
 // @ts-expect-error window

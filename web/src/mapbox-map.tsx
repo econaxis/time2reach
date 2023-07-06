@@ -75,7 +75,7 @@ function addGeoJsonLayer(currentMap: mapboxgl.Map): GeoJSONSource {
 }
 
 function bufferPoint(point: mapboxgl.Point): [mapboxgl.Point, mapboxgl.Point] {
-    const buffer = new mapboxgl.Point(5, 5);
+    const buffer = new mapboxgl.Point(3, 3);
     return [point.sub(buffer), point.add(buffer)];
 }
 
@@ -91,6 +91,18 @@ function setupMapboxMap(
 
         const geojsonSource = addGeoJsonLayer(currentMap);
 
+        const removeHoverDetails = () => {
+            currentMap.getCanvas().style.cursor = "";
+            geojsonSource.setData(EMPTY_GEOJSON);
+            setDetailPopupInfo(null, null);
+        };
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                removeHoverDetails();
+            }
+        })
+
         currentMap.on("dblclick", (e) => {
             e.preventDefault();
             track("dblclick-map-origin-change", {
@@ -100,9 +112,9 @@ function setupMapboxMap(
         });
 
         const hoverCallback = (e) => {
-            const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point));
+            const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point), {layers: ["transit-layer"]});
             if (nearbyFeatures.length === 0) {
-                console.log("no nearby features found");
+                if (e.type === "click") removeHoverDetails();
                 return;
             }
 
@@ -130,13 +142,10 @@ function setupMapboxMap(
                     throw e;
                 });
         };
+
         currentMap.on("mouseover", "transit-layer", hoverCallback);
-        currentMap.on("click", "transit-layer", hoverCallback);
-        currentMap.on("mouseleave", "transit-layer", () => {
-            currentMap.getCanvas().style.cursor = "";
-            geojsonSource.setData(EMPTY_GEOJSON);
-            setDetailPopupInfo(null, null);
-        });
+        currentMap.on("click", hoverCallback);
+        currentMap.on("mouseleave", "transit-layer", removeHoverDetails);
 
         doneCallback();
     });
@@ -153,13 +162,11 @@ async function setAndColorNewOriginLocation(
         currentOptions.startTime,
         currentOptions.duration,
         currentOptions.agencies,
-        currentOptions.modes
+        currentOptions.modes,
+        currentOptions.minDuration
     );
 
-    console.log("Setting paint property");
-
     let shouldRetry = false;
-
     const errHandler = (err) => {
         if (
             err.error.message.includes(" does not exist in the map's style and cannot be styled.")

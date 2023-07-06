@@ -1,3 +1,4 @@
+use crate::agencies::City;
 use crate::projection::project_lng_lat;
 use crate::time::Time;
 use crate::web::LatLng;
@@ -8,7 +9,7 @@ use rstar::primitives::GeomWithData;
 use rstar::RTree;
 use rustc_hash::FxHashMap;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use std::hash::{Hash, Hasher};
 
 #[derive(Default, Debug)]
@@ -77,8 +78,8 @@ pub struct StopsData {
 pub struct SpatialStopsWithTrips(pub RTree<GeomWithData<[f64; 2], StopsData>>);
 
 impl SpatialStopsWithTrips {
-    pub fn is_near_point(&self, point: LatLng) -> bool {
-        let xy = project_lng_lat(point.longitude, point.latitude);
+    pub fn is_near_point(&self, city: &City, point: LatLng) -> bool {
+        let xy = project_lng_lat(city, point.longitude, point.latitude);
         self.0
             .locate_within_distance(xy, 1000.0 * 1000.0)
             .next()
@@ -96,12 +97,12 @@ impl StopsWithTrips {
             self.0.insert(stop_time.stop_id, rp);
         }
     }
-    pub fn into_spatial(self, gtfs: &Gtfs1) -> SpatialStopsWithTrips {
+    pub fn into_spatial(self, city: &City, gtfs: &Gtfs1) -> SpatialStopsWithTrips {
         let mut points_data = Vec::new();
 
         for (stop_id, trips_with_time) in self.0 {
             let stop = &gtfs.stops[&stop_id];
-            let stop_coords = projection::project_stop(stop);
+            let stop_coords = projection::project_stop(city, stop);
 
             let stops_data = StopsData {
                 trips_with_time,

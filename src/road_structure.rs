@@ -1,4 +1,4 @@
-use crate::{TripsArena, PROJSTRING, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
+use crate::{TripsArena, STRAIGHT_WALKING_SPEED, WALKING_SPEED};
 use gdal::vector::LayerAccess;
 use gdal::{Dataset, DatasetOptions, GdalOpenFlags};
 use geo_types::Point;
@@ -8,13 +8,14 @@ use rstar::primitives::GeomWithData;
 use rstar::{PointDistance, RTree};
 use rustc_hash::FxHashMap;
 use serde::{Serialize, Serializer};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 use log::info;
 use std::sync::{Arc, Mutex};
 
 use crate::agencies::City;
 use crate::best_times::BestTimes;
+use crate::projection::get_proj_defn;
 use crate::time::Time;
 use serde::ser::SerializeTuple;
 
@@ -80,6 +81,7 @@ pub struct RoadStructureInner {
     nodes_rtree_cache: Mutex<FxHashMap<IdType, NodeId>>,
     nodes: FxHashMap<NodeId, NodeEdges>,
     edges: FxHashMap<EdgeId, EdgeData>,
+    city: City,
 }
 
 pub struct RoadStructure {
@@ -89,6 +91,9 @@ pub struct RoadStructure {
 }
 
 impl RoadStructure {
+    pub fn city(&self) -> &City {
+        &self.rs.city
+    }
     pub fn clear_data(&mut self) {
         self.nb.clear();
         self.trips_arena = TripsArena::default();
@@ -107,7 +112,7 @@ impl RoadStructure {
     pub fn add_observation(&mut self, point: &[f64; 2], data: ReachData) {
         self.rs.explore_from_point(point, data, &mut self.nb);
     }
-    pub fn new() -> Self {
+    pub fn new_toronto() -> Self {
         Self {
             rs: Arc::new(RoadStructureInner::new(City::Toronto)),
             nb: BestTimes::new(),
@@ -247,7 +252,7 @@ impl RoadStructureInner {
         let mut queue = VecDeque::new();
 
         for closest_node in
-            self.distance_nearest_nodes_to_point(point.clone(), WALKING_DISTANCE * WALKING_DISTANCE)
+            self.distance_nearest_nodes_to_point(*point, WALKING_DISTANCE * WALKING_DISTANCE)
         {
             let distance_to_closest_node = closest_node.distance_2(point).sqrt();
             let time_to_closest_node = distance_to_closest_node / STRAIGHT_WALKING_SPEED;
@@ -300,6 +305,7 @@ impl RoadStructureInner {
             nodes_rtree_cache: Mutex::new(FxHashMap::default()),
             nodes: Default::default(),
             edges: Default::default(),
+            city,
         };
 
         let mut edges_layer = dataset.layer_by_name("edges").unwrap();
@@ -307,9 +313,12 @@ impl RoadStructureInner {
 
         let spatialref = edges_layer.spatial_ref().unwrap();
 
-        let proj = Proj::new_known_crs(&spatialref.to_proj4().unwrap(), PROJSTRING, None).unwrap();
+        let proj_instance = get_proj_defn(&city);
 
-        let mut nodes_rtree_vec = Vec::new();
+        let proj =
+            Proj::new_known_crs(&spatialref.to_proj4().unwrap(), &proj_instance, None).unwrap();
+
+        let mut nodes_rtree_vec = Vec::with_capacity(nodes_layer.feature_count() as usize);
         for feature in nodes_layer.features() {
             let osmid = feature
                 .field("osmid")

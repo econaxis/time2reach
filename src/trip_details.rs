@@ -7,8 +7,6 @@ use geojson::PointType;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
-use warp::body::form;
-use warp::Reply;
 
 #[derive(Deserialize)]
 pub struct CalculateRequest {
@@ -19,6 +17,9 @@ pub struct CalculateRequest {
 
     #[serde(rename = "startTime")]
     pub start_time: u64,
+
+    #[serde(rename = "maxSearchTime")]
+    pub max_search_time: f64,
 
     #[serde(rename = "previousRequestId")]
     pub previous_request_id: Option<RequestId>,
@@ -74,7 +75,7 @@ pub fn get_trip_details(
     ad.rs_list
         .write()
         .unwrap()
-        .pre_get(req.request_id.rs_list_index);
+        .promote(req.request_id.rs_list_index);
 
     let rs_list = ad.rs_list.read().unwrap();
     let rs_option = rs_list.get(req.request_id.rs_list_index);

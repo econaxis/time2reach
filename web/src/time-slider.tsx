@@ -47,11 +47,19 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
     );
 }
 
-export function TimeSlider({ duration, setDuration, startTime, setStartTime }) {
+export function TimeSlider({ duration, setDuration, minDuration, setMinDuration, startTime, setStartTime }) {
     return (
         <div className="mt-2">
             <Header>Time Settings</Header>
 
+            <TimeSliderInner
+                duration={startTime}
+                setDuration={setStartTime}
+                formatFunc={formatTime}
+                min="18000"
+                max="104400"
+                text="Starting time"
+            />
             <TimeSliderInner
                 duration={duration}
                 setDuration={setDuration}
@@ -63,13 +71,17 @@ export function TimeSlider({ duration, setDuration, startTime, setStartTime }) {
                 max="8100"
                 text="Maximum trip duration"
             />
+
             <TimeSliderInner
-                duration={startTime}
-                setDuration={setStartTime}
-                formatFunc={formatTime}
-                min="18000"
-                max="104400"
-                text="Starting time"
+                duration={minDuration}
+                setDuration={setMinDuration}
+                formatFunc={(duration) => {
+                    // 00:44:26
+                    return formatDuration(duration).substring(0, 5)
+                }}
+                min="0"
+                max={duration.toString()}
+                text="Minimum trip duration"
             />
         </div>
     );

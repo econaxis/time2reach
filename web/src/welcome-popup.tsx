@@ -1,11 +1,11 @@
 import { BG_WHITE_COLOR } from "./app";
 import { useEffect } from "preact/hooks";
 import track from "./analytics";
+import { IS_LOCAL } from "./dev-api";
 
 export function WelcomePopup({ acceptedPopupCallback }) {
     useEffect(() => {
-        const storedData = localStorage.getItem("popup-accepted");
-        if (storedData) {
+        if (IS_LOCAL) {
             acceptedPopupCallback(true);
         } else {
             track("welcome-popup-shown", {});
@@ -13,7 +13,6 @@ export function WelcomePopup({ acceptedPopupCallback }) {
     }, []);
 
     const acceptedPopup = () => {
-        localStorage.setItem("popup-accepted", "true");
         acceptedPopupCallback(true);
     };
 
@@ -71,7 +70,7 @@ export function WelcomePopup({ acceptedPopupCallback }) {
                     </div>
                     {/* Modal footer */}
                     <div className="flex items-center justify-end p-6 space-x-2 border-t border-slate-300 rounded-b">
-                        <a href="https://github.com/econaxis/time2reach" target="_blank" rel="me">
+                        <a href="https://github.com/econaxis/time2reach" target="_blank" rel="me noreferrer">
                             <button
                                 data-modal-hide="defaultModal"
                                 type="button"

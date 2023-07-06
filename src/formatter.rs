@@ -154,9 +154,9 @@ pub fn time_to_point<'a, 'b>(
     is_lat_lng: bool,
 ) -> Option<InProgressTripsFormatter<'a, 'b>> {
     let point = if is_lat_lng {
-        crate::projection::project_lng_lat(point[1], point[0])
+        crate::projection::project_lng_lat(data.city(), point[1], point[0])
     } else {
-        crate::projection::project_lng_lat(point[0], point[1])
+        crate::projection::project_lng_lat(data.city(), point[0], point[1])
     };
 
     let (_best_time, obs) = data

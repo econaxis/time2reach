@@ -6,7 +6,7 @@ use gtfs_structure_2::IdType;
 use id_arena::{Arena, Id};
 use rustc_hash::FxHashMap;
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
 #[derive(PartialEq, Eq, Debug)]
 struct HeapIdTrip {

@@ -1,4 +1,6 @@
 use crate::agencies::{agencies, load_all_gtfs, City};
+use futures::{StreamExt, TryStreamExt};
+
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::road_structure::EdgeId;
@@ -8,37 +10,59 @@ use log::info;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::{HashMap, HashSet};
 
 use std::convert::Infallible;
 
+use futures::stream::FuturesUnordered;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::runtime::Handle;
 
 use crate::trip_details::CalculateRequest;
 use crate::web_app_data::{AllAppData, CityAppData};
 use crate::web_cache::{check_cache, insert_cache};
 use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
+use warp::reject::{InvalidQuery, Reject};
 use warp::{Filter, Rejection, Reply};
+use warp::reply::Json;
 
 fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> CityAppData {
-    let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&gtfs);
+    let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&city, &gtfs);
 
     CityAppData::new1(gtfs, data, city)
 }
 
 fn check_city(ad: &Arc<AllAppData>, lat: f64, lng: f64) -> Option<City> {
     for (city, data) in &ad.ads {
-        let is_near_point = data.spatial.is_near_point(LatLng {
-            latitude: lat,
-            longitude: lng,
-        });
+        let is_near_point = data.spatial.is_near_point(
+            city,
+            LatLng {
+                latitude: lat,
+                longitude: lng,
+            },
+        );
 
         if is_near_point {
             return Some(*city);
         }
     }
     None
+}
+
+#[derive(Debug)]
+struct BadQuery {
+    reason: String,
+}
+
+impl Reject for BadQuery {}
+
+impl From<&str> for BadQuery {
+    fn from(value: &str) -> Self {
+        BadQuery {
+            reason: value.to_string(),
+        }
+    }
 }
 
 fn process_coordinates(
@@ -48,22 +72,26 @@ fn process_coordinates(
     include_agencies: Vec<String>,
     include_modes: Vec<String>,
     start_time: u64,
-    prev_request_id: Option<RequestId>,
-) -> impl Reply {
+    max_search_time: f64,
+    _prev_request_id: Option<RequestId>,
+) -> Result<warp::reply::Json, BadQuery> {
     let city = check_city(&ad, lat, lng);
 
     if city.is_none() {
-        return warp::reply::json(&"No city found nearby");
+        return Err((BadQuery::from("Invalid city")));
+    }
+
+    if max_search_time >= 2.5 * 3600.0 {
+        log::warn!("Invalid max search time");
+        return Err((BadQuery::from(
+            "Invalid max search time",
+        )));
     }
     let city = city.unwrap();
     let ad = &ad.ads.get(&city).unwrap();
 
-    if let Some(req) = prev_request_id {
-        ad.rs_list.write().unwrap().remove(req.rs_list_index);
-    }
-
-    let cache_key = match check_cache(lat, lng, &include_agencies, &include_modes, start_time) {
-        Ok(reply) => return reply,
+    let cache_key = match check_cache(ad, lat, lng, &include_agencies, &include_modes, start_time, max_search_time as u64) {
+        Ok(reply) => return Ok(reply),
         Err(key) => key,
     };
 
@@ -88,7 +116,7 @@ fn process_coordinates(
         &mut rs,
         Configuration {
             start_time: Time(start_time as f64),
-            duration_secs: 3600.0 * 2.0,
+            duration_secs: max_search_time,
             location: LatLng {
                 latitude: lat,
                 longitude: lng,
@@ -114,7 +142,7 @@ fn process_coordinates(
         "edge_times": edge_times_object
     });
 
-    insert_cache(cache_key, response)
+    Ok(insert_cache(cache_key, response, request_id))
 }
 
 #[derive(Deserialize, Clone, Copy)]
@@ -146,10 +174,20 @@ fn with_appdata(
 
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
-    let all_gtfs: FxHashMap<City, CityAppData> = all_gtfs
-        .into_iter()
-        .map(|(city, gtfs)| (city, gtfs_to_city_appdata(city, gtfs)))
-        .collect();
+    let all_gtfs_future = all_gtfs.into_iter().map(|(city, gtfs)| {
+        tokio::task::spawn_blocking(move || {
+            println!("Start work! {:?}", city);
+            (city, gtfs_to_city_appdata(city, gtfs))
+        })
+    });
+
+    let mut all_gtfs: FxHashMap<City, CityAppData> = FxHashMap::default();
+
+    let mut temp = FuturesUnordered::from_iter(all_gtfs_future);
+    while let Some(result) = temp.next().await {
+        let (city, ad) = result.unwrap();
+        all_gtfs.insert(city, ad);
+    }
 
     let appdata = Arc::new(AllAppData { ads: all_gtfs });
 
@@ -164,8 +202,6 @@ pub async fn main() {
         ])
         .allow_methods(["POST", "GET"]);
 
-    info!("Setup done");
-
     let log = warp::log("warp");
     let hello = warp::post()
         .and(with_appdata(appdata.clone()))
@@ -179,10 +215,15 @@ pub async fn main() {
                 req.agencies,
                 req.modes,
                 req.start_time,
+                req.max_search_time,
                 req.previous_request_id,
             )
-        })
-        .with(warp::filters::compression::gzip());
+        }).map(|r: Result<Json, BadQuery>| {
+        match r {
+            Ok(a) => warp::reply::with_status(a, StatusCode::OK).into_response(),
+            Err(e) => warp::reply::with_status(e.reason, StatusCode::BAD_REQUEST).into_response()
+        }
+    });
 
     let details = warp::post()
         .and(with_appdata(appdata.clone()))
@@ -193,8 +234,7 @@ pub async fn main() {
             result.map(|a| a.into_response()).unwrap_or_else(|err| {
                 warp::reply::with_status(err, StatusCode::INTERNAL_SERVER_ERROR).into_response()
             })
-        })
-        .with(warp::filters::compression::gzip());
+        });
 
     let agencies_endpoint = warp::get()
         .and(warp::path!("agencies"))
@@ -206,7 +246,8 @@ pub async fn main() {
             resp
         });
 
-    let mvt_endpoint = warp::path("mvt")
+    let mvt_endpoint = warp::get()
+        .and(warp::path!("mvt" / ..))
         .and(warp::fs::dir("/tmp/vancouver-cache"))
         .map(|response: warp::filters::fs::File| {
             let mut resp = response.into_response();
@@ -227,18 +268,18 @@ pub async fn main() {
             }
         });
 
-    let routes = hello
+    let routes = agencies_endpoint
         .or(details)
-        .or(agencies_endpoint)
         .or(mvt_endpoint)
+        .or(hello)
         .with(cors_policy)
         .with(log);
 
     if cfg!(feature = "https") {
         warp::serve(routes)
             .tls()
-            .key_path("certificates/privkey.pem")
-            .cert_path("certificates/fullchain.pem")
+            .key_path("certificates/cf-privkey.pem")
+            .cert_path("certificates/cf-cert.pem")
             .run(([0, 0, 0, 0], 3030))
             .await;
     } else {

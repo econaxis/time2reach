@@ -15,4 +15,4 @@ sleep 1
 echo "Running new container"
 docker run --rm --name main -d -p 443:3030 -v $HOME/vancouver-cache:/tmp/vancouver-cache:ro  ghcr.io/econaxis/test:latest
 
-docker logs main -f
+echo Run docker logs main -f

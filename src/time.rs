@@ -33,7 +33,7 @@ impl Time {
 
     #[allow(dead_code)]
     pub fn format(&self) -> String {
-        return format!("{}", TimeFormatter { secs: self.clone() });
+        format!("{}", TimeFormatter { secs: *self })
     }
 }
 

@@ -88,7 +88,6 @@ export function Sidebar({ children, zi, positioning }: SidebarProps) {
 async function fetchAgencies(): Promise<Agency[]> {
     const result = await fetch(`${baseUrl}/agencies`);
     const json = await result.json();
-    console.log("json is", json);
     return json.map((agency) => {
         return {
             agencyCode: agency.short_code,
@@ -138,6 +137,7 @@ export function ControlSidebar({ setOptions, currentCity }) {
 
     const [duration, setDuration] = useState(2700);
     const [startTime, setStartTime] = useState(17 * 3600 + 40 * 60);
+    const [minDuration, setMinDuration] = useState(0);
 
     const triggerRefetch = () => {
         console.log("Setting options", agencies.current, modes.current);
@@ -146,13 +146,14 @@ export function ControlSidebar({ setOptions, currentCity }) {
             startTime,
             agencies: agencies.current,
             modes: modes.current,
+            minDuration,
         });
     };
 
     useEffect(triggerRefetch, []);
     useEffect(() => {
         triggerRefetch();
-    }, [duration, startTime]);
+    }, [duration, startTime, minDuration]);
     const onAgencyChange = (agencies1: object) => {
         console.log("onAgencyChange");
         track("agency-change", agencies1);
@@ -182,6 +183,8 @@ export function ControlSidebar({ setOptions, currentCity }) {
             <TimeSlider
                 duration={duration}
                 setDuration={setDuration}
+                minDuration={minDuration}
+                setMinDuration={setMinDuration}
                 startTime={startTime}
                 setStartTime={setStartTime}
             />
