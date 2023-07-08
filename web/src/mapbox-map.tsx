@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react";
 import mapboxgl, { type GeoJSONSource } from "mapbox-gl";
 import { ColorLegend, TimeColorMapper } from "./colors";
 import { mvtUrl } from "./dev-api";
 import { getDetails } from "./get_data";
 import { DetailPopup, type TripDetailsTransit } from "./format-details";
 import { startingLocation } from "./app";
-import { Fragment } from "react";
 import track from "./analytics";
 
 export const defaultColor = "rgba(182,182,182,0.14)";
@@ -112,7 +111,7 @@ function setupMapboxMap(
         });
 
         const hoverCallback = (e) => {
-            const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point), {layers: ["transit-layer"]});
+            const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point), { layers: ["transit-layer"] });
             if (nearbyFeatures.length === 0) {
                 if (e.type === "click") removeHoverDetails();
                 return;
@@ -220,8 +219,8 @@ export function MapboxMap({
     const mapContainer = useRef<HTMLElement | null>(null);
 
     const [detailPopup, setDetailPopup] = useState<{
-        details: TripDetailsTransit[];
-        seconds: number;
+        details: TripDetailsTransit[]
+        seconds: number
     } | null>(null);
 
     const getTimeData = (): TimeColorMapper => {

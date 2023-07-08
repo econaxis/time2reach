@@ -125,7 +125,7 @@ const MODES = [
 ];
 
 export function ControlSidebar({ setOptions, currentCity }) {
-    let { isLoading, data } = useAgencies();
+    const { isLoading, data } = useAgencies();
 
     const filtered = data ? data.map((ag) => {
         return {
