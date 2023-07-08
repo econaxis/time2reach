@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState } from "react";
 import { formatDuration, formatTime } from "./format-details";
 import { Header } from "./control-sidebar";
 import track from "./analytics";
@@ -8,11 +8,13 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
 
     const onChange = (element) => {
         const dur = parseInt(element.target.value);
+        console.log("CHANGED1!!", setDuration)
         setIduration(dur);
     };
 
     const onMouseUp = (element) => {
         track("range-change", { text });
+        console.log("CHANGED2!!", setDuration)
         const dur = parseInt(element.target.value);
         setDuration(dur);
     };
@@ -40,8 +42,18 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
                 max={max}
                 value={iduration}
                 className="w-full h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer"
-                onChange={onChange}
-                onMouseUp={onMouseUp}
+                onChange={() => {
+                    console.log("hello1")
+                }}
+                onMouseUp={() => {
+                    console.log("hello2")
+                }}
+                onMouseOut={() => {
+                    console.log("hello3")
+                }}
+                onInput={() => {
+                    console.log("hello4")
+                }}
             />
         </div>
     );
@@ -64,7 +76,6 @@ export function TimeSlider({ duration, setDuration, minDuration, setMinDuration,
                 duration={duration}
                 setDuration={setDuration}
                 formatFunc={(duration) => {
-                    // 00:44:26
                     return formatDuration(duration).substring(0, 5)
                 }}
                 min="1800"

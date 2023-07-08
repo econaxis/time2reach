@@ -2,7 +2,7 @@
 // const apiUrl: string = "https://vx18yjnxac.execute-api.us-east-1.amazonaws.com/dev"
 
 export const IS_LOCAL = import.meta.env.MODE === "development";
-export const LOCAL_API: boolean = import.meta.env.MODE === "development";
+export const LOCAL_API: boolean = import.meta.env.MODE === "development" && false;
 
 // const apiUrl: string = "https://d12zadp3znyab3.cloudfront.net"
 // const apiUrl: string =

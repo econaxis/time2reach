@@ -48,5 +48,5 @@ COPY certificates /app/certificates
 COPY web/public /app/web/public
 COPY --from=builder /app/target/release/timetoreach /app/target/release/timetoreach
 
-
+ENV RUST_LOG info,timetoreach=debug,h2=info,hyper=info,warp=info,rustls=info
 ENTRYPOINT ["/app/target/release/timetoreach"]

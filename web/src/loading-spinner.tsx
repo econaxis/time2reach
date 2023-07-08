@@ -1,4 +1,4 @@
-import { Fragment } from "preact";
+import { Fragment } from "react";
 
 export function LoadingSpinner({ display }) {
     if (display) {

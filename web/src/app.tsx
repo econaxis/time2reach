@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState } from "react";
 import mapboxgl from "mapbox-gl";
 
 import "./style.css";

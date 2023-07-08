@@ -10,7 +10,6 @@
         "deploy": "tsc && vercel deploy --prod"
     },
     "devDependencies": {
-        "@preact/preset-vite": "^2.5.0",
         "@types/colormap": "^2.3.1",
         "@types/mapbox-gl": "^2.7.10",
         "@typescript-eslint/eslint-plugin": "^5.43.0",
@@ -18,7 +17,6 @@
         "eslint-config-standard-with-typescript": "^34.0.1",
         "eslint-plugin-import": "^2.25.2",
         "eslint-plugin-n": "^15.0.0",
-        "eslint-plugin-preact": "^0.1.0",
         "eslint-plugin-promise": "^6.0.0",
         "eslint-plugin-react": "^7.32.2",
         "postcss": "^8.4.24",
@@ -29,10 +27,12 @@
         "vite-plugin-svgr": "^3.2.0"
     },
     "dependencies": {
+        "@vitejs/plugin-react": "^4.0.2",
         "autoprefixer": "^10.4.14",
         "colormap": "^2.3.2",
         "mapbox-gl": "^2.15",
-        "preact": "^10.13.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
         "react-query": "^3.39.3"
     },
     "prettier": {

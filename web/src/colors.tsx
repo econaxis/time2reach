@@ -5,7 +5,7 @@ import { BG_WHITE_COLOR } from "./app";
 import { formatDuration } from "./format-details";
 import { Header } from "./control-sidebar";
 import type { ComponentChildren } from "preact";
-import { useRef } from "preact/hooks";
+import { useRef } from "react";
 
 function generateCmap(shades: number): string[] {
     return createColorMap({
@@ -232,11 +232,10 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
     const cssStyle = "linear-gradient(to right," + cssGradient.join(",") + ")";
     return (
         <div
-            className={`${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 pb-5 pt-2 px-9 rounded-lg`}
-            style={{ width: 400 }}
+            className={`${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 max-w-sm lg:max-w-md pb-2 pt-0.5 lg:pb-5 lg:pt-2 px-5 pl-7 lg:px-9 rounded-lg`}
         >
             <Header>Legend (Duration of Trip)</Header>
-            <div className="w-full m-auto mt-7 relative left-0 top-0" style={{ height: "1.7rem" }}>
+            <div className="w-full m-auto mt-4 md:mt-7 relative left-0 top-0" style={{ height: "1.7rem" }}>
                 {ticks}
             </div>
             <div

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { Fragment } from "preact";
+import { Fragment } from "react";
 import { Sidebar } from "./control-sidebar";
 
 import { Bus, Train, Subway, Tram } from "./svg-icons";
@@ -106,7 +106,7 @@ function ModeIcon({ mode, boarding, background_color, text_color }) {
     const icon = SVG_ICONS[mode];
 
     const styleString = {
-        "background-color": background_color,
+        backgroundColor: background_color,
         color: text_color,
     };
 
@@ -210,7 +210,7 @@ export function DetailPopup({ details, arrival_time: arrivalTime }: DetailPopupP
     });
 
     return (
-        <Sidebar positioning="bottom-0 right-0 absolute z-50" zi={100}>
+        <Sidebar positioning="bottom-0 right-0 absolute z-50 hidden sm:block" zi={100}>
             {detailEntries}
             <p className="mt-2 ml-1 text-xs font-bold">
                 Arrival time: {formatDuration(arrivalTime)}

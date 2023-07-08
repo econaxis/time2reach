@@ -1,19 +1,21 @@
 import { useQuery } from "react-query";
-import { useEffect, useRef, useState } from "preact/hooks";
+import React, { useEffect, useRef, useState } from "react";
 import { TimeSlider } from "./time-slider";
 import { baseUrl } from "./dev-api";
 import { BG_WHITE_COLOR } from "./app";
 import track from "./analytics";
+import './control-sidebar.css';
 
 interface Agency {
-    agencyCode: string;
-    agencyLongName: string;
-    city: string;
+    agencyCode: string
+    agencyLongName: string
+    city: string
 }
 
 export interface AgencyEntryProps {
-    setSelectValue: (value: string, status: string) => void;
+    setSelectValue: (value: string, status: string) => void
 }
+
 export function AgencyEntry({
     agencyCode,
     agencyLongName,
@@ -41,13 +43,14 @@ export function AgencyEntry({
 }
 
 export function Header({ children }) {
-    return <h2 className="font-medium text-lg font-bold border-b mt-3">{children}</h2>;
+    return <h2 className="font-medium text-md border-b mt-3">{children}</h2>;
 }
 
 export function AgencyForm({ agencies, header, updateValues }) {
     const values = useRef(Object.fromEntries(agencies.map((ag) => [ag.agencyCode, true])));
 
     useEffect(() => {
+        console.log("AgencyForm updateValues", agencies, values.current)
         updateValues(values.current);
     }, []);
     const setSelectValue = (value, status) => {
@@ -70,16 +73,17 @@ export function AgencyForm({ agencies, header, updateValues }) {
 }
 
 export interface SidebarProps {
-    positioning?: string;
-    children?: any[];
-    zi?: number;
+    positioning?: string
+    children?: any[]
+    zi?: number
 }
-export function Sidebar({ children, zi, positioning }: SidebarProps) {
+
+export function Sidebar({ children, zi, positioning, style }: SidebarProps) {
     let classes = `absolute m-5 w-3/12 p-5 ${BG_WHITE_COLOR} border border-slate-400 rounded-lg drop-shadow-2xl shadow-inner `;
     classes += positioning ?? "";
 
     return (
-        <div className={classes} style={{ zIndex: zi ?? 0 }}>
+        <div className={classes} style={{ zIndex: zi ?? 0, ...style }}>
             {children}
         </div>
     );
@@ -121,18 +125,17 @@ const MODES = [
 ];
 
 export function ControlSidebar({ setOptions, currentCity }) {
-    const { isLoading, data } = useAgencies();
+    let { isLoading, data } = useAgencies();
 
-    if (isLoading) return null;
-    if (data == null) throw new Error("data is null");
-
-    const filtered = data.map((ag) => {
+    const filtered = data ? data.map((ag) => {
         return {
             shouldShow: ag.city === currentCity,
             ...ag,
         };
-    });
-    const agencies = useRef<object>(filtered);
+    }) : null;
+
+    console.log("Filtered is", filtered)
+    const agencies = useRef<object>({});
     const modes = useRef<object>(MODES);
 
     const [duration, setDuration] = useState(2700);
@@ -140,22 +143,29 @@ export function ControlSidebar({ setOptions, currentCity }) {
     const [minDuration, setMinDuration] = useState(0);
 
     const triggerRefetch = () => {
-        console.log("Setting options", agencies.current, modes.current);
-        setOptions({
-            duration,
-            startTime,
-            agencies: agencies.current,
-            modes: modes.current,
-            minDuration,
-        });
+        if (!isLoading) {
+            console.log("current agencies", agencies.current, agencies.current.map)
+            setOptions({
+                duration,
+                startTime,
+                agencies: agencies.current,
+                modes: modes.current,
+                minDuration,
+            });
+        }
     };
 
-    useEffect(triggerRefetch, []);
+    // useEffect(() => {
+    //     if (!isLoading) {
+    //         modes.current = MODES;
+    //         triggerRefetch();
+    //     }
+    // }, [isLoading]);
     useEffect(() => {
         triggerRefetch();
     }, [duration, startTime, minDuration]);
     const onAgencyChange = (agencies1: object) => {
-        console.log("onAgencyChange");
+        console.log("onAgencyChange", agencies1);
         track("agency-change", agencies1);
         agencies.current = agencies1;
         triggerRefetch();
@@ -169,20 +179,23 @@ export function ControlSidebar({ setOptions, currentCity }) {
     };
 
     return (
-        <Sidebar zi={10} positioning="top-0 right-0">
+        <Sidebar zi={10} positioning="top-0 right-0 hidden sm:block ">
             <p className="text-gray-700">
                 <ul>
                     <li>Double click anywhere to set starting location.</li>
                     <li>Hover over a point to see the fastest path to get there.</li>
                 </ul>
             </p>
-            <AgencyForm agencies={filtered} header="Agencies" updateValues={onAgencyChange} />
+            {filtered ? <AgencyForm agencies={filtered} header="Agencies" updateValues={onAgencyChange} /> : null}
 
             <AgencyForm agencies={MODES} header="Modes" updateValues={onModeChange} />
 
             <TimeSlider
                 duration={duration}
-                setDuration={setDuration}
+                setDuration={(e) => {
+                    console.log("SET DURATION", e);
+                    setDuration(e);
+                }}
                 minDuration={minDuration}
                 setMinDuration={setMinDuration}
                 startTime={startTime}

@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use std::convert::Infallible;
+use std::fmt;
+use std::io::empty;
 
 use futures::stream::FuturesUnordered;
 use std::sync::Arc;
@@ -25,6 +27,7 @@ use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
 use warp::reject::{InvalidQuery, Reject};
 use warp::{Filter, Rejection, Reply};
+use warp::log::{Info, Log};
 use warp::reply::Json;
 
 fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> CityAppData {
@@ -172,11 +175,41 @@ fn with_appdata(
     warp::any().map(move || ad.clone())
 }
 
+
+struct OptFmt<T>(Option<T>);
+
+impl<T: fmt::Display> fmt::Display for OptFmt<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(ref t) = self.0 {
+            fmt::Display::fmt(t, f)
+        } else {
+            f.write_str("-")
+        }
+    }
+}
+
+pub fn weblog(name: &'static str) -> Log<impl Fn(Info<'_>) + Copy> {
+    warp::log::custom( |info: Info<'_>| {
+        let cf_connecting = info.request_headers().get("Cf-Connecting-Ip").map(|a| a.to_str().unwrap());
+        log::info!(
+            target: name,
+            "{} {} \"{} {} {:?}\" {} \"{}\" \"{}\" {:?}",
+            OptFmt(info.remote_addr()),
+            OptFmt(cf_connecting),
+            info.method(),
+            info.path(),
+            info.version(),
+            info.status().as_u16(),
+            OptFmt(info.referer()),
+            OptFmt(info.user_agent()),
+            info.elapsed(),
+        );
+    })
+}
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
     let all_gtfs_future = all_gtfs.into_iter().map(|(city, gtfs)| {
         tokio::task::spawn_blocking(move || {
-            println!("Start work! {:?}", city);
             (city, gtfs_to_city_appdata(city, gtfs))
         })
     });
@@ -202,7 +235,7 @@ pub async fn main() {
         ])
         .allow_methods(["POST", "GET"]);
 
-    let log = warp::log("warp");
+    let log = weblog("warp");
     let hello = warp::post()
         .and(with_appdata(appdata.clone()))
         .and(warp::path!("hello"))

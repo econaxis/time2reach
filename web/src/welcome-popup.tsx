@@ -1,5 +1,5 @@
 import { BG_WHITE_COLOR } from "./app";
-import { useEffect } from "preact/hooks";
+import { useEffect } from "react";
 import track from "./analytics";
 import { IS_LOCAL } from "./dev-api";
 

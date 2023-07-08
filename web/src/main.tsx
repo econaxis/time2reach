@@ -1,5 +1,12 @@
-import { render } from "preact";
+import React from "react";
 import { App } from "./app";
+import ReactDOM from 'react-dom/client'
+
 import "./index.css";
 
-render(<App />, document.getElementById("app") as HTMLElement);
+ReactDOM.createRoot(document.getElementById('app')!).render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>,
+)
+
