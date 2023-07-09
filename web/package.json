@@ -7,7 +7,7 @@
         "dev": "vite",
         "build": "tsc && vite build",
         "preview": "vite preview",
-        "deploy": "tsc && vercel deploy --prod"
+        "deploy": "tsc --noEmit && vercel deploy --prod"
     },
     "devDependencies": {
         "@types/colormap": "^2.3.1",
@@ -27,6 +27,7 @@
         "vite-plugin-svgr": "^3.2.0"
     },
     "dependencies": {
+        "@types/react": "^18.2.14",
         "@vitejs/plugin-react": "^4.0.2",
         "autoprefixer": "^10.4.14",
         "colormap": "^2.3.2",

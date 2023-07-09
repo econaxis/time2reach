@@ -4,8 +4,7 @@ import { baseUrl } from "./dev-api";
 import { BG_WHITE_COLOR } from "./app";
 import { formatDuration } from "./format-details";
 import { Header } from "./control-sidebar";
-import type { ComponentChildren } from "preact";
-import { useRef } from "react";
+import { type ReactNode, useRef } from "react";
 
 function generateCmap(shades: number): string[] {
     return createColorMap({
@@ -15,34 +14,34 @@ function generateCmap(shades: number): string[] {
             nshades: shades,
         }).reverse();
 
-    const endFirstSlope = 8;
-    const SHADES = 120;
-    const firstSlope = 0.7 * SHADES / shades;
-    // const cmap = createColorMap({
-    //     alpha: 0.4,
-    //     colormap: "temperature",
-    //     format: "hex",
-    //     nshades: SHADES + 1,
-    // });
-
-    const at = (index) => {
-        return cmap[cmap.length - Math.round(index) - 1]
-    };
-
-    const answer: string[] = [];
-    let currentY = 0;
-    for (let i = 0; i < endFirstSlope; i++) {
-        currentY = i * firstSlope * SHADES / shades;
-        answer.push(at(currentY));
-    }
-
-    const secondSlope = (SHADES - currentY) / (shades - endFirstSlope);
-
-    while (answer.length < shades) {
-        currentY += secondSlope;
-        answer.push(at(currentY));
-    }
-    return answer;
+    // const endFirstSlope = 8;
+    // const SHADES = 120;
+    // const firstSlope = 0.7 * SHADES / shades;
+    // // const cmap = createColorMap({
+    // //     alpha: 0.4,
+    // //     colormap: "temperature",
+    // //     format: "hex",
+    // //     nshades: SHADES + 1,
+    // // });
+    //
+    // const at = (index) => {
+    //     return cmap[cmap.length - Math.round(index) - 1]
+    // };
+    //
+    // const answer: string[] = [];
+    // let currentY = 0;
+    // for (let i = 0; i < endFirstSlope; i++) {
+    //     currentY = i * firstSlope * SHADES / shades;
+    //     answer.push(at(currentY));
+    // }
+    //
+    // const secondSlope = (SHADES - currentY) / (shades - endFirstSlope);
+    //
+    // while (answer.length < shades) {
+    //     currentY += secondSlope;
+    //     answer.push(at(currentY));
+    // }
+    // return answer;
 }
 
 const NSHADES = 80;
@@ -156,10 +155,10 @@ export interface TickTriangleProps {
 }
 
 export interface TickProps extends TickTriangleProps {
-    children: ComponentChildren
     noRotate?: boolean
+    children: ReactNode
 }
-function Tick({ lpercentage, noRotate, children }: TickProps) {
+function Tick({ noRotate, children, lpercentage }: TickProps) {
     const color = "rgb(38,38,38)";
     return (
         <div className="absolute left-0 inline-block" style={{ left: `${lpercentage}%` }}>

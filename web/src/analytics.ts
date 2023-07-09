@@ -1,5 +1,3 @@
-import { LOCAL_API } from "./dev-api";
-
 // eslint-disable-next-line @typescript-eslint/naming-convention
 declare function sa_event(eventName: string, metadata?: Record<string, any>);
 

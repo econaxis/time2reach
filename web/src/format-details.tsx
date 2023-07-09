@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { Fragment } from "react";
+import { Fragment, ReactNode } from "react";
 import { Sidebar } from "./control-sidebar";
 
 import { Bus, Train, Subway, Tram } from "./svg-icons";
@@ -144,7 +144,7 @@ function format_walking_distance(length: number) {
 }
 
 export interface SmallSpanProps {
-    children: any
+    children?: ReactNode
     light?: boolean
 }
 

@@ -1,5 +1,5 @@
 import { useQuery } from "react-query";
-import React, { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { TimeSlider } from "./time-slider";
 import { baseUrl } from "./dev-api";
 import { BG_WHITE_COLOR } from "./app";
@@ -42,7 +42,10 @@ export function AgencyEntry({
     );
 }
 
-export function Header({ children }) {
+export interface HeaderProps {
+    children?: ReactNode
+}
+export function Header({ children }: HeaderProps) {
     return <h2 className="font-medium text-md border-b mt-3">{children}</h2>;
 }
 
@@ -76,6 +79,7 @@ export interface SidebarProps {
     positioning?: string
     children?: any[]
     zi?: number
+    style?: Record<string, any>
 }
 
 export function Sidebar({ children, zi, positioning, style }: SidebarProps) {
@@ -144,7 +148,6 @@ export function ControlSidebar({ setOptions, currentCity }) {
 
     const triggerRefetch = () => {
         if (!isLoading) {
-            console.log("current agencies", agencies.current, agencies.current.map)
             setOptions({
                 duration,
                 startTime,

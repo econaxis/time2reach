@@ -216,7 +216,7 @@ export function MapboxMap({
     const [mapboxLoading, setMapboxLoading] = useState(true);
     const timeData = useRef<TimeColorMapper | null>(null);
     const [timeDataState, setTimeDataState] = useState<any>(null);
-    const mapContainer = useRef<HTMLElement | null>(null);
+    const mapContainer = useRef<HTMLDivElement | null>(null);
 
     const [detailPopup, setDetailPopup] = useState<{
         details: TripDetailsTransit[]
@@ -303,7 +303,6 @@ export function MapboxMap({
                 <ColorLegend tcm={timeDataState} currentHover={detailPopup?.seconds} />
             ) : null}
 
-            {/* @ts-expect-error ref and mapContainer doesn't match types */}
             <div ref={mapContainer} className="map w-screen h-screen overflow-none" />
         </Fragment>
     );

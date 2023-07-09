@@ -42,18 +42,8 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
                 max={max}
                 value={iduration}
                 className="w-full h-1 bg-slate-300 rounded-lg appearance-none cursor-pointer"
-                onChange={() => {
-                    console.log("hello1")
-                }}
-                onMouseUp={() => {
-                    console.log("hello2")
-                }}
-                onMouseOut={() => {
-                    console.log("hello3")
-                }}
-                onInput={() => {
-                    console.log("hello4")
-                }}
+                onChange={onChange}
+                onMouseUp={onMouseUp}
             />
         </div>
     );
