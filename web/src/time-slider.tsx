@@ -8,13 +8,11 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
 
     const onChange = (element) => {
         const dur = parseInt(element.target.value);
-        console.log("CHANGED1!!", setDuration)
         setIduration(dur);
     };
 
     const onMouseUp = (element) => {
         track("range-change", { text });
-        console.log("CHANGED2!!", setDuration)
         const dur = parseInt(element.target.value);
         setDuration(dur);
     };

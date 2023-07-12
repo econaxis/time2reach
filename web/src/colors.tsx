@@ -44,7 +44,7 @@ function generateCmap(shades: number): string[] {
     // return answer;
 }
 
-const NSHADES = 80;
+const NSHADES = 9;
 export const cmap = generateCmap(NSHADES);
 
 export function getColor0To1(value: number): string {
@@ -119,11 +119,21 @@ export class TimeColorMapper {
             },
             body: JSON.stringify(body),
         });
-        const js = await data.json();
 
-        const { request_id: requestId, edge_times: edgeTimes } = js;
+        if (data.ok) {
+            const js = await data.json();
 
-        return new TimeColorMapper(requestId, edgeTimes, durationRange, minDuration);
+            const { request_id: requestId, edge_times: edgeTimes } = js;
+
+            return new TimeColorMapper(requestId, edgeTimes, durationRange, minDuration);
+        } else {
+            const text = await data.text();
+            if (!text.includes("Invalid city")) {
+                console.error("Unexpected error from API: ", data, text);
+            }
+
+            throw Error("API returned error response" + JSON.stringify(data) + ' ' + text);
+        }
     }
 
     calculate_colors(): void {

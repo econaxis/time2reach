@@ -198,8 +198,8 @@ async function setAndColorNewOriginLocation(
     map.off("error", errHandler);
 
     map.once("render", () => {
-        // Takes roughly 300 ms for the map to update
-        setTimeout(() => setSpinnerLoading(false), 300);
+        // Takes roughly 200 ms for the map to update
+        setTimeout(() => setSpinnerLoading(false), 200);
     });
 
     return data;
@@ -283,7 +283,8 @@ export function MapboxMap({
                 setTimeDataState(timeData.current);
             })
             .catch((err) => {
-                throw err;
+                setSpinnerLoading(false);
+                console.error("Got error in setAndColorNewOriginLocation", err)
             });
     }, [currentOptions, currentLatLng, map, mapboxLoading]);
 

@@ -53,7 +53,6 @@ export function AgencyForm({ agencies, header, updateValues }) {
     const values = useRef(Object.fromEntries(agencies.map((ag) => [ag.agencyCode, true])));
 
     useEffect(() => {
-        console.log("AgencyForm updateValues", agencies, values.current)
         updateValues(values.current);
     }, []);
     const setSelectValue = (value, status) => {
@@ -138,7 +137,6 @@ export function ControlSidebar({ setOptions, currentCity }) {
         };
     }) : null;
 
-    console.log("Filtered is", filtered)
     const agencies = useRef<object>({});
     const modes = useRef<object>(MODES);
 
@@ -158,24 +156,16 @@ export function ControlSidebar({ setOptions, currentCity }) {
         }
     };
 
-    // useEffect(() => {
-    //     if (!isLoading) {
-    //         modes.current = MODES;
-    //         triggerRefetch();
-    //     }
-    // }, [isLoading]);
     useEffect(() => {
         triggerRefetch();
     }, [duration, startTime, minDuration]);
     const onAgencyChange = (agencies1: object) => {
-        console.log("onAgencyChange", agencies1);
         track("agency-change", agencies1);
         agencies.current = agencies1;
         triggerRefetch();
     };
 
     const onModeChange = (modes1: object) => {
-        console.log("onModeChange");
         track("mode-change", modes1);
         modes.current = modes1;
         triggerRefetch();
