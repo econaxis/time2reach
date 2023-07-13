@@ -4,8 +4,6 @@ import mapboxgl from "mapbox-gl";
 import "./style.css";
 import { CityPillContainer } from "./city-pill";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { LoadingSpinner } from "./loading-spinner";
-import { MapboxMap } from "./mapbox-map";
 import { ControlSidebar } from "./control-sidebar";
 import { BlurBackground, WelcomePopup } from "./welcome-popup";
 
@@ -24,14 +22,11 @@ export const startingLocation = CITY_LOCATION.Toronto;
 export function App() {
     const queryClient = new QueryClient({});
 
-    const [currentOptions, setCurrentOptions] = useState(null);
     const [currentStartingLoc, setCurrentStartingLoc] = useState(startingLocation);
     const [currentCity, setCurrentCity] = useState("Toronto");
-    const [spinner, setSpinner] = useState(true);
 
     const [popupAccepted, setPopupAccepted] = useState(false);
 
-    const cityLocation = CITY_LOCATION[currentCity];
     const setCityFromPill = (cityName: string) => {
         setCurrentCity(cityName);
         setCurrentStartingLoc(CITY_LOCATION[cityName]);
@@ -41,7 +36,6 @@ export function App() {
         <QueryClientProvider client={queryClient}>
             {popupAccepted ? null : <WelcomePopup acceptedPopupCallback={setPopupAccepted} />}
             <BlurBackground enabled={!popupAccepted}>
-                <LoadingSpinner display={spinner} />
                 <CityPillContainer
                     cities={[
                         "Toronto",
@@ -53,14 +47,7 @@ export function App() {
                     setLocation={setCityFromPill}
                     currentCity={currentCity}
                 />
-                <MapboxMap
-                    currentOptions={currentOptions}
-                    currentLatLng={currentStartingLoc}
-                    setLatLng={setCurrentStartingLoc}
-                    currentPos={cityLocation}
-                    setSpinnerLoading={setSpinner}
-                />
-                <ControlSidebar setOptions={setCurrentOptions} currentCity={currentCity} />
+                <ControlSidebar defaultStartLoc={currentStartingLoc} currentCity={currentCity} />
             </BlurBackground>
         </QueryClientProvider>
     );

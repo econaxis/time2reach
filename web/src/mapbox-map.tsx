@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Fragment } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import mapboxgl, { type GeoJSONSource } from "mapbox-gl";
 import { ColorLegend, TimeColorMapper } from "./colors";
 import { mvtUrl } from "./dev-api";
@@ -7,7 +7,7 @@ import { DetailPopup, type TripDetailsTransit } from "./format-details";
 import { startingLocation } from "./app";
 import track from "./analytics";
 
-export const defaultColor = "rgb(255,0,0)";
+export const defaultColor = "rgba(73,73,73,0.24)";
 
 const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
@@ -38,12 +38,6 @@ function addMVTLayer(currentMap: mapboxgl.Map) {
             "line-width": 3.5,
         },
     });
-
-    currentMap.setPaintProperty("transit-layer", "line-color", [
-        "coalesce",
-        ["get", ["to-string", ["id"]], ["literal", { 111693: "#00a6ff" }]],
-        "#adadad",
-    ]);
 }
 
 function addGeoJsonLayer(currentMap: mapboxgl.Map): GeoJSONSource {
@@ -117,6 +111,10 @@ function setupMapboxMap(
         });
 
         const hoverCallback = (e) => {
+            if (e.originalEvent.altKey) {
+                return;
+            }
+
             const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point), { layers: ["transit-layer"] });
             if (nearbyFeatures.length === 0) {
                 if (e.type === "click") removeHoverDetails();
@@ -160,8 +158,7 @@ export async function setAndColorNewOriginLocation(
     currentLatLng,
     currentOptions,
 ) {
-    console.log(currentOptions, currentLatLng)
-    const data = await TimeColorMapper.fetch(
+    return await TimeColorMapper.fetch(
         currentLatLng,
         currentOptions.startTime,
         currentOptions.duration,
@@ -169,55 +166,18 @@ export async function setAndColorNewOriginLocation(
         currentOptions.modes,
         currentOptions.minDuration
     );
-    //
-    // let shouldRetry = false;
-    // const errHandler = (err) => {
-    //     if (
-    //         err.error.message.includes(" does not exist in the map's style and cannot be styled.")
-    //     ) {
-    //         console.log("Error!! ", err);
-    //         shouldRetry = true;
-    //     }
-    // };
-    // map.once("error", errHandler);
-    //
-    // map.setPaintProperty("transit-layer", "line-color", [
-    //     "coalesce",
-    //     ["get", ["to-string", ["id"]], ["literal", data.m]],
-    //     defaultColor,
-    // ]);
-    //
-    // if (shouldRetry) {
-    //     console.log("Retrying...");
-    //     addMVTLayer(map);
-    //     await new Promise((resolve) => setTimeout(resolve, 2000));
-    //     const d1 = await setAndColorNewOriginLocation(
-    //         currentLatLng,
-    //         currentOptions,
-    //         map,
-    //         setSpinnerLoading
-    //     );
-    //     return d1;
-    // }
-    //
-    // map.off("error", errHandler);
-    //
-    // map.once("render", () => {
-    //     // Takes roughly 200 ms for the map to update
-    //     setTimeout(() => setSpinnerLoading(false), 200);
-    // });
-
-    return data;
 }
 
 export function MapboxMap({
+    timeData,
     paintProperty,
     setLatLng,
+    setSpinnerLoading,
     currentPos,
 }) {
+    const timeDataRef = useRef<any>(null);
     const [map, setMap] = useState<mapboxgl.Map | null>(null);
     const [mapboxLoading, setMapboxLoading] = useState(true);
-    const timeData = useRef<TimeColorMapper | null>(null);
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const [rerender, setRerender] = useState(false);
 
@@ -226,9 +186,11 @@ export function MapboxMap({
         seconds: number
     } | null>(null);
 
+    timeDataRef.current = timeData;
+
     const getTimeData = (): TimeColorMapper => {
-        if (timeData.current != null) {
-            return timeData.current;
+        if (timeDataRef.current != null) {
+            return timeDataRef.current;
         } else {
             throw Error("TimeData is undefined right now");
         }
@@ -247,71 +209,68 @@ export function MapboxMap({
     useEffect(() => {
         // Init mapbox gl map here.
         if (mapContainer.current == null) return;
+        if (map !== null) return;
 
         mapboxgl.accessToken =
             "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
 
-        const map = new mapboxgl.Map({
+        const map1 = new mapboxgl.Map({
             container: mapContainer.current, // container ID
             style: "mapbox://styles/mapbox/dark-v11", // style URL
             center: startingLocation, // starting position [lng, lat]
             zoom: 12, // starting zoom
         });
-        setMap(map);
-        map.doubleClickZoom.disable();
+        setMap(map1);
+        map1.doubleClickZoom.disable();
         setupMapboxMap(
-            map,
+            map1,
             setLatLng,
             getTimeData,
             () => {
-                // setMapboxLoading(false);
+                setMapboxLoading(false);
+                console.log("SetMapboxLoading False!!", map1.getLayer("transit-layer"))
             },
             setDetailPopupInfo
-        );
-
-        map.on('idle', () => {
-            console.log("Done loading!", map.loaded());
-            setMapboxLoading(false);
-        })
+        )
     }, []);
 
     useEffect(() => {
         if (mapboxLoading || !paintProperty || !map) return;
-        console.log("mapbox loading", mapboxLoading, paintProperty,  map.loaded())
 
-        // let shouldRetry = false;
-        // const errHandler = (err) => {
-        //     if (
-        //         err.error.message.includes(" does not exist in the map's style and cannot be styled.")
-        //     ) {
-        //         shouldRetry = true;
-        //     }
-        //     console.log("Error!! ", err);
-        // };
-        // map.once("error", errHandler);
+        timeData.current = paintProperty;
+
+        let shouldRetry = false;
+        const errHandler = (err) => {
+            if (
+                err.error.message.includes(" does not exist in the map's style and cannot be styled.")
+            ) {
+                shouldRetry = true;
+            }
+            console.log("Error!! ", err);
+        };
+        map.once("error", errHandler);
 
         map.setPaintProperty("transit-layer", "line-color", [
             "coalesce",
-            // ["get", ["to-string", ["id"]], ["literal", paintProperty]],
-            defaultColor,
+            ["get", ["to-string", ["id"]], ["literal", paintProperty]],
             defaultColor,
         ]);
-        //
-        // if (shouldRetry) {
-        //     console.log("Retrying...");
-        //     addMVTLayer(map);
-        //     new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
-        //         setRerender(!rerender);
-        //     }).catch(e => {
-        //         throw e
-        //     })
-        // }
 
-        // map.off("error", errHandler);
+        if (shouldRetry) {
+            console.log("Retrying...");
+            addMVTLayer(map);
+            new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+                setRerender(!rerender);
+            }).catch(e => {
+                throw e
+            })
+        }
+
+        map.off("error", errHandler);
 
         map.once("render", () => {
             // Takes roughly 200 ms for the map to update
-            // setTimeout(() => setSpinnerLoading(false), 200);
+            setTimeout(() => setSpinnerLoading(false), 200);
         });
     }, [paintProperty, mapboxLoading, rerender]);
 
@@ -327,8 +286,8 @@ export function MapboxMap({
                 <DetailPopup details={detailPopup.details} arrival_time={detailPopup.seconds} />
             ) : null}
 
-            {paintProperty ? (
-                <ColorLegend tcm={paintProperty} currentHover={detailPopup?.seconds} />
+            {timeData ? (
+                <ColorLegend tcm={timeData} currentHover={detailPopup?.seconds} />
             ) : null}
 
             <div ref={mapContainer} className="map w-screen h-screen overflow-none" />

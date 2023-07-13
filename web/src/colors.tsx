@@ -7,12 +7,16 @@ import { Header } from "./control-sidebar";
 import { type ReactNode, useRef } from "react";
 
 function generateCmap(shades: number): string[] {
-    return createColorMap({
+    const cmap = createColorMap({
             alpha: 0.4,
             colormap: "temperature",
             format: "hex",
-            nshades: shades,
+            nshades: shades * 2,
         }).reverse();
+
+    return cmap.filter((_value, index) => {
+        return index % 2 === 0
+    });
 
     // const endFirstSlope = 8;
     // const SHADES = 120;
@@ -44,7 +48,7 @@ function generateCmap(shades: number): string[] {
     // return answer;
 }
 
-const NSHADES = 9;
+const NSHADES = 7;
 export const cmap = generateCmap(NSHADES);
 
 export function getColor0To1(value: number): string {
@@ -61,7 +65,6 @@ export function getColor0To1(value: number): string {
 }
 
 function objectToTrueValues(obj: Record<string, boolean>): string[] {
-    console.log(obj);
     return Object.entries(obj)
         .filter(([_, include]) => include)
         .map(([key, _include]) => key);

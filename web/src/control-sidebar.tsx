@@ -1,12 +1,13 @@
 import { useQuery } from "react-query";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { TimeSlider } from "./time-slider";
 import { baseUrl } from "./dev-api";
-import { BG_WHITE_COLOR, startingLocation } from "./app";
+import { BG_WHITE_COLOR } from "./app";
 import track from "./analytics";
 import './control-sidebar.css';
 import { MapboxMap, setAndColorNewOriginLocation } from "./mapbox-map";
 import mapboxgl from "mapbox-gl";
+import { LoadingSpinner } from "./loading-spinner";
 
 interface Agency {
     agencyCode: string
@@ -84,7 +85,7 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ children, zi, positioning, style }: SidebarProps) {
-    let classes = `absolute m-5 w-3/12 p-5 ${BG_WHITE_COLOR} border border-slate-400 rounded-lg drop-shadow-2xl shadow-inner `;
+    let classes = `absolute m-4 w-3/12 p-5 pt-4 ${BG_WHITE_COLOR} border border-slate-400 rounded-lg drop-shadow-2xl shadow-inner `;
     classes += positioning ?? "";
 
     return (
@@ -137,9 +138,7 @@ const CITY_LOCATION = {
     "Kitchener-Waterloo": new mapboxgl.LngLat(-80.4935412978086, 43.45134086953097),
 };
 
-export function ControlSidebar({ }) {
-    const [currentCity, setCurrentCity] = useState("Toronto");
-
+export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const { isLoading, data } = useAgencies();
 
     const filtered = data ? data.map((ag) => {
@@ -150,31 +149,44 @@ export function ControlSidebar({ }) {
     }) : null;
 
     const agencies = useRef<object>({});
-    const modes = useRef<object>(MODES);
 
     const [duration, setDuration] = useState(2700);
     const [startTime, setStartTime] = useState(17 * 3600 + 40 * 60);
     const [minDuration, setMinDuration] = useState(0);
 
     const [currentOptions, setOptions] = useState<any>({ startTime, minDuration, duration });
-    const [currentStartingLoc, setCurrentStartingLoc] = useState(startingLocation);
+    const [currentStartingLoc, setCurrentStartingLoc] = useState(defaultStartLoc);
+    const [lastWorkingLocation, setLastWorkingLocation] = useState(defaultStartLoc);
     const [spinner, setSpinner] = useState(true);
 
     const [paintProperty, setPaintProperty] = useState<any>(null)
+    const [timeData, setTimeData] = useState<any>(null);
 
     const cityLocation = CITY_LOCATION[currentCity];
 
     useEffect(() => {
+        setLastWorkingLocation(defaultStartLoc);
+        setCurrentStartingLoc(defaultStartLoc);
+    }, [defaultStartLoc])
+
+    useEffect(() => {
         if (!isLoading && currentOptions.agencies && currentOptions.modes && currentStartingLoc) {
-            setAndColorNewOriginLocation(currentStartingLoc, currentOptions)
+            const joinedOptions = {
+                ...currentOptions, duration, minDuration, startTime
+            }
+            setSpinner(true);
+            setAndColorNewOriginLocation(currentStartingLoc, joinedOptions)
                 .then((data) => {
                     setPaintProperty(data.m);
+                    setTimeData(data);
+                    setLastWorkingLocation(currentStartingLoc);
                 })
                 .catch((err) => {
+                    setCurrentStartingLoc(lastWorkingLocation);
                     console.error("Got error in setAndColorNewOriginLocation", err)
                 });
         }
-    }, [currentOptions, currentStartingLoc, isLoading])
+    }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime])
 
     const onAgencyChange = (agencies1: object) => {
         track("agency-change", agencies1);
@@ -217,7 +229,8 @@ export function ControlSidebar({ }) {
 
     return (
         <>
-        <Sidebar zi={10} positioning="top-0 right-0 hidden sm:block ">
+        <LoadingSpinner display={spinner} />
+        <Sidebar zi={10} positioning="top-0 right-0 hidden sm:block hover:opacity-90 opacity-30 transition-opacity ">
             <p className="text-gray-700">
                 <ul>
                     <li>Double click anywhere to set starting location.</li>
@@ -240,8 +253,10 @@ export function ControlSidebar({ }) {
             />
         </Sidebar>
         <MapboxMap
+            timeData={timeData}
             paintProperty={paintProperty}
             setLatLng={setCurrentStartingLoc}
+            setSpinnerLoading={setSpinner}
             currentPos={cityLocation}
         />
         </>

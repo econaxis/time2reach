@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { Fragment, ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Sidebar } from "./control-sidebar";
 
 import { Bus, Train, Subway, Tram } from "./svg-icons";
