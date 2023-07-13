@@ -7,7 +7,7 @@ import { DetailPopup, type TripDetailsTransit } from "./format-details";
 import { startingLocation } from "./app";
 import track from "./analytics";
 
-export const defaultColor = "rgba(182,182,182,0.14)";
+export const defaultColor = "rgb(255,0,0)";
 
 const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
@@ -38,6 +38,12 @@ function addMVTLayer(currentMap: mapboxgl.Map) {
             "line-width": 3.5,
         },
     });
+
+    currentMap.setPaintProperty("transit-layer", "line-color", [
+        "coalesce",
+        ["get", ["to-string", ["id"]], ["literal", { 111693: "#00a6ff" }]],
+        "#adadad",
+    ]);
 }
 
 function addGeoJsonLayer(currentMap: mapboxgl.Map): GeoJSONSource {
@@ -150,12 +156,11 @@ function setupMapboxMap(
     });
 }
 
-async function setAndColorNewOriginLocation(
+export async function setAndColorNewOriginLocation(
     currentLatLng,
     currentOptions,
-    map: mapboxgl.Map,
-    setSpinnerLoading
 ) {
+    console.log(currentOptions, currentLatLng)
     const data = await TimeColorMapper.fetch(
         currentLatLng,
         currentOptions.startTime,
@@ -164,59 +169,57 @@ async function setAndColorNewOriginLocation(
         currentOptions.modes,
         currentOptions.minDuration
     );
-
-    let shouldRetry = false;
-    const errHandler = (err) => {
-        if (
-            err.error.message.includes(" does not exist in the map's style and cannot be styled.")
-        ) {
-            console.log("Error!! ", err);
-            shouldRetry = true;
-        }
-    };
-    map.once("error", errHandler);
-
-    map.setPaintProperty("transit-layer", "line-color", [
-        "coalesce",
-        ["get", ["to-string", ["id"]], ["literal", data.m]],
-        defaultColor,
-    ]);
-
-    if (shouldRetry) {
-        console.log("Retrying...");
-        addMVTLayer(map);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        const d1 = await setAndColorNewOriginLocation(
-            currentLatLng,
-            currentOptions,
-            map,
-            setSpinnerLoading
-        );
-        return d1;
-    }
-
-    map.off("error", errHandler);
-
-    map.once("render", () => {
-        // Takes roughly 200 ms for the map to update
-        setTimeout(() => setSpinnerLoading(false), 200);
-    });
+    //
+    // let shouldRetry = false;
+    // const errHandler = (err) => {
+    //     if (
+    //         err.error.message.includes(" does not exist in the map's style and cannot be styled.")
+    //     ) {
+    //         console.log("Error!! ", err);
+    //         shouldRetry = true;
+    //     }
+    // };
+    // map.once("error", errHandler);
+    //
+    // map.setPaintProperty("transit-layer", "line-color", [
+    //     "coalesce",
+    //     ["get", ["to-string", ["id"]], ["literal", data.m]],
+    //     defaultColor,
+    // ]);
+    //
+    // if (shouldRetry) {
+    //     console.log("Retrying...");
+    //     addMVTLayer(map);
+    //     await new Promise((resolve) => setTimeout(resolve, 2000));
+    //     const d1 = await setAndColorNewOriginLocation(
+    //         currentLatLng,
+    //         currentOptions,
+    //         map,
+    //         setSpinnerLoading
+    //     );
+    //     return d1;
+    // }
+    //
+    // map.off("error", errHandler);
+    //
+    // map.once("render", () => {
+    //     // Takes roughly 200 ms for the map to update
+    //     setTimeout(() => setSpinnerLoading(false), 200);
+    // });
 
     return data;
 }
 
 export function MapboxMap({
-    currentOptions,
-    currentLatLng,
+    paintProperty,
     setLatLng,
     currentPos,
-    setSpinnerLoading,
 }) {
     const [map, setMap] = useState<mapboxgl.Map | null>(null);
     const [mapboxLoading, setMapboxLoading] = useState(true);
     const timeData = useRef<TimeColorMapper | null>(null);
-    const [timeDataState, setTimeDataState] = useState<any>(null);
     const mapContainer = useRef<HTMLDivElement | null>(null);
+    const [rerender, setRerender] = useState(false);
 
     const [detailPopup, setDetailPopup] = useState<{
         details: TripDetailsTransit[]
@@ -261,32 +264,56 @@ export function MapboxMap({
             setLatLng,
             getTimeData,
             () => {
-                setMapboxLoading(false);
+                // setMapboxLoading(false);
             },
             setDetailPopupInfo
         );
+
+        map.on('idle', () => {
+            console.log("Done loading!", map.loaded());
+            setMapboxLoading(false);
+        })
     }, []);
 
     useEffect(() => {
-        if (!currentOptions?.agencies) {
-            console.log("CO agencies not defined", currentOptions);
-            return;
-        }
-        if (!currentLatLng) return;
-        if (mapboxLoading) return;
-        if (map == null) return;
+        if (mapboxLoading || !paintProperty || !map) return;
+        console.log("mapbox loading", mapboxLoading, paintProperty,  map.loaded())
 
-        setSpinnerLoading(true);
-        setAndColorNewOriginLocation(currentLatLng, currentOptions, map, setSpinnerLoading)
-            .then((data) => {
-                timeData.current = data;
-                setTimeDataState(timeData.current);
-            })
-            .catch((err) => {
-                setSpinnerLoading(false);
-                console.error("Got error in setAndColorNewOriginLocation", err)
-            });
-    }, [currentOptions, currentLatLng, map, mapboxLoading]);
+        // let shouldRetry = false;
+        // const errHandler = (err) => {
+        //     if (
+        //         err.error.message.includes(" does not exist in the map's style and cannot be styled.")
+        //     ) {
+        //         shouldRetry = true;
+        //     }
+        //     console.log("Error!! ", err);
+        // };
+        // map.once("error", errHandler);
+
+        map.setPaintProperty("transit-layer", "line-color", [
+            "coalesce",
+            // ["get", ["to-string", ["id"]], ["literal", paintProperty]],
+            defaultColor,
+            defaultColor,
+        ]);
+        //
+        // if (shouldRetry) {
+        //     console.log("Retrying...");
+        //     addMVTLayer(map);
+        //     new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+        //         setRerender(!rerender);
+        //     }).catch(e => {
+        //         throw e
+        //     })
+        // }
+
+        // map.off("error", errHandler);
+
+        map.once("render", () => {
+            // Takes roughly 200 ms for the map to update
+            // setTimeout(() => setSpinnerLoading(false), 200);
+        });
+    }, [paintProperty, mapboxLoading, rerender]);
 
     useEffect(() => {
         if (map == null) return;
@@ -300,8 +327,8 @@ export function MapboxMap({
                 <DetailPopup details={detailPopup.details} arrival_time={detailPopup.seconds} />
             ) : null}
 
-            {timeDataState ? (
-                <ColorLegend tcm={timeDataState} currentHover={detailPopup?.seconds} />
+            {paintProperty ? (
+                <ColorLegend tcm={paintProperty} currentHover={detailPopup?.seconds} />
             ) : null}
 
             <div ref={mapContainer} className="map w-screen h-screen overflow-none" />

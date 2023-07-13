@@ -2,9 +2,11 @@ import { useQuery } from "react-query";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { TimeSlider } from "./time-slider";
 import { baseUrl } from "./dev-api";
-import { BG_WHITE_COLOR } from "./app";
+import { BG_WHITE_COLOR, startingLocation } from "./app";
 import track from "./analytics";
 import './control-sidebar.css';
+import { MapboxMap, setAndColorNewOriginLocation } from "./mapbox-map";
+import mapboxgl from "mapbox-gl";
 
 interface Agency {
     agencyCode: string
@@ -127,7 +129,17 @@ const MODES = [
     },
 ];
 
-export function ControlSidebar({ setOptions, currentCity }) {
+const CITY_LOCATION = {
+    Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),
+    "New York City": new mapboxgl.LngLat(-74.006, 40.7128),
+    Montreal: new mapboxgl.LngLat(-73.5674, 45.5019),
+    Vancouver: new mapboxgl.LngLat(-123.1207, 49.2827),
+    "Kitchener-Waterloo": new mapboxgl.LngLat(-80.4935412978086, 43.45134086953097),
+};
+
+export function ControlSidebar({ }) {
+    const [currentCity, setCurrentCity] = useState("Toronto");
+
     const { isLoading, data } = useAgencies();
 
     const filtered = data ? data.map((ag) => {
@@ -144,34 +156,67 @@ export function ControlSidebar({ setOptions, currentCity }) {
     const [startTime, setStartTime] = useState(17 * 3600 + 40 * 60);
     const [minDuration, setMinDuration] = useState(0);
 
-    const triggerRefetch = () => {
-        if (!isLoading) {
-            setOptions({
-                duration,
-                startTime,
-                agencies: agencies.current,
-                modes: modes.current,
-                minDuration,
-            });
-        }
-    };
+    const [currentOptions, setOptions] = useState<any>({ startTime, minDuration, duration });
+    const [currentStartingLoc, setCurrentStartingLoc] = useState(startingLocation);
+    const [spinner, setSpinner] = useState(true);
+
+    const [paintProperty, setPaintProperty] = useState<any>(null)
+
+    const cityLocation = CITY_LOCATION[currentCity];
 
     useEffect(() => {
-        triggerRefetch();
-    }, [duration, startTime, minDuration]);
+        if (!isLoading && currentOptions.agencies && currentOptions.modes && currentStartingLoc) {
+            setAndColorNewOriginLocation(currentStartingLoc, currentOptions)
+                .then((data) => {
+                    setPaintProperty(data.m);
+                })
+                .catch((err) => {
+                    console.error("Got error in setAndColorNewOriginLocation", err)
+                });
+        }
+    }, [currentOptions, currentStartingLoc, isLoading])
+
     const onAgencyChange = (agencies1: object) => {
         track("agency-change", agencies1);
+        console.log("agency change!")
         agencies.current = agencies1;
-        triggerRefetch();
+        setOptions((options: any) => {
+            options = options || {}
+            // setOptions({
+            //     duration,
+            //     startTime,
+            //     agencies: agencies.current,
+            //     modes: modes.current,
+            //     minDuration,
+            // });
+            return {
+                ...options,
+                agencies: agencies.current,
+            };
+        });
     };
 
     const onModeChange = (modes1: object) => {
         track("mode-change", modes1);
-        modes.current = modes1;
-        triggerRefetch();
+        console.log("mode change!")
+        setOptions((options: any) => {
+            options = options || {}
+            // setOptions({
+            //     duration,
+            //     startTime,
+            //     agencies: agencies.current,
+            //     modes: modes.current,
+            //     minDuration,
+            // });
+            return {
+                ...options,
+                modes: modes1,
+            };
+        });
     };
 
     return (
+        <>
         <Sidebar zi={10} positioning="top-0 right-0 hidden sm:block ">
             <p className="text-gray-700">
                 <ul>
@@ -186,7 +231,6 @@ export function ControlSidebar({ setOptions, currentCity }) {
             <TimeSlider
                 duration={duration}
                 setDuration={(e) => {
-                    console.log("SET DURATION", e);
                     setDuration(e);
                 }}
                 minDuration={minDuration}
@@ -195,5 +239,11 @@ export function ControlSidebar({ setOptions, currentCity }) {
                 setStartTime={setStartTime}
             />
         </Sidebar>
+        <MapboxMap
+            paintProperty={paintProperty}
+            setLatLng={setCurrentStartingLoc}
+            currentPos={cityLocation}
+        />
+        </>
     );
 }
