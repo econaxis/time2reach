@@ -12,6 +12,7 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       DOCKER_WRITE: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_ACTIONS: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -27,7 +28,7 @@ jobs:
           context: .
           platforms: linux/arm64
           load: true
-          tags: myimage:latest
+          tags: test:latest
 
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.2

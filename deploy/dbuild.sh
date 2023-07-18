@@ -4,12 +4,13 @@ source deploy/.env.prod
 #set -e
 
 
-docker login ghcr.io -u USERNAME -p $DOCKER_WRITE
+if [[ -z $GITHUB_ACTIONS ]]; then
+  docker login ghcr.io -u USERNAME -p $DOCKER_WRITE
+  rsync -rvahz --progress --relative ./city-gtfs/ ./web/public/ ./deploy/ ./certificates/ 35.238.190.254:data2/
+  docker build -t ghcr.io/econaxis/test .
+  docker push ghcr.io/econaxis/test
 
-docker build -t ghcr.io/econaxis/test .
-docker push ghcr.io/econaxis/test
-
-rsync -rvahz --progress --relative ./city-gtfs/ ./web/public/ ./deploy/ ./certificates/ 35.238.190.254:data2/
+fi
 
 sleep 0.1
 
