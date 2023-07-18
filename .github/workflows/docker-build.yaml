@@ -16,11 +16,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      - name: Build
-        uses: docker/build-push-action@v4
+      - name: rsync deployments
+        uses: burnett01/rsync-deployments@6.0.0
         with:
-          context: .
-          load: true
-          tags: test:x86_64
-
+          switches: -avzr
+          path: .
+          remote_path: repo
+          remote_host: 35.238.190.254
+          remote_user: henry
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
