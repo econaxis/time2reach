@@ -25,3 +25,10 @@ jobs:
           remote_host: 35.238.190.254
           remote_user: henry
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: 35.238.190.254
+          username: henry
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: GITHUB_PAT=${{secrets.GITHUB_TOKEN}} sh $HOME/repo/deploy/dbuild.sh
