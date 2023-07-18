@@ -16,6 +16,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          load: true
+          tags: myimage:latest
+
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.2
         with:
