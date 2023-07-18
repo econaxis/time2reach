@@ -23,6 +23,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
+          platforms: linux/arm64
           load: true
           tags: myimage:latest
 
