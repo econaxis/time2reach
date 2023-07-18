@@ -10,12 +10,17 @@ export const LOCAL_API: boolean = import.meta.env.MODE === "development" && fals
 // export const mvtUrl: string = apiUrl
 
 // export const baseUrl: string = LOCAL_API ? "http://localhost:3030" : apiUrl
-export const baseUrl: string = LOCAL_API
+export let baseUrl: string = LOCAL_API
     ? "http://127.0.0.1:3030"
-    : "https://api-map.henryn.xyz";
+    : "https://map.henryn.xyz/api";
+
+if (IS_LOCAL) {
+    baseUrl = "http://127.0.0.1:3030"
+}
+
 export const mvtUrl: string = LOCAL_API
     ? "http://127.0.0.1:3030/mvt"
-    : "https://api-map.henryn.xyz/mvt";
+    : "https://map.henryn.xyz/api/mvt";
 // export const mvtUrl: string = LOCAL_API ? 'http://127.0.0.1:6767' : apiUrl
 
 // @ts-expect-error window

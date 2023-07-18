@@ -12,9 +12,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use std::convert::Infallible;
-use std::fmt;
-use std::io::empty;
+use std::fs::File;
+use std::io::{empty, ErrorKind, Read};
+use std::path::PathBuf;
+use std::{any, fmt, io};
 
+use anyhow::{anyhow, Context};
 use futures::stream::FuturesUnordered;
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,10 +28,12 @@ use crate::web_app_data::{AllAppData, CityAppData};
 use crate::web_cache::{check_cache, insert_cache};
 use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
-use warp::reject::{InvalidQuery, Reject};
-use warp::{Filter, Rejection, Reply};
 use warp::log::{Info, Log};
+use warp::path::Tail;
+use warp::reject::{InvalidQuery, Reject};
 use warp::reply::Json;
+use warp::reply::Response;
+use warp::{Filter, Rejection, Reply};
 
 fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> CityAppData {
     let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&city, &gtfs);
@@ -86,14 +91,20 @@ fn process_coordinates(
 
     if max_search_time >= 2.5 * 3600.0 {
         log::warn!("Invalid max search time");
-        return Err((BadQuery::from(
-            "Invalid max search time",
-        )));
+        return Err((BadQuery::from("Invalid max search time")));
     }
     let city = city.unwrap();
     let ad = &ad.ads.get(&city).unwrap();
 
-    let cache_key = match check_cache(ad, lat, lng, &include_agencies, &include_modes, start_time, max_search_time as u64) {
+    let cache_key = match check_cache(
+        ad,
+        lat,
+        lng,
+        &include_agencies,
+        &include_modes,
+        start_time,
+        max_search_time as u64,
+    ) {
         Ok(reply) => return Ok(reply),
         Err(key) => key,
     };
@@ -175,7 +186,6 @@ fn with_appdata(
     warp::any().map(move || ad.clone())
 }
 
-
 struct OptFmt<T>(Option<T>);
 
 impl<T: fmt::Display> fmt::Display for OptFmt<T> {
@@ -189,8 +199,11 @@ impl<T: fmt::Display> fmt::Display for OptFmt<T> {
 }
 
 pub fn weblog(name: &'static str) -> Log<impl Fn(Info<'_>) + Copy> {
-    warp::log::custom( |info: Info<'_>| {
-        let cf_connecting = info.request_headers().get("Cf-Connecting-Ip").map(|a| a.to_str().unwrap());
+    warp::log::custom(|info: Info<'_>| {
+        let cf_connecting = info
+            .request_headers()
+            .get("Cf-Connecting-Ip")
+            .map(|a| a.to_str().unwrap());
         log::info!(
             target: name,
             "{} {} \"{} {} {:?}\" {} \"{}\" \"{}\" {:?}",
@@ -206,12 +219,43 @@ pub fn weblog(name: &'static str) -> Log<impl Fn(Info<'_>) + Copy> {
         );
     })
 }
+
+fn rewrite_path(path: String) -> impl Into<PathBuf> {
+    path
+}
+
+fn get_file(str: Tail) -> anyhow::Result<Vec<u8>> {
+    let str = str.as_str();
+    let str = str.trim_end_matches(".bin");
+    let mut parts: Vec<_> = str.split('/').collect();
+
+    if parts.len() != 4 {
+        return Err(anyhow!("Invalid path"));
+    }
+
+    let str = parts[0];
+
+    if str != "all_cities" {
+        return Err(anyhow!("Invalid path"));
+    }
+    let z: u32 = parts[1].parse()?;
+    let x: u32 = parts[2].parse()?;
+    let y: u32 = parts[3].parse()?;
+
+    let mut path = PathBuf::from("/tmp/vancouver-cache");
+    path.push(format!("{}/{}/{}/{}.pbf", str, z, x, y));
+    // Read file from path
+    println!("Trying to read at {path:?}");
+    let mut file = File::open(path)?;
+    let mut answer = Vec::new();
+    file.read_to_end(&mut answer)?;
+    Ok(answer)
+}
+
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
     let all_gtfs_future = all_gtfs.into_iter().map(|(city, gtfs)| {
-        tokio::task::spawn_blocking(move || {
-            (city, gtfs_to_city_appdata(city, gtfs))
-        })
+        tokio::task::spawn_blocking(move || (city, gtfs_to_city_appdata(city, gtfs)))
     });
 
     let mut all_gtfs: FxHashMap<City, CityAppData> = FxHashMap::default();
@@ -251,12 +295,11 @@ pub async fn main() {
                 req.max_search_time,
                 req.previous_request_id,
             )
-        }).map(|r: Result<Json, BadQuery>| {
-        match r {
+        })
+        .map(|r: Result<Json, BadQuery>| match r {
             Ok(a) => warp::reply::with_status(a, StatusCode::OK).into_response(),
-            Err(e) => warp::reply::with_status(e.reason, StatusCode::BAD_REQUEST).into_response()
-        }
-    });
+            Err(e) => warp::reply::with_status(e.reason, StatusCode::BAD_REQUEST).into_response(),
+        });
 
     let details = warp::post()
         .and(with_appdata(appdata.clone()))
@@ -280,25 +323,33 @@ pub async fn main() {
         });
 
     let mvt_endpoint = warp::get()
-        .and(warp::path!("mvt" / ..))
-        .and(warp::fs::dir("/tmp/vancouver-cache"))
-        .map(|response: warp::filters::fs::File| {
-            let mut resp = response.into_response();
-            let headers = resp.headers_mut();
-            headers.append("Content-Encoding", HeaderValue::from_static("gzip"));
-            headers.append(
-                "Content-Type",
-                HeaderValue::from_static("application/x-protobuf"),
-            );
-            headers.append("Cache-Control", HeaderValue::from_static("max-age=18000"));
-            resp
-        })
-        .recover(|x: Rejection| async {
-            if x.is_not_found() {
-                Result::<StatusCode, Rejection>::Ok(StatusCode::NO_CONTENT)
-            } else {
-                Result::<StatusCode, Rejection>::Err(x)
+        .and(warp::path("mvt"))
+        .and(warp::path::tail())
+        .map(get_file)
+        .map(|result: anyhow::Result<Vec<u8>>| match result {
+            Ok(a) => warp::reply::with_status(a, StatusCode::OK).into_response(),
+            Err(err) => {
+                if let Some(ioerr) = err.downcast_ref::<io::Error>() {
+                    if ioerr.kind() == ErrorKind::NotFound {
+                        return warp::reply::with_status("Not found", StatusCode::NOT_FOUND)
+                            .into_response();
+                    }
+                }
+                warp::reply::with_status(err.to_string(), StatusCode::INTERNAL_SERVER_ERROR)
+                    .into_response()
             }
+        })
+        .map(|mut response: Response| {
+            if response.status() == StatusCode::OK {
+                let headers = response.headers_mut();
+                headers.append("Content-Encoding", HeaderValue::from_static("gzip"));
+                headers.append(
+                    "Content-Type",
+                    HeaderValue::from_static("application/x-protobuf"),
+                );
+                headers.append("Cache-Control", HeaderValue::from_static("max-age=18000"));
+            }
+            response
         });
 
     let routes = agencies_endpoint

@@ -9,8 +9,8 @@ import { BlurBackground, WelcomePopup } from "./welcome-popup";
 
 export const BG_WHITE_COLOR = "bg-slate-50";
 
-const CITY_LOCATION = {
-    Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),
+export const CITY_LOCATION = {
+    Toronto: new mapboxgl.LngLat(-79.37988, 43.644622),
     "New York City": new mapboxgl.LngLat(-74.006, 40.7128),
     Montreal: new mapboxgl.LngLat(-73.5674, 45.5019),
     Vancouver: new mapboxgl.LngLat(-123.1207, 49.2827),

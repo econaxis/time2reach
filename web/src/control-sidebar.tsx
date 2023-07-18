@@ -2,11 +2,10 @@ import { useQuery } from "react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { TimeSlider } from "./time-slider";
 import { baseUrl } from "./dev-api";
-import { BG_WHITE_COLOR } from "./app";
+import { BG_WHITE_COLOR, CITY_LOCATION } from "./app";
 import track from "./analytics";
 import './control-sidebar.css';
 import { MapboxMap, setAndColorNewOriginLocation } from "./mapbox-map";
-import mapboxgl from "mapbox-gl";
 import { LoadingSpinner } from "./loading-spinner";
 
 interface Agency {
@@ -129,14 +128,6 @@ const MODES = [
         agencyLongName: "Train",
     },
 ];
-
-const CITY_LOCATION = {
-    Toronto: new mapboxgl.LngLat(-79.3832, 43.6532),
-    "New York City": new mapboxgl.LngLat(-74.006, 40.7128),
-    Montreal: new mapboxgl.LngLat(-73.5674, 45.5019),
-    Vancouver: new mapboxgl.LngLat(-123.1207, 49.2827),
-    "Kitchener-Waterloo": new mapboxgl.LngLat(-80.4935412978086, 43.45134086953097),
-};
 
 export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const { isLoading, data } = useAgencies();

@@ -19,7 +19,8 @@ function addMVTLayer(currentMap: mapboxgl.Map) {
     if (currentMap.getSource("some id")) currentMap.removeSource("some id");
     currentMap.addSource("some id", {
         type: "vector",
-        tiles: [`${mvtUrl}/all_cities/{z}/{x}/{y}.pbf`],
+        // Use extension .bin to enable Cloudflare caching (doesn't cache on .pbf extension)
+        tiles: [`${mvtUrl}/all_cities/{z}/{x}/{y}.bin`],
     });
 
     currentMap.addLayer({

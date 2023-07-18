@@ -86,7 +86,7 @@ pub fn load_all_gtfs() -> FxHashMap<City, Gtfs1> {
 }
 
 pub fn agencies() -> Vec<&'static Agency> {
-    const AGENCY_TORONTO: [Agency; 11] = [
+    const AGENCY_TORONTO: [Agency; 13] = [
         Agency {
             public_name: "TTC",
             path: "ttc",
@@ -141,6 +141,18 @@ pub fn agencies() -> Vec<&'static Agency> {
             city: City::NewYorkCity,
             path: "nyc-bus",
             short_code: "NYC-BUS",
+        },
+        Agency {
+            public_name: "New Jersey Bus",
+            city: City::NewYorkCity,
+            path: "nj-bus",
+            short_code: "NJ-BUS",
+        },
+        Agency {
+            public_name: "New Jersey Train",
+            city: City::NewYorkCity,
+            path: "nj-rail",
+            short_code: "NJ-RAIL",
         },
         // Vancouver
         Agency {

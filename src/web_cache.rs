@@ -33,7 +33,7 @@ fn cache_key(
     include_agencies: &[String],
     include_modes: &[String],
     start_time: u64,
-    max_duration_secs: u64
+    max_duration_secs: u64,
 ) -> u64 {
     let mut hasher = DefaultHasher::new();
     hasher.write_u64(round_f64_for_hash(lat));
@@ -61,10 +61,17 @@ pub fn check_cache<'a>(
     include_agencies: &[String],
     include_modes: &[String],
     start_time: u64,
-    max_duration_secs: u64
+    max_duration_secs: u64,
 ) -> Result<Json, u64> {
     let mut cache = CACHE.lock().unwrap();
-    let hash = cache_key(lat, lng, include_agencies, include_modes, start_time, max_duration_secs);
+    let hash = cache_key(
+        lat,
+        lng,
+        include_agencies,
+        include_modes,
+        start_time,
+        max_duration_secs,
+    );
     cache
         .get(&hash)
         .map(|x| {
