@@ -1,27 +1,27 @@
 use crate::agencies::{agencies, load_all_gtfs, City};
-use futures::{StreamExt, TryStreamExt};
+use futures::{StreamExt};
 
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
 use crate::road_structure::EdgeId;
 use crate::{gtfs_setup, time_to_reach, trip_details, Gtfs1, RoadStructure, Time};
 use gtfs_structure_2::gtfs_wrapper::RouteType;
-use log::info;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use std::convert::Infallible;
 use std::fs::File;
-use std::io::{empty, ErrorKind, Read};
+use std::io::{ErrorKind, Read};
 use std::path::PathBuf;
-use std::{any, fmt, io};
+use std::{fmt, io};
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow};
 use futures::stream::FuturesUnordered;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::runtime::Handle;
+
+
 
 use crate::trip_details::CalculateRequest;
 use crate::web_app_data::{AllAppData, CityAppData};
@@ -30,10 +30,10 @@ use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
 use warp::log::{Info, Log};
 use warp::path::Tail;
-use warp::reject::{InvalidQuery, Reject};
+use warp::reject::{Reject};
 use warp::reply::Json;
 use warp::reply::Response;
-use warp::{Filter, Rejection, Reply};
+use warp::{Filter, Reply};
 
 fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> CityAppData {
     let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&city, &gtfs);
@@ -86,12 +86,12 @@ fn process_coordinates(
     let city = check_city(&ad, lat, lng);
 
     if city.is_none() {
-        return Err((BadQuery::from("Invalid city")));
+        return Err(BadQuery::from("Invalid city"));
     }
 
     if max_search_time >= 2.5 * 3600.0 {
         log::warn!("Invalid max search time");
-        return Err((BadQuery::from("Invalid max search time")));
+        return Err(BadQuery::from("Invalid max search time"));
     }
     let city = city.unwrap();
     let ad = &ad.ads.get(&city).unwrap();
@@ -227,7 +227,7 @@ fn rewrite_path(path: String) -> impl Into<PathBuf> {
 fn get_file(str: Tail) -> anyhow::Result<Vec<u8>> {
     let str = str.as_str();
     let str = str.trim_end_matches(".bin");
-    let mut parts: Vec<_> = str.split('/').collect();
+    let parts: Vec<_> = str.split('/').collect();
 
     if parts.len() != 4 {
         return Err(anyhow!("Invalid path"));

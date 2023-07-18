@@ -19,7 +19,7 @@ fn get_proj_instance_inner(lat_u: i64, lon_u: i64) -> Proj {
     Proj::new(&format!("+proj=aeqd +lon_0={} +lat_0={}", lon, lat)).unwrap()
 }
 thread_local! {
-    static PROJ_CACHE: CacheDecorator<fn(i64, i64) -> Proj, Proj> = {CacheDecorator::new(get_proj_instance_inner, 20)};
+    static PROJ_CACHE: CacheDecorator<fn(i64, i64) -> Proj, Proj> = CacheDecorator::new(get_proj_instance_inner, 20);
 }
 
 fn get_proj_instance(c: &CacheDecorator<fn(i64, i64) -> Proj, Proj>, city: &City) -> Arc<Proj> {
