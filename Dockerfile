@@ -6,9 +6,11 @@ WORKDIR /app
 
 COPY deploy/init.sh deploy/
 RUN sh deploy/init.sh
-RUN apt-get install -y build-essential libgdal-dev curl ca-certificates sqlite3 cmake pkg-config libclang-dev --no-install-recommends
+RUN apt-get install -y curl ca-certificates sqlite3 --no-install-recommends
 
 FROM base as chef
+
+RUN apt-get install -y libgdal-dev build-essential pkg-config cmake libclang-dev libssl-dev --no-install-recommends
 
 COPY deploy/deploy.sh deploy/
 RUN sh deploy/deploy.sh
@@ -45,10 +47,10 @@ RUN cargo build --release --features prod
 
 FROM base AS run
 WORKDIR /app
-COPY city-gtfs /app/city-gtfs
-COPY certificates /app/certificates
-COPY web/public /app/web/public
-COPY --from=builder /app/target/release/timetoreach /app/target/release/timetoreach
+#COPY certificates /app/certificates
+#COPY city-gtfs /app/city-gtfs
+#COPY web/public /app/web/public
+COPY --from=builder /app/target/release/timetoreach /usr/bin/timetoreach
 
 ENV RUST_LOG info,timetoreach=debug,h2=info,hyper=info,warp=info,rustls=info
-ENTRYPOINT ["/app/target/release/timetoreach"]
+ENTRYPOINT ["/usr/bin/timetoreach"]

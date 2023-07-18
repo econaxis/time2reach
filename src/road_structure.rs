@@ -291,7 +291,7 @@ impl RoadStructureInner {
 
     pub fn new(city: City) -> Self {
         let options = DatasetOptions {
-            open_flags: GdalOpenFlags::GDAL_OF_UPDATE,
+            open_flags: GdalOpenFlags::GDAL_OF_READONLY,
             allowed_drivers: None,
             open_options: None,
             sibling_files: None,

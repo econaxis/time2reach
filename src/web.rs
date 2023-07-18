@@ -242,7 +242,7 @@ fn get_file(str: Tail) -> anyhow::Result<Vec<u8>> {
     let x: u32 = parts[2].parse()?;
     let y: u32 = parts[3].parse()?;
 
-    let mut path = PathBuf::from("/tmp/vancouver-cache");
+    let mut path = PathBuf::from("vancouver-cache");
     path.push(format!("{}/{}/{}/{}.pbf", str, z, x, y));
     // Read file from path
     println!("Trying to read at {path:?}");

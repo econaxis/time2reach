@@ -13,6 +13,6 @@ docker rm main &> /dev/null  || :
 sleep 1
 
 echo "Running new container"
-docker run --rm --name main -d -p 443:3030 -v $HOME/vancouver-cache:/tmp/vancouver-cache:ro -e RUST_LOG=info,timetoreach=debug,h2=info,hyper=info,warp=info,rustls=info ghcr.io/econaxis/test:latest
+docker run --rm --name main -d -p 443:3030 -v $HOME/data2:/app:rw -e RUST_LOG=info,timetoreach=debug,h2=info,hyper=info,warp=info,rustls=info ghcr.io/econaxis/test:latest
 
-echo Run docker logs main -f
+docker logs main -f
