@@ -14,7 +14,7 @@ export let baseUrl: string = LOCAL_API
     ? "http://127.0.0.1:3030"
     : "https://map.henryn.xyz/api";
 
-if (IS_LOCAL) {
+if (IS_LOCAL && false) {
     baseUrl = "http://127.0.0.1:3030"
 }
 

@@ -46,8 +46,8 @@ use trips_arena::TripsArena;
 
 const WALKING_SPEED: f64 = 1.42;
 const STRAIGHT_WALKING_SPEED: f64 = 1.25;
-pub const MIN_TRANSFER_SECONDS: f64 = 10.0;
-pub const TRANSIT_EXIT_PENALTY: f64 = 30.0;
+pub const MIN_TRANSFER_SECONDS: f64 = 35.0;
+pub const TRANSIT_EXIT_PENALTY: f64 = 10.0;
 const NULL_ID: (u8, u64) = (u8::MAX, u64::MAX);
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]

@@ -252,6 +252,11 @@ fn get_file(str: Tail) -> anyhow::Result<Vec<u8>> {
     Ok(answer)
 }
 
+#[derive(Serialize, Deserialize)]
+struct IDQuery {
+    id: Option<u64>
+}
+
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
     let all_gtfs_future = all_gtfs.into_iter().map(|(city, gtfs)| {
@@ -314,8 +319,12 @@ pub async fn main() {
 
     let agencies_endpoint = warp::get()
         .and(warp::path!("agencies"))
-        .map(|| warp::reply::json(&agencies()))
-        .map(|response: warp::reply::Json| {
+        .and(warp::query::<IDQuery>())
+        .map(|id: IDQuery| {
+            log::info!("Requested agency with ID {}", id.id.unwrap_or(0));
+            warp::reply::json(&agencies())
+        })
+        .map(|response: Json| {
             let mut resp = response.into_response();
             let headers = resp.headers_mut();
             headers.append("Cache-Control", HeaderValue::from_static("max-age=18000"));

@@ -94,8 +94,19 @@ export function Sidebar({ children, zi, positioning, style }: SidebarProps) {
     );
 }
 
+function getID(): string {
+    // Check in localstorage for randomly generated ID string
+    let id = localStorage.getItem("time2reach-random-id");
+    if (!id) {
+        // Generate a 64 bit random id
+        id = (Math.random() * Math.pow(10, 18)).toString(10);
+        localStorage.setItem("time2reach-random-id", id);
+    }
+
+    return id;
+}
 async function fetchAgencies(): Promise<Agency[]> {
-    const result = await fetch(`${baseUrl}/agencies`);
+    const result = await fetch(`${baseUrl}/agencies?id=${getID()}`);
     const json = await result.json();
     return json.map((agency) => {
         return {
@@ -242,6 +253,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                 startTime={startTime}
                 setStartTime={setStartTime}
             />
+            <p className="text-xs border-t mt-6 pt-3">Find this project on <a href="https://github.com/econaxis/time2reach" target="_blank" rel="me noreferrer" className="underline">Github!</a></p>
         </Sidebar>
         <MapboxMap
             timeData={timeData}
