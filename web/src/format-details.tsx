@@ -6,24 +6,24 @@ import { Sidebar } from "./control-sidebar";
 import { Bus, Train, Subway, Tram } from "./svg-icons";
 
 interface TripDetailsInner {
-    time: number
-    line: number
-    stop: string
+    time: number;
+    line: number;
+    stop: string;
 }
 
 export interface TripDetailsTransit {
-    background_color: string
-    text_color: string
-    mode: string
-    boarding: TripDetailsInner
-    exit: TripDetailsInner
-    method: string
+    background_color: string;
+    text_color: string;
+    mode: string;
+    boarding: TripDetailsInner;
+    exit: TripDetailsInner;
+    method: string;
 }
 
 export interface TripDetailsWalking {
-    method: string
-    time: number
-    length: number
+    method: string;
+    time: number;
+    length: number;
 }
 
 export type TripDetails = TripDetailsTransit | TripDetailsWalking;
@@ -32,7 +32,7 @@ function toTitleCase(str: string): string {
     return str
         .toLowerCase()
         .split(/[\s()-/]/)
-        .map(function(word) {
+        .map(function (word) {
             return word.charAt(0).toUpperCase() + word.slice(1);
         })
         .join(" ");
@@ -73,7 +73,7 @@ export function formatTime(secs: number): string {
     if (secs > 12 * 3600 && secs < 13 * 3600) {
         mod_secs = secs;
     } else {
-        mod_secs = secs % (12 * 3600)
+        mod_secs = secs % (12 * 3600);
     }
     const t = new Date(mod_secs * 1000).toISOString().substring(11, 16);
     const ampm = secs >= 12 * 3600;
@@ -144,8 +144,8 @@ function format_walking_distance(length: number) {
 }
 
 export interface SmallSpanProps {
-    children?: ReactNode
-    light?: boolean
+    children?: ReactNode;
+    light?: boolean;
 }
 
 function SmallSpan({ children, light }: SmallSpanProps) {
@@ -195,8 +195,8 @@ export function DetailEntryWalking({ detail }) {
 }
 
 export interface DetailPopupProps {
-    details: TripDetailsTransit[]
-    arrival_time: number
+    details: TripDetailsTransit[];
+    arrival_time: number;
 }
 
 export function DetailPopup({ details, arrival_time: arrivalTime }: DetailPopupProps) {

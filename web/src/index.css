@@ -1,0 +1,13 @@
+.btm48 {
+    bottom: 0;
+}
+
+@media only screen and (max-width: 600px) {
+    .btm48 {
+        bottom: 12rem;
+    }
+    .top40 {
+        top: 40rem;
+        @apply w-full mx-auto left-0 right-0;
+    }
+}

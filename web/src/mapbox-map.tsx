@@ -37,7 +37,7 @@ function addMVTLayer(currentMap: mapboxgl.Map) {
             "line-opacity": 0.4,
             // "line-color": defaultColor,
             "line-color": "#8f8f8f",
-            "line-width": 3.5,
+            "line-width": 5.5,
         },
     });
 }
@@ -83,8 +83,10 @@ function bufferPoint(point: mapboxgl.Point): [mapboxgl.Point, mapboxgl.Point] {
 }
 
 function isTouchDevice() {
-    // @ts-ignore
-    return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0));
+    return (
+        // @ts-expect-error navigator
+        "ontouchstart" in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0
+    );
 }
 
 function setupMapboxMap(
@@ -108,7 +110,7 @@ function setupMapboxMap(
             if (event.key === "Escape") {
                 removeHoverDetails();
             }
-        })
+        });
 
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || isTouchDevice();
 
@@ -130,7 +132,9 @@ function setupMapboxMap(
                 return;
             }
 
-            const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point), { layers: ["transit-layer"] });
+            const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point), {
+                layers: ["transit-layer"],
+            });
             if (nearbyFeatures.length === 0) {
                 if (e.type === "click") removeHoverDetails();
                 return;
@@ -169,10 +173,7 @@ function setupMapboxMap(
     });
 }
 
-export async function setAndColorNewOriginLocation(
-    currentLatLng,
-    currentOptions,
-) {
+export async function setAndColorNewOriginLocation(currentLatLng, currentOptions) {
     return await TimeColorMapper.fetch(
         currentLatLng,
         currentOptions.startTime,
@@ -183,13 +184,7 @@ export async function setAndColorNewOriginLocation(
     );
 }
 
-export function MapboxMap({
-    timeData,
-    paintProperty,
-    setLatLng,
-    setSpinnerLoading,
-    currentPos,
-}) {
+export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoading, currentPos }) {
     const timeDataRef = useRef<any>(null);
     const [map, setMap] = useState<mapboxgl.Map | null>(null);
     const [mapboxLoading, setMapboxLoading] = useState(true);
@@ -197,8 +192,8 @@ export function MapboxMap({
     const [rerender, setRerender] = useState(false);
 
     const [detailPopup, setDetailPopup] = useState<{
-        details: TripDetailsTransit[]
-        seconds: number
+        details: TripDetailsTransit[];
+        seconds: number;
     } | null>(null);
 
     timeDataRef.current = timeData;
@@ -245,7 +240,7 @@ export function MapboxMap({
                 setMapboxLoading(false);
             },
             setDetailPopupInfo
-        )
+        );
     }, []);
 
     useEffect(() => {
@@ -256,7 +251,9 @@ export function MapboxMap({
         let shouldRetry = false;
         const errHandler = (err) => {
             if (
-                err.error.message.includes(" does not exist in the map's style and cannot be styled.")
+                err.error.message.includes(
+                    " does not exist in the map's style and cannot be styled."
+                )
             ) {
                 shouldRetry = true;
             }
@@ -270,7 +267,7 @@ export function MapboxMap({
             defaultColor,
         ]);
 
-        const geojsonSource = map.getSource(GEOJSON_PATH_SOURCEID)
+        const geojsonSource = map.getSource(GEOJSON_PATH_SOURCEID);
         if (geojsonSource && geojsonSource.type === "geojson") {
             geojsonSource.setData(EMPTY_GEOJSON);
         }
@@ -278,11 +275,13 @@ export function MapboxMap({
         if (shouldRetry) {
             console.log("Retrying...");
             addMVTLayer(map);
-            new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
-                setRerender(!rerender);
-            }).catch(e => {
-                throw e
-            })
+            new Promise((resolve) => setTimeout(resolve, 2000))
+                .then(() => {
+                    setRerender(!rerender);
+                })
+                .catch((e) => {
+                    throw e;
+                });
         }
 
         map.off("error", errHandler);
@@ -306,11 +305,7 @@ export function MapboxMap({
                 <DetailPopup details={detailPopup.details} arrival_time={detailPopup.seconds} />
             ) : null}
 
-            {timeData ? (
-                <ColorLegend tcm={timeData} currentHover={detailPopup?.seconds} />
-            ) : null}
-
-
+            {timeData ? <ColorLegend tcm={timeData} currentHover={detailPopup?.seconds} /> : null}
 
             <div ref={mapContainer} className="map w-screen h-screen overflow-none" />
         </Fragment>

@@ -8,6 +8,6 @@ export default function track(name: string, properties: Record<string, any>) {
             sa_event(name, properties);
         }
     } catch (e) {
-        console.error("Error sending analytics", e)
+        console.error("Error sending analytics", e);
     }
 }

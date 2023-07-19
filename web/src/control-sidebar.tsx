@@ -4,18 +4,18 @@ import { TimeSlider } from "./time-slider";
 import { baseUrl } from "./dev-api";
 import { BG_WHITE_COLOR, CITY_LOCATION } from "./app";
 import track from "./analytics";
-import './control-sidebar.css';
+import "./control-sidebar.css";
 import { MapboxMap, setAndColorNewOriginLocation } from "./mapbox-map";
 import { LoadingSpinner } from "./loading-spinner";
 
 interface Agency {
-    agencyCode: string
-    agencyLongName: string
-    city: string
+    agencyCode: string;
+    agencyLongName: string;
+    city: string;
 }
 
 export interface AgencyEntryProps {
-    setSelectValue: (value: string, status: string) => void
+    setSelectValue: (value: string, status: string) => void;
 }
 
 export function AgencyEntry({
@@ -45,7 +45,7 @@ export function AgencyEntry({
 }
 
 export interface HeaderProps {
-    children?: ReactNode
+    children?: ReactNode;
 }
 export function Header({ children }: HeaderProps) {
     return <h2 className="font-medium text-md border-b mt-3">{children}</h2>;
@@ -77,10 +77,10 @@ export function AgencyForm({ agencies, header, updateValues }) {
 }
 
 export interface SidebarProps {
-    positioning?: string
-    children?: any[]
-    zi?: number
-    style?: Record<string, any>
+    positioning?: string;
+    children?: any[];
+    zi?: number;
+    style?: Record<string, any>;
 }
 
 export function Sidebar({ children, zi, positioning, style }: SidebarProps) {
@@ -143,12 +143,14 @@ const MODES = [
 export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const { isLoading, data } = useAgencies();
 
-    const filtered = data ? data.map((ag) => {
-        return {
-            shouldShow: ag.city === currentCity,
-            ...ag,
-        };
-    }) : null;
+    const filtered = data
+        ? data.map((ag) => {
+              return {
+                  shouldShow: ag.city === currentCity,
+                  ...ag,
+              };
+          })
+        : null;
 
     const agencies = useRef<object>({});
 
@@ -161,7 +163,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const [lastWorkingLocation, setLastWorkingLocation] = useState(defaultStartLoc);
     const [spinner, setSpinner] = useState(true);
 
-    const [paintProperty, setPaintProperty] = useState<any>(null)
+    const [paintProperty, setPaintProperty] = useState<any>(null);
     const [timeData, setTimeData] = useState<any>(null);
 
     const cityLocation = CITY_LOCATION[currentCity];
@@ -169,13 +171,16 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     useEffect(() => {
         setLastWorkingLocation(defaultStartLoc);
         setCurrentStartingLoc(defaultStartLoc);
-    }, [defaultStartLoc])
+    }, [defaultStartLoc]);
 
     useEffect(() => {
         if (!isLoading && currentOptions.agencies && currentOptions.modes && currentStartingLoc) {
             const joinedOptions = {
-                ...currentOptions, duration, minDuration, startTime
-            }
+                ...currentOptions,
+                duration,
+                minDuration,
+                startTime,
+            };
             setSpinner(true);
             setAndColorNewOriginLocation(currentStartingLoc, joinedOptions)
                 .then((data) => {
@@ -185,17 +190,17 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                 })
                 .catch((err) => {
                     setCurrentStartingLoc(lastWorkingLocation);
-                    console.error("Got error in setAndColorNewOriginLocation", err)
+                    console.error("Got error in setAndColorNewOriginLocation", err);
                 });
         }
-    }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime])
+    }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime]);
 
     const onAgencyChange = (agencies1: object) => {
         track("agency-change", agencies1);
-        console.log("agency change!")
+        console.log("agency change!");
         agencies.current = agencies1;
         setOptions((options: any) => {
-            options = options || {}
+            options = options || {};
             // setOptions({
             //     duration,
             //     startTime,
@@ -212,9 +217,9 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
 
     const onModeChange = (modes1: object) => {
         track("mode-change", modes1);
-        console.log("mode change!")
+        console.log("mode change!");
         setOptions((options: any) => {
-            options = options || {}
+            options = options || {};
             // setOptions({
             //     duration,
             //     startTime,
@@ -231,37 +236,57 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
 
     return (
         <>
-        <LoadingSpinner display={spinner} />
-        <Sidebar zi={10} positioning="top-0 right-0 hidden sm:block hover:opacity-90 opacity-30 transition-opacity max-h-screen overflow-scroll">
-            <p className="text-gray-700">
-                <ul>
-                    <li>Double click anywhere to set starting location.</li>
-                    <li>Hover over a point to see the fastest path to get there.</li>
-                </ul>
-            </p>
-            {filtered ? <AgencyForm agencies={filtered} header="Agencies" updateValues={onAgencyChange} /> : null}
+            <LoadingSpinner display={spinner} />
+            <Sidebar
+                zi={10}
+                positioning="sm:top-0 sm:right-0 sm:block sm:hover:opacity-90 sm:opacity-30 transition-opacity sm:max-h-screen overflow-y-scroll
+               top40"
+            >
+                <p className="text-gray-700">
+                    <ul>
+                        <li>Double click anywhere to set starting location.</li>
+                        <li>Hover over a point to see the fastest path to get there.</li>
+                    </ul>
+                </p>
+                {filtered ? (
+                    <AgencyForm
+                        agencies={filtered}
+                        header="Agencies"
+                        updateValues={onAgencyChange}
+                    />
+                ) : null}
 
-            <AgencyForm agencies={MODES} header="Modes" updateValues={onModeChange} />
+                <AgencyForm agencies={MODES} header="Modes" updateValues={onModeChange} />
 
-            <TimeSlider
-                duration={duration}
-                setDuration={(e) => {
-                    setDuration(e);
-                }}
-                minDuration={minDuration}
-                setMinDuration={setMinDuration}
-                startTime={startTime}
-                setStartTime={setStartTime}
+                <TimeSlider
+                    duration={duration}
+                    setDuration={(e) => {
+                        setDuration(e);
+                    }}
+                    minDuration={minDuration}
+                    setMinDuration={setMinDuration}
+                    startTime={startTime}
+                    setStartTime={setStartTime}
+                />
+                <p className="text-xs border-t mt-6 pt-3">
+                    Find this project on{" "}
+                    <a
+                        href="https://github.com/econaxis/time2reach"
+                        target="_blank"
+                        rel="me noreferrer"
+                        className="underline"
+                    >
+                        Github!
+                    </a>
+                </p>
+            </Sidebar>
+            <MapboxMap
+                timeData={timeData}
+                paintProperty={paintProperty}
+                setLatLng={setCurrentStartingLoc}
+                setSpinnerLoading={setSpinner}
+                currentPos={cityLocation}
             />
-            <p className="text-xs border-t mt-6 pt-3">Find this project on <a href="https://github.com/econaxis/time2reach" target="_blank" rel="me noreferrer" className="underline">Github!</a></p>
-        </Sidebar>
-        <MapboxMap
-            timeData={timeData}
-            paintProperty={paintProperty}
-            setLatLng={setCurrentStartingLoc}
-            setSpinnerLoading={setSpinner}
-            currentPos={cityLocation}
-        />
         </>
     );
 }

@@ -8,14 +8,14 @@ import { type ReactNode, useRef } from "react";
 
 function generateCmap(shades: number): string[] {
     const cmap = createColorMap({
-            alpha: 0.4,
-            colormap: "temperature",
-            format: "hex",
-            nshades: shades * 2,
-        }).reverse();
+        alpha: 0.4,
+        colormap: "temperature",
+        format: "hex",
+        nshades: shades * 2,
+    }).reverse();
 
     return cmap.filter((_value, index) => {
-        return index % 2 === 0
+        return index % 2 === 0;
     });
 
     // const endFirstSlope = 8;
@@ -76,7 +76,12 @@ export class TimeColorMapper {
     max: number;
     request_id: any;
 
-    constructor(requestId: object, edgeTimes: Record<string, number>, durationRange: number, minDuration: number) {
+    constructor(
+        requestId: object,
+        edgeTimes: Record<string, number>,
+        durationRange: number,
+        minDuration: number
+    ) {
         this.m = {};
         this.min = Number.MAX_SAFE_INTEGER;
         this.max = Number.MIN_SAFE_INTEGER;
@@ -102,7 +107,7 @@ export class TimeColorMapper {
         durationRange: number,
         agencies: Record<string, boolean>,
         modes: Record<string, boolean>,
-        minDuration: number,
+        minDuration: number
     ): Promise<TimeColorMapper> {
         const body = {
             latitude: location.lat,
@@ -110,7 +115,7 @@ export class TimeColorMapper {
             agencies: objectToTrueValues(agencies),
             modes: objectToTrueValues(modes),
             startTime,
-            maxSearchTime: durationRange
+            maxSearchTime: durationRange,
         };
 
         const data = await fetch(`${baseUrl}/hello/`, {
@@ -135,7 +140,7 @@ export class TimeColorMapper {
                 console.error("Unexpected error from API: ", data, text);
             }
 
-            throw Error("API returned error response" + JSON.stringify(data) + ' ' + text);
+            throw Error("API returned error response" + JSON.stringify(data) + " " + text);
         }
     }
 
@@ -159,17 +164,17 @@ export class TimeColorMapper {
 }
 
 export interface ColorLegendProps {
-    tcm: TimeColorMapper
-    currentHover?: number
+    tcm: TimeColorMapper;
+    currentHover?: number;
 }
 
 export interface TickTriangleProps {
-    lpercentage: number
+    lpercentage: number;
 }
 
 export interface TickProps extends TickTriangleProps {
-    noRotate?: boolean
-    children: ReactNode
+    noRotate?: boolean;
+    children: ReactNode;
 }
 function Tick({ noRotate, children, lpercentage }: TickProps) {
     const color = "rgb(38,38,38)";
@@ -197,8 +202,8 @@ function TickTriangle({ lpercentage }: TickTriangleProps) {
             style={{
                 left: `${lpercentage}%`,
                 transform: "translateY(7px)",
-                transition: 'all 600ms ease',
-                transitionProperty: 'left'
+                transition: "all 600ms ease",
+                transitionProperty: "left",
             }}
         >
             <span className="inline-block text-lg font-extralight">▼</span>
@@ -233,21 +238,24 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
     }
 
     if (currentHover) {
-        lastTick.current = <TickTriangle key={"hover"} lpercentage={((currentHover - tcm.min) / spread) * 100} />;
-        ticks.push(
-            lastTick.current
+        lastTick.current = (
+            <TickTriangle key={"hover"} lpercentage={((currentHover - tcm.min) / spread) * 100} />
         );
+        ticks.push(lastTick.current);
     } else if (lastTick.current) {
-        ticks.push(lastTick.current)
+        ticks.push(lastTick.current);
     }
 
     const cssStyle = "linear-gradient(to right," + cssGradient.join(",") + ")";
     return (
         <div
-            className={`${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 max-w-sm lg:max-w-md pb-2 pt-0.5 lg:pb-5 lg:pt-2 px-5 pl-7 lg:px-9 rounded-lg`}
+            className={`hidden sm:block ${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 max-w-sm lg:max-w-md pb-2 pt-0.5 lg:pb-5 lg:pt-2 px-5 pl-7 lg:px-9 rounded-lg`}
         >
             <Header>Legend (Duration of Trip)</Header>
-            <div className="w-full m-auto mt-4 md:mt-7 relative left-0 top-0" style={{ height: "1.7rem" }}>
+            <div
+                className="w-full m-auto mt-4 md:mt-7 relative left-0 top-0"
+                style={{ height: "1.7rem" }}
+            >
                 {ticks}
             </div>
             <div

@@ -1,6 +1,9 @@
 import type mapboxgl from "mapbox-gl";
 
-export function installDoubleTap(map: mapboxgl.Map, handler: (evt: mapboxgl.MapTouchEvent) => void) {
+export function installDoubleTap(
+    map: mapboxgl.Map,
+    handler: (evt: mapboxgl.MapTouchEvent) => void
+) {
     // @ts-expect-error unused
     const _unused = new DoubleTapRecognizer(map, handler);
 }
@@ -12,7 +15,7 @@ class DoubleTapRecognizer {
 
     constructor(map: mapboxgl.Map, handler: (evt: mapboxgl.MapTouchEvent) => void) {
         this.handler = handler;
-        map.on('touchend', this.ontouchend.bind(this));
+        map.on("touchend", this.ontouchend.bind(this));
     }
 
     ontouchend(evt: mapboxgl.MapTouchEvent) {
@@ -21,10 +24,9 @@ class DoubleTapRecognizer {
             if (Date.now() - this.lastTime < 400) {
                 if (this.lastLocation.dist(evt.point) < 18) {
                     // Is double touch. Call handler
-                    this.handler(evt)
+                    this.handler(evt);
                 }
             }
-
         }
 
         this.lastLocation = evt.point;

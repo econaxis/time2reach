@@ -70,7 +70,11 @@ export function WelcomePopup({ acceptedPopupCallback }) {
                     </div>
                     {/* Modal footer */}
                     <div className="flex items-center justify-end p-6 space-x-2 border-t border-slate-300 rounded-b">
-                        <a href="https://github.com/econaxis/time2reach" target="_blank" rel="me noreferrer">
+                        <a
+                            href="https://github.com/econaxis/time2reach"
+                            target="_blank"
+                            rel="me noreferrer"
+                        >
                             <button
                                 data-modal-hide="defaultModal"
                                 type="button"

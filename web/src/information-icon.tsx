@@ -1,4 +1,4 @@
-// @ts-ignore
+// @ts-expect-error RC not avail
 import { ReactComponent as InformationIcon1 } from "./information.svg";
 
 export function InformationIcon(props: { onClick: () => void }) {
@@ -13,7 +13,7 @@ export function InformationIcon(props: { onClick: () => void }) {
     return (
         <InformationIcon1
             onClick={props.onClick}
-            className="absolute bottom-0 right-0 z-50"
+            className="absolute btm48 right-0 z-50"
             style={{
                 margin,
                 backgroundColor: background,
