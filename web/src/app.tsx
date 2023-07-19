@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import mapboxgl from "mapbox-gl";
 
 import "./style.css";
@@ -6,6 +7,7 @@ import { CityPillContainer } from "./city-pill";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { ControlSidebar } from "./control-sidebar";
 import { BlurBackground, WelcomePopup } from "./welcome-popup";
+import { InformationIcon } from "./information-icon";
 
 export const BG_WHITE_COLOR = "bg-slate-50";
 
@@ -48,6 +50,11 @@ export function App() {
                     currentCity={currentCity}
                 />
                 <ControlSidebar defaultStartLoc={currentStartingLoc} currentCity={currentCity} />
+                <InformationIcon
+                    onClick={() => {
+                        setPopupAccepted(false);
+                    }}
+                />
             </BlurBackground>
         </QueryClientProvider>
     );

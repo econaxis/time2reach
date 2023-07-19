@@ -6,6 +6,7 @@ import { getDetails } from "./get_data";
 import { DetailPopup, type TripDetailsTransit } from "./format-details";
 import { startingLocation } from "./app";
 import track from "./analytics";
+import { installDoubleTap } from "./double-tap-recognizer";
 
 export const defaultColor = "rgba(73,73,73,0.24)";
 
@@ -41,15 +42,17 @@ function addMVTLayer(currentMap: mapboxgl.Map) {
     });
 }
 
+const GEOJSON_PATH_SOURCEID = "geojson-path";
+
 function addGeoJsonLayer(currentMap: mapboxgl.Map): GeoJSONSource {
-    currentMap.addSource("geojson-path", {
+    currentMap.addSource(GEOJSON_PATH_SOURCEID, {
         type: "geojson",
     });
 
     currentMap.addLayer({
         id: "geojson-path-layer",
         type: "line",
-        source: "geojson-path",
+        source: GEOJSON_PATH_SOURCEID,
         layout: {
             "line-join": "round",
             "line-cap": "butt",
@@ -63,7 +66,7 @@ function addGeoJsonLayer(currentMap: mapboxgl.Map): GeoJSONSource {
     currentMap.addLayer({
         id: "geojson-circle-layer",
         type: "circle",
-        source: "geojson-path",
+        source: GEOJSON_PATH_SOURCEID,
         paint: {
             "circle-color": ["get", "color"],
             "circle-radius": 5.2,
@@ -71,12 +74,17 @@ function addGeoJsonLayer(currentMap: mapboxgl.Map): GeoJSONSource {
         filter: ["==", "$type", "Point"],
     });
 
-    return currentMap.getSource("geojson-path") as GeoJSONSource;
+    return currentMap.getSource(GEOJSON_PATH_SOURCEID) as GeoJSONSource;
 }
 
 function bufferPoint(point: mapboxgl.Point): [mapboxgl.Point, mapboxgl.Point] {
     const buffer = new mapboxgl.Point(3, 3);
     return [point.sub(buffer), point.add(buffer)];
+}
+
+function isTouchDevice() {
+    // @ts-ignore
+    return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0));
 }
 
 function setupMapboxMap(
@@ -88,7 +96,6 @@ function setupMapboxMap(
 ) {
     currentMap.on("load", () => {
         addMVTLayer(currentMap);
-
         const geojsonSource = addGeoJsonLayer(currentMap);
 
         const removeHoverDetails = () => {
@@ -103,13 +110,20 @@ function setupMapboxMap(
             }
         })
 
-        currentMap.on("dblclick", (e) => {
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || isTouchDevice();
+
+        const dblClickHandler = (e) => {
             e.preventDefault();
             track("dblclick-map-origin-change", {
                 location: e.lngLat.toString(),
             });
             setLatLng(e.lngLat);
-        });
+        };
+        if (isMobile) {
+            installDoubleTap(currentMap, dblClickHandler);
+        } else {
+            currentMap.on("dblclick", dblClickHandler);
+        }
 
         const hoverCallback = (e) => {
             if (e.originalEvent.altKey) {
@@ -229,7 +243,6 @@ export function MapboxMap({
             getTimeData,
             () => {
                 setMapboxLoading(false);
-                console.log("SetMapboxLoading False!!", map1.getLayer("transit-layer"))
             },
             setDetailPopupInfo
         )
@@ -257,6 +270,11 @@ export function MapboxMap({
             defaultColor,
         ]);
 
+        const geojsonSource = map.getSource(GEOJSON_PATH_SOURCEID)
+        if (geojsonSource && geojsonSource.type === "geojson") {
+            geojsonSource.setData(EMPTY_GEOJSON);
+        }
+
         if (shouldRetry) {
             console.log("Retrying...");
             addMVTLayer(map);
@@ -270,14 +288,15 @@ export function MapboxMap({
         map.off("error", errHandler);
 
         map.once("render", () => {
-            // Takes roughly 200 ms for the map to update
-            setTimeout(() => setSpinnerLoading(false), 200);
+            // Takes some time for the map to update
+            setTimeout(() => setSpinnerLoading(false), 300);
         });
     }, [paintProperty, mapboxLoading, rerender]);
 
     useEffect(() => {
         if (map == null) return;
         map.setCenter(currentPos);
+
         map.setZoom(12);
     }, [currentPos]);
 
@@ -290,6 +309,8 @@ export function MapboxMap({
             {timeData ? (
                 <ColorLegend tcm={timeData} currentHover={detailPopup?.seconds} />
             ) : null}
+
+
 
             <div ref={mapContainer} className="map w-screen h-screen overflow-none" />
         </Fragment>

@@ -232,7 +232,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     return (
         <>
         <LoadingSpinner display={spinner} />
-        <Sidebar zi={10} positioning="top-0 right-0 hidden sm:block hover:opacity-90 opacity-30 transition-opacity ">
+        <Sidebar zi={10} positioning="top-0 right-0 hidden sm:block hover:opacity-90 opacity-30 transition-opacity max-h-screen overflow-scroll">
             <p className="text-gray-700">
                 <ul>
                     <li>Double click anywhere to set starting location.</li>

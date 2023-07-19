@@ -1,7 +1,9 @@
 #!/bin/sh
 
-if [[-z REMOTE_BUILD ]]; then
+if [[ -z REMOTE_BUILD ]]; then
+  echo "Remote build"
 else
+  echo "Remote build false"
   source deploy/.env.prod
 fi
 

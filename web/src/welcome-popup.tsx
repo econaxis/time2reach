@@ -5,7 +5,7 @@ import { IS_LOCAL } from "./dev-api";
 
 export function WelcomePopup({ acceptedPopupCallback }) {
     useEffect(() => {
-        if (IS_LOCAL) {
+        if (IS_LOCAL && false) {
             acceptedPopupCallback(true);
         } else {
             track("welcome-popup-shown", {});
@@ -25,7 +25,7 @@ export function WelcomePopup({ acceptedPopupCallback }) {
                 }}
             >
                 {/* Modal content */}
-                <div className={`relative ${BG_WHITE_COLOR} rounded-lg shadow`}>
+                <div className={`relative ${BG_WHITE_COLOR} rounded-lg shadow mx-5`}>
                     {/* Modal header */}
                     <div className="flex items-start justify-between p-3.5 border-b rounded-t border-slate-300">
                         <h3 className="text-xl font-semibold text-gray-900 ">Welcome!</h3>
