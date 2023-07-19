@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 
 use crate::trip_details::CalculateRequest;
-use crate::web_app_data::{AllAppData, CityAppData};
+use crate::web_app_data::{AllAppData, CacheKey, CityAppData};
 use crate::web_cache::{check_cache, insert_cache};
 use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
@@ -89,7 +89,7 @@ fn process_coordinates(
         return Err(BadQuery::from("Invalid city"));
     }
 
-    if max_search_time >= 2.5 * 3600.0 {
+    if max_search_time >= 3.5 * 3600.0 {
         log::warn!("Invalid max search time");
         return Err(BadQuery::from("Invalid max search time"));
     }
@@ -176,7 +176,7 @@ impl LatLng {
 
 #[derive(Serialize, Deserialize)]
 pub struct RequestId {
-    pub rs_list_index: usize,
+    pub rs_list_index: CacheKey,
     pub city: City,
 }
 

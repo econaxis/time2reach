@@ -21,7 +21,7 @@ impl CacheValue {
 }
 lazy_static! {
     static ref CACHE: Mutex<LruCache<u64, CacheValue>> =
-        Mutex::new(LruCache::new(NonZeroUsize::new(250).unwrap()));
+        Mutex::new(LruCache::new(NonZeroUsize::new(30).unwrap()));
 }
 fn round_f64_for_hash(x: f64) -> u64 {
     (x * 10000.0).round() as u64

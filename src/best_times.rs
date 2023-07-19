@@ -8,6 +8,10 @@ pub struct BestTimes<T: Hash + Copy + PartialEq + Eq + Serialize> {
 }
 
 impl<T: Hash + Copy + PartialEq + Eq + Serialize> BestTimes<T> {
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     pub fn new() -> Self {
         Self {
             inner: FxHashMap::default(),

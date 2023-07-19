@@ -97,3 +97,6 @@ with FuturesSession() as session:
         print("Completed! ", resp, len(resp.content), f"{completed} out of {len(to_explore_calculated)}")
         completed += 1
     session.executor.shutdown(wait = True)
+
+
+

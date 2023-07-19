@@ -13,6 +13,6 @@ docker rm main &> /dev/null  || :
 sleep 1
 
 echo "Running new container"
-docker run --rm --name main -d -p 443:3030 -v $HOME/data2:/app:rw -e RUST_LOG=info,timetoreach=debug,h2=info,hyper=info,warp=info,rustls=info ghcr.io/econaxis/test:latest
+docker run --name main -d -p 443:3030 --memory=15.1G --restart=on-failure:10 -v $HOME/data2:/app:rw -e RUST_LOG=info,timetoreach=debug,h2=info,hyper=info,warp=info,rustls=info ghcr.io/econaxis/test:latest
 
 docker logs main -f
