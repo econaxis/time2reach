@@ -29,7 +29,6 @@ struct EdgeData {
     from_node: NodeId,
     to_node: NodeId,
     length: f64,
-    highway: String,
 }
 
 impl EdgeData {
@@ -354,13 +353,10 @@ impl RoadStructureInner {
                 .into_real()
                 .unwrap();
 
-            let highway = feature.field("highway").unwrap().unwrap().into_string().unwrap();
-
             let edge_data = EdgeData {
                 from_node,
                 to_node,
                 length,
-                highway
             };
             s.edges.insert(id, edge_data);
 
