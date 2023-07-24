@@ -127,7 +127,7 @@ pub fn generate_reach_times(
 }
 
 fn get_stop_from_stop_seq_no(stop_times: &[StopTime], stop_sequence_no: u16) -> (&StopTime, usize) {
-    for i in 0..stop_sequence_no as usize {
+    for i in 0..=stop_sequence_no as usize {
         if stop_times[i].stop_sequence == stop_sequence_no {
             return (&stop_times[i], i);
         }
@@ -156,6 +156,10 @@ fn all_stops_along_trip(
     for (_stops_travelled, st) in stop_times[stop_time_index + 1..].iter().enumerate() {
         let stop = &gtfs.stops[&st.stop_id];
         let point = projection::project_stop(city, stop);
+        if st.arrival_time.is_none() {
+            println!("Stop time arrival is none {}", st.stop_id.0);
+        }
+
         let timestamp = st.arrival_time.unwrap();
 
         let current_inprogress_trip = InProgressTrip {
@@ -217,12 +221,12 @@ fn explore_from_point(
 
             let is_valid_agency = config.agency_ids.contains(&route_info.route_id.0);
 
+            let this_route = &gtfs.routes[&route_info.route_id];
+
             if !is_valid_agency {
                 continue;
             }
 
-            // If the mode is allowed
-            let this_route = &gtfs.routes[&route_info.route_id];
             if !(config.modes.is_empty() || config.modes.contains(&this_route.route_type)) {
                 continue;
             }

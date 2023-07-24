@@ -1,4 +1,4 @@
-use crate::agencies::{agencies, load_all_gtfs, City};
+use crate::agencies::{load_all_gtfs, City, Agency};
 use futures::{StreamExt};
 
 use crate::configuration::Configuration;
@@ -114,7 +114,7 @@ fn process_coordinates(
     let rs_template = ad.rs_template.clone();
     let mut rs = RoadStructure::new_from_road_structure(rs_template);
 
-    let agency_ids: FxHashSet<u8> = include_agencies
+    let agency_ids: FxHashSet<u16> = include_agencies
         .iter()
         .filter_map(|ag| get_agency_id_from_short_name(ag))
         .collect();
@@ -220,10 +220,6 @@ pub fn weblog(name: &'static str) -> Log<impl Fn(Info<'_>) + Copy> {
     })
 }
 
-fn rewrite_path(path: String) -> impl Into<PathBuf> {
-    path
-}
-
 fn get_file(str: Tail) -> anyhow::Result<Vec<u8>> {
     let str = str.as_str();
     let str = str.trim_end_matches(".bin");
@@ -238,6 +234,8 @@ fn get_file(str: Tail) -> anyhow::Result<Vec<u8>> {
     if str != "all_cities" {
         return Err(anyhow!("Invalid path"));
     }
+
+    println!("Path: {:?}", parts);
     let z: u32 = parts[1].parse()?;
     let x: u32 = parts[2].parse()?;
     let y: u32 = parts[3].parse()?;
@@ -259,7 +257,11 @@ struct IDQuery {
 
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
-    let all_gtfs_future = all_gtfs.into_iter().map(|(city, gtfs)| {
+
+    let agencies: Vec<Agency> = all_gtfs.values().map(|a| &a.1).flatten().cloned().collect();
+
+    println!("Agencies is {:?}", agencies);
+    let all_gtfs_future = all_gtfs.into_iter().map(|(city, (gtfs, _agency))| {
         tokio::task::spawn_blocking(move || (city, gtfs_to_city_appdata(city, gtfs)))
     });
 
@@ -320,9 +322,9 @@ pub async fn main() {
     let agencies_endpoint = warp::get()
         .and(warp::path!("agencies"))
         .and(warp::query::<IDQuery>())
-        .map(|id: IDQuery| {
+        .map(move |id: IDQuery| {
             log::info!("Requested agency with ID {}", id.id.unwrap_or(0));
-            warp::reply::json(&agencies())
+            warp::reply::json(&agencies)
         })
         .map(|response: Json| {
             let mut resp = response.into_response();

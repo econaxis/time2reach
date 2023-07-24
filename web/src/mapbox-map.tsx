@@ -4,11 +4,10 @@ import { ColorLegend, TimeColorMapper } from "./colors";
 import { mvtUrl } from "./dev-api";
 import { getDetails } from "./get_data";
 import { DetailPopup, type TripDetailsTransit } from "./format-details";
-import { startingLocation } from "./app";
 import track from "./analytics";
 import { installDoubleTap } from "./double-tap-recognizer";
 
-export const defaultColor = "rgba(73,73,73,0.24)";
+export const defaultColor = "rgba(143,143,143,0.13)";
 
 const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
@@ -34,10 +33,9 @@ function addMVTLayer(currentMap: mapboxgl.Map) {
             "line-join": "round",
         },
         paint: {
-            "line-opacity": 0.4,
-            // "line-color": defaultColor,
-            "line-color": "#8f8f8f",
-            "line-width": 5.5,
+            "line-opacity": 0.47,
+            "line-color": defaultColor,
+            "line-width": 4.0,
         },
     });
 }
@@ -100,7 +98,10 @@ function setupMapboxMap(
         addMVTLayer(currentMap);
         const geojsonSource = addGeoJsonLayer(currentMap);
 
+        let abort = new AbortController();
+
         const removeHoverDetails = () => {
+            abort.abort();
             currentMap.getCanvas().style.cursor = "";
             geojsonSource.setData(EMPTY_GEOJSON);
             setDetailPopupInfo(null, null);
@@ -127,10 +128,14 @@ function setupMapboxMap(
             currentMap.on("dblclick", dblClickHandler);
         }
 
+
         const hoverCallback = (e) => {
             if (e.originalEvent.altKey) {
                 return;
             }
+
+            abort.abort();
+            abort = new AbortController();
 
             const nearbyFeatures = currentMap.queryRenderedFeatures(bufferPoint(e.point), {
                 layers: ["transit-layer"],
@@ -148,7 +153,7 @@ function setupMapboxMap(
 
             if (!seconds) return;
 
-            getDetails(getTimeData(), e.lngLat)
+            getDetails(getTimeData(), e.lngLat, abort.signal)
                 .then((detailResponse) => {
                     const details: TripDetailsTransit[] = detailResponse.details;
                     setDetailPopupInfo(details, seconds);
@@ -161,6 +166,13 @@ function setupMapboxMap(
                     }
                 })
                 .catch((e) => {
+                    if (e.toString().includes("SyntaxError: Unexpected token")) {
+                        alert("Unexpected error. Please refresh the page and try again.")
+                        window.location.reload();
+                    }
+                    if (e.toString().includes("aborted a request")) {
+                        return;
+                    }
                     throw e;
                 });
         };
@@ -227,7 +239,7 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
         const map1 = new mapboxgl.Map({
             container: mapContainer.current, // container ID
             style: "mapbox://styles/mapbox/dark-v11", // style URL
-            center: startingLocation, // starting position [lng, lat]
+            center: currentPos, // starting position [lng, lat]
             zoom: 12, // starting zoom
         });
         setMap(map1);

@@ -2,7 +2,7 @@ import { type TimeColorMapper } from "./colors";
 import { type LngLat } from "mapbox-gl";
 import { baseUrl } from "./dev-api";
 
-export async function getDetails(data: TimeColorMapper, location: LngLat) {
+export async function getDetails(data: TimeColorMapper, location: LngLat, signal: AbortSignal) {
     const body = {
         request_id: data.request_id,
         latlng: {
@@ -18,6 +18,7 @@ export async function getDetails(data: TimeColorMapper, location: LngLat) {
             "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        signal
     });
 
     return await resp.json();

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { formatDuration, formatTime } from "./format-details";
 import { Header } from "./control-sidebar";
 import track from "./analytics";
+import { BrightnessContext } from "./app";
 
 export function TimeSliderInner({ duration, setDuration, text, min, max, formatFunc }) {
     const [iduration, setIduration] = useState(duration);
@@ -48,6 +49,11 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
     );
 }
 
+export interface BrightnessContextInt {
+    brightness: number
+    setBrightness: (value: number) => void
+}
+
 export function TimeSlider({
     duration,
     setDuration,
@@ -56,6 +62,7 @@ export function TimeSlider({
     startTime,
     setStartTime,
 }) {
+    const { brightness, setBrightness } = useContext<BrightnessContextInt>(BrightnessContext);
     return (
         <div className="mt-2">
             <Header>Time Settings</Header>
@@ -64,7 +71,7 @@ export function TimeSlider({
                 duration={startTime}
                 setDuration={setStartTime}
                 formatFunc={formatTime}
-                min="18000"
+                min="10800"
                 max="104400"
                 text="Starting time"
             />
@@ -79,7 +86,7 @@ export function TimeSlider({
                 text="Maximum trip duration"
             />
 
-            <TimeSliderInner
+            {false && <TimeSliderInner
                 duration={minDuration}
                 setDuration={setMinDuration}
                 formatFunc={(duration) => {
@@ -89,6 +96,17 @@ export function TimeSlider({
                 min="0"
                 max={duration.toString()}
                 text="Minimum trip duration"
+            /> }
+
+            <TimeSliderInner
+                duration={brightness}
+                setDuration={setBrightness}
+                formatFunc={(brightness) => {
+                    return brightness.toString();
+                }}
+                min="100"
+                max="300"
+                text="Brightness"
             />
         </div>
     );

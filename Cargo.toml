@@ -37,3 +37,12 @@ default = []
 https = []
 all-cities = []
 prod = ["https", "all-cities"]
+
+[profile.release]
+overflow-checks = true
+
+[profile.prod]
+lto = true
+opt-level = 3
+codegen-units = 1
+inherits = "release"

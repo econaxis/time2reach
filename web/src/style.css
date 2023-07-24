@@ -105,3 +105,7 @@
     top: 0;
     left: 0;
 }
+
+.text-xxs {
+    font-size: 0.625rem;
+}

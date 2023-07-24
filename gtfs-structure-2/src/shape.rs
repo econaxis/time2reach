@@ -76,7 +76,7 @@ impl Shape {
 }
 
 impl FromWithAgencyId<gtfs_structures::Shape> for Shape {
-    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Shape) -> Self
+    fn from_with_agency_id(agency_id: u16, f: gtfs_structures::Shape) -> Self
     where
         Self: Sized,
     {

@@ -30,7 +30,7 @@ pub struct Service {
 }
 
 impl FromWithAgencyId<gtfs_structures::Calendar> for Service {
-    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Calendar) -> Self
+    fn from_with_agency_id(agency_id: u16, f: gtfs_structures::Calendar) -> Self
     where
         Self: Sized,
     {
@@ -92,7 +92,7 @@ pub struct CalendarException {
 }
 
 impl FromWithAgencyId<gtfs_structures::CalendarDate> for CalendarException {
-    fn from_with_agency_id(agency_id: u8, f: CalendarDate) -> Self
+    fn from_with_agency_id(agency_id: u16, f: CalendarDate) -> Self
     where
         Self: Sized,
     {

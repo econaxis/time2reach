@@ -1,18 +1,24 @@
+use std::borrow::Cow;
+
 use crate::calendar::{Calendar, CalendarException, Service};
 use crate::shape::Shape;
 use crate::IdType;
-use gtfs_structures::RawTrip;
+use gtfs_structures::{Agency, CalendarDate, RawGtfs, RawStopTime, RawTrip};
 use rkyv::{Archive, Deserialize, Serialize};
 use rstar::primitives::{GeomWithData, Line};
 use rstar::PointDistance;
 use rstar::RTree;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::collections::HashSet;
+use std::hash::Hash;
+use std::sync::atomic::{AtomicU16, Ordering};
 
 pub type LibraryGTFS = gtfs_structures::RawGtfs;
 
-static AGENCY_COUNT: AtomicU8 = AtomicU8::new(0);
+pub type AgencyId = u16;
+
+static AGENCY_COUNT: AtomicU16 = AtomicU16::new(0);
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 #[archive(check_bytes)]
@@ -127,7 +133,7 @@ impl From<gtfs_structures::LocationType> for LocationType {
 }
 
 pub trait FromWithAgencyId<From> {
-    fn from_with_agency_id(agency_id: u8, f: From) -> Self
+    fn from_with_agency_id(agency_id: u16, f: From) -> Self
     where
         Self: Sized;
 }
@@ -191,7 +197,7 @@ pub struct Stop {
 }
 
 impl FromWithAgencyId<gtfs_structures::Stop> for Stop {
-    fn from_with_agency_id(agency_id: u8, f: gtfs_structures::Stop) -> Self
+    fn from_with_agency_id(agency_id: u16, f: gtfs_structures::Stop) -> Self
     where
         Self: Sized,
     {
@@ -241,7 +247,25 @@ pub struct Trip {
     /// Indicates the direction of travel for a trip. This field is not used in routing; it provides a way to separate trips by direction when publishing time tables
     pub direction_id: Option<DirectionType>,
     /// Identifies the block to which the trip belongs. A block consists of a single trip or many sequential trips made using the same vehicle, defined by shared service days and block_id. A block_id can have trips with different service days, making distinct blocks
-    pub block_id: Option<String>,
+    pub block_id: Option<String>
+}
+
+
+impl Trip {
+    fn generate_shape_for_trip(&self, gtfs: &Gtfs1) -> Vec<Shape> {
+        assert_eq!(self.shape_id, None);
+
+        self.stop_times.iter().enumerate().map(|(index, st)| {
+            let stop = &gtfs.stops[&st.stop_id];
+            Shape {
+                id: (0, 0),
+                latitude: stop.latitude.unwrap(),
+                longitude: stop.longitude.unwrap(),
+                sequence: index,
+                dist_traveled: None,
+            }
+        }).collect()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Archive)]
@@ -259,6 +283,7 @@ pub struct Route {
     pub route_type: RouteType,
     /// URL of a web page about the particular route
     pub url: Option<String>,
+    pub agency_id: Option<String>,
     /// Orders the routes in a way which is ideal for presentation to customers. Routes with smaller route_sort_order values should be displayed first.
     pub order: Option<u32>,
     pub color: String,
@@ -266,8 +291,9 @@ pub struct Route {
 }
 
 impl FromWithAgencyId<gtfs_structures::Route> for Route {
-    fn from_with_agency_id(agency_id: u8, a: gtfs_structures::Route) -> Self {
+    fn from_with_agency_id(agency_id: u16, a: gtfs_structures::Route) -> Self {
         Self {
+            agency_id: a.agency_id,
             id: (agency_id, try_parse_id(&a.id)),
             short_name: a.short_name,
             long_name: a.long_name,
@@ -282,7 +308,7 @@ impl FromWithAgencyId<gtfs_structures::Route> for Route {
 }
 
 impl FromWithAgencyId<RawTrip> for Trip {
-    fn from_with_agency_id(agency_id: u8, a: RawTrip) -> Self {
+    fn from_with_agency_id(agency_id: u16, a: RawTrip) -> Self {
         Self {
             id: (agency_id, try_parse_id(&a.id)),
             service_id: (agency_id, try_parse_id(&a.service_id)),
@@ -297,8 +323,7 @@ impl FromWithAgencyId<RawTrip> for Trip {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Archive)]
-#[archive(check_bytes)]
+#[derive(Default)]
 pub struct Gtfs0 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
     pub stops: Vec<Stop>,
@@ -310,10 +335,12 @@ pub struct Gtfs0 {
     pub stop_times: Vec<StopTime>,
     pub calendar: Vec<Service>,
     pub calendar_dates: Vec<CalendarException>,
-    pub agency_id: u8,
+    pub agency_id: u16,
+    pub agency: Agency,
 }
 
-#[derive(Archive, Serialize, Deserialize)]
+
+#[derive(Archive, Serialize, Deserialize, Debug, Default)]
 #[archive(check_bytes)]
 pub struct Gtfs1 {
     /// All stop by `stop_id`. Stops are in an [Arc] because they are also referenced by each [StopTime]
@@ -324,8 +351,40 @@ pub struct Gtfs1 {
     pub trips: FxHashMap<IdType, Trip>,
     pub shapes: FxHashMap<IdType, Vec<Shape>>,
 
+    pub generated_shapes: FxHashMap<IdType, Vec<Shape>>,
+
     pub calendar: Calendar,
-    pub agency_id: u8,
+    pub agency_id: u16,
+    pub agency_city: String,
+    pub agency_name: String
+}
+
+impl Gtfs1 {
+    fn generate_shapes(&mut self) {
+        for trip in self.trips.values() {
+            if trip.shape_id.is_none() {
+                let shape = trip.generate_shape_for_trip(self);
+                self.generated_shapes.insert(trip.id, shape);
+            }
+        }
+
+        for trip in self.trips.values_mut() {
+            if trip.shape_id.is_none() {
+                trip.shape_id = Some(trip.id);
+            }
+        }
+    }
+
+    pub fn get_shape(&self, trip: &Trip) -> &Vec<Shape> {
+        let shape_id = trip.shape_id.unwrap();
+        &self.shapes.get(&shape_id).or_else(|| self.generated_shapes.get(&shape_id)).unwrap()
+    }
+}
+
+
+pub struct Gtfs0WithCity {
+    pub gtfs0: Gtfs0,
+    pub agency_city: String,
 }
 
 pub fn vec_to_hashmap<T, F: Fn(&T) -> IdType>(vec: Vec<T>, accessor: F) -> FxHashMap<IdType, T> {
@@ -350,8 +409,9 @@ fn convert_shapes(mut shape: Vec<Shape>) -> FxHashMap<IdType, Vec<Shape>> {
 
     answer
 }
-impl From<Gtfs0> for Gtfs1 {
-    fn from(mut a: Gtfs0) -> Self {
+impl From<Gtfs0WithCity> for Gtfs1 {
+    fn from(mut b: Gtfs0WithCity) -> Self {
+        let mut a = b.gtfs0;
         AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
 
         let stops = vec_to_hashmap(a.stops, |stop| stop.id);
@@ -394,7 +454,12 @@ impl From<Gtfs0> for Gtfs1 {
             trips,
             calendar,
             agency_id: a.agency_id,
+            agency_city: b.agency_city,
+            agency_name: a.agency.name,
+            generated_shapes: Default::default(),
         };
+
+        self_.generate_shapes();
         process_stop_times_with_shape_dist_travelled(&mut self_);
 
         self_
@@ -402,8 +467,49 @@ impl From<Gtfs0> for Gtfs1 {
 }
 
 fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
-    let geo_shape: FxHashMap<_, _> = gtfs
-        .shapes
+    let geo_shape = generate_rtree_for_shapes(&gtfs.shapes);
+    let geo_shape_generated = generate_rtree_for_shapes(&gtfs.generated_shapes);
+
+    for trip in gtfs.trips.values_mut() {
+        if geo_shape_generated.contains_key(&trip.shape_id.unwrap()) {
+            place_stop_along_shape(&gtfs.stops, &geo_shape_generated, trip);
+        } else if geo_shape.contains_key(&trip.shape_id.unwrap()) {
+            place_stop_along_shape(&gtfs.stops, &geo_shape, trip);
+        } else {
+            panic!("Shape not found for trip {:?}", trip.id);
+        }
+
+        for st in &trip.stop_times {
+            assert!((st.shape_index + 1.0).abs() > 1e-6);
+        }
+    }
+}
+
+fn place_stop_along_shape(stops_map: &FxHashMap<IdType, Stop>, geo_shape: &FxHashMap<IdType, RTree<GeomWithData<Line<[f64; 2]>, usize>>>, trip: &mut Trip) {
+    for stop_time in &mut trip.stop_times {
+        let stop = &stops_map[&stop_time.stop_id];
+        let shape_rstar = &geo_shape[&trip.shape_id.unwrap()];
+
+        let stop_query_point = [stop.longitude.unwrap(), stop.latitude.unwrap()];
+        let nearest_shape_edge = shape_rstar.nearest_neighbor(&stop_query_point).unwrap();
+        let nearest_point = nearest_shape_edge.geom().nearest_point(&stop_query_point);
+
+        let length = nearest_shape_edge.geom().length_2();
+
+        if length < 1e-6 {
+            stop_time.shape_index = nearest_shape_edge.data as f32;
+        } else {
+            let fraction =
+                (nearest_point.distance_2(&nearest_shape_edge.geom().from) / length).sqrt();
+
+            assert!((0.0..=1.0).contains(&fraction));
+            stop_time.shape_index = fraction as f32 + nearest_shape_edge.data as f32;
+        }
+    }
+}
+
+fn generate_rtree_for_shapes(shapes: &FxHashMap<IdType, Vec<Shape>>) -> FxHashMap<IdType, RTree<GeomWithData<Line<[f64; 2]>, usize>>> {
+    let geo_shape: FxHashMap<_, _> = shapes
         .iter()
         .map(|(id, shape)| {
             let mut edge_index_iter = 0;
@@ -433,38 +539,109 @@ fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
             )
         })
         .collect();
+    geo_shape
+}
 
-    for trip in gtfs.trips.values_mut() {
-        if trip.shape_id.is_none() {
-            continue;
-        }
-        for stop_time in &mut trip.stop_times {
-            let stop = &gtfs.stops[&stop_time.stop_id];
-            let shape_rstar = &geo_shape[&trip.shape_id.unwrap()];
+fn build_hashset<T, H: Hash + Eq, F: Fn(&T) -> H>(list: &[T], f: F) -> FxHashSet<H> {
+    let mut hashset = FxHashSet::default();
+    for item in list {
+        hashset.insert(f(item));
+    }
+    hashset
+}
 
-            let stop_query_point = [stop.longitude.unwrap(), stop.latitude.unwrap()];
-            let nearest_shape_edge = shape_rstar.nearest_neighbor(&stop_query_point).unwrap();
-            let nearest_point = nearest_shape_edge.geom().nearest_point(&stop_query_point);
+pub fn split_by_agency(mut gtfs: LibraryGTFS) -> Vec<LibraryGTFS> {
+    let mut answer = Vec::new();
 
-            let length = nearest_shape_edge.geom().length_2();
+    if gtfs.agencies.as_ref().unwrap().len() <= 1 {
+        return vec![gtfs];
+    }
 
-            if length < 1e-6 {
-                stop_time.shape_index = nearest_shape_edge.data as f32;
-            } else {
-                let fraction =
-                    (nearest_point.distance_2(&nearest_shape_edge.geom().from) / length).sqrt();
-
-                assert!((0.0..=1.0).contains(&fraction));
-                stop_time.shape_index = fraction as f32 + nearest_shape_edge.data as f32;
-            }
+    for agency in gtfs.agencies.as_mut().unwrap() {
+        if agency.id.is_none() {
+            agency.id = Some(agency.name.clone());
         }
     }
+    'a: for agency in gtfs.agencies.as_ref().unwrap() {
+        let agency_id = agency.id.clone().unwrap();
+
+
+        println!("Found agency: {}", agency.name);
+
+        // We care about shapes, calendar, calendar_dates, stops, routes, trips, stop_times
+        // routes -> trips -> calendar -> calendar_dates -> shape -> stop_times -> stops
+
+        let (routes, trips, calendar, calendar_dates, shape, stop_times, stops) = extract_objects_by_agency(&gtfs, &agency_id);
+
+        for st in &stop_times {
+            if st.arrival_time.is_none()  {
+                eprintln!("Missing arrival time for stop time {:?} agency {}", st, agency.name);
+                continue 'a;
+            }
+        }
+
+        let raw = LibraryGTFS {
+            read_duration: gtfs.read_duration,
+            calendar: Some(Ok(calendar)),
+            calendar_dates: Some(Ok(calendar_dates)),
+            stops: Ok(stops),
+            routes: Ok(routes),
+            trips: Ok(trips),
+            agencies: Ok(vec![agency.clone()]),
+            shapes: Some(Ok(shape)),
+            fare_attributes: None,
+            frequencies: None,
+            transfers: None,
+            pathways: None,
+            feed_info: None,
+            stop_times: Ok(stop_times),
+            files: vec![],
+            sha256: None,
+        };
+
+        answer.push(raw);
+    }
+
+    answer
+}
+
+fn unwrap_or_default<T, E>(x: &Option<Result<T, E>>) -> Cow<T>
+where
+    T: Default + Clone,
+{
+    match x {
+        Some(Ok(x)) => Cow::Borrowed(x),
+        _ => Cow::Owned(Default::default()),
+    }
+}
+
+fn extract_objects_by_agency(gtfs: &LibraryGTFS, agency_id: &str) -> (Vec<gtfs_structures::Route>, Vec<gtfs_structures::RawTrip>, Vec<gtfs_structures::Calendar>, Vec<gtfs_structures::CalendarDate>, Vec<gtfs_structures::Shape>, Vec<gtfs_structures::RawStopTime>, Vec<gtfs_structures::Stop>) {
+    // Nasty code to extract all the objects depending on agency_id
+    let routes = gtfs.routes.as_ref().unwrap().iter().filter(|x| (x.agency_id.as_ref().unwrap() == agency_id)).cloned().collect::<Vec<_>>();
+
+    let routes_hash = build_hashset(&routes, |x| x.id.clone());
+    let trips = gtfs.trips.as_ref().unwrap().iter().filter(|x| routes_hash.contains(&x.route_id)).cloned().collect::<Vec<_>>();
+    let trips_service_id_hash: FxHashSet<String> = build_hashset(&trips, |x| x.service_id.clone());
+    let trips_shape_hash: FxHashSet<String> = build_hashset(&trips, |x| x.shape_id.clone().unwrap_or("NOT FOUND".to_string()));
+    let trips_id_hash = build_hashset(&trips, |x| x.id.clone());
+    let calendar = unwrap_or_default(&gtfs.calendar).iter().filter(|x| trips_service_id_hash.contains(&x.id)).cloned().collect::<Vec<_>>();
+    let calendar_dates = unwrap_or_default(&gtfs.calendar_dates).iter().filter(|x| trips_service_id_hash.contains(&x.service_id)).cloned().collect::<Vec<_>>();
+
+    let shape = unwrap_or_default(&gtfs.shapes).iter().filter(|x| trips_shape_hash.contains(&x.id)).cloned().collect::<Vec<_>>();
+
+    let stop_times = gtfs.stop_times.as_ref().unwrap().iter().filter(|x| trips_id_hash.contains(&x.trip_id)).cloned().collect::<Vec<_>>();
+
+    let stop_id_hash = build_hashset(&stop_times, |x| x.stop_id.clone());
+    let stops = gtfs.stops.as_ref().unwrap().iter().filter(|x| stop_id_hash.contains(&x.id)).cloned().collect::<Vec<_>>();
+    (routes, trips, calendar, calendar_dates, shape, stop_times, stops)
 }
 
 impl From<LibraryGTFS> for Gtfs0 {
     fn from(a: LibraryGTFS) -> Self {
         let agency_id = AGENCY_COUNT.fetch_add(1, Ordering::SeqCst);
+        assert_eq!(a.agencies.as_ref().unwrap().len(), 1);
         Self {
+            agency: a.agencies.unwrap()[0].clone(),
             shapes: a
                 .shapes
                 .unwrap_or(Ok(vec![]))
@@ -523,11 +700,31 @@ impl From<LibraryGTFS> for Gtfs0 {
 }
 
 impl Gtfs1 {
-    pub fn merge(&mut self, other: Gtfs1) {
+    pub fn merge(mut self, other: Gtfs1) -> Gtfs1 {
+        assert_eq!(self.agency_city, other.agency_city);
+
         self.stops.extend(other.stops);
+
         self.routes.extend(other.routes);
+
         self.trips.extend(other.trips);
+
         self.shapes.extend(other.shapes);
+
         self.calendar.extend(other.calendar);
+
+        self.generated_shapes.extend(other.generated_shapes);
+
+        Gtfs1 {
+            stops: self.stops,
+            routes: self.routes,
+            trips: self.trips,
+            shapes: self.shapes,
+            generated_shapes: self.generated_shapes,
+            calendar: self.calendar,
+            agency_id: self.agency_id,
+            agency_city: self.agency_city,
+            agency_name: self.agency_name,
+        }
     }
 }

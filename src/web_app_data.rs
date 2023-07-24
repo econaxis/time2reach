@@ -55,9 +55,6 @@ impl RoadStructureList {
             true => &self.inner_large,
         }
     }
-    pub fn remove(&mut self, key: CacheKey) {
-        self.route_mut(key).pop(&key.1);
-    }
     pub fn push(&mut self, rs: RoadStructure) -> CacheKey {
         self.counter += 1;
 

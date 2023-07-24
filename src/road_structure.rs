@@ -112,9 +112,9 @@ impl RoadStructure {
     pub fn add_observation(&mut self, point: &[f64; 2], data: ReachData) {
         self.rs.explore_from_point(point, data, &mut self.nb);
     }
-    pub fn new_toronto() -> Self {
+    pub fn new_city(city: City) -> Self {
         Self {
-            rs: Arc::new(RoadStructureInner::new(City::Toronto)),
+            rs: Arc::new(RoadStructureInner::new(city)),
             nb: BestTimes::new(),
             trips_arena: TripsArena::default(),
         }

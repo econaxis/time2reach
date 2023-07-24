@@ -2,12 +2,12 @@
     bottom: 0;
 }
 
-@media only screen and (max-width: 600px) {
+@media only screen and (max-width: 650px) {
     .btm48 {
-        bottom: 12rem;
+        top: 70%;
     }
     .top40 {
-        top: 40rem;
+        top: 75%;
         @apply w-full mx-auto left-0 right-0;
     }
 }

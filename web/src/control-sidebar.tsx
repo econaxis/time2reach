@@ -48,7 +48,7 @@ export interface HeaderProps {
     children?: ReactNode;
 }
 export function Header({ children }: HeaderProps) {
-    return <h2 className="font-medium text-md border-b mt-3">{children}</h2>;
+    return <h2 className="font-medium text-md border-b mt-2 md:mt-3">{children}</h2>;
 }
 
 export function AgencyForm({ agencies, header, updateValues }) {
@@ -69,7 +69,7 @@ export function AgencyForm({ agencies, header, updateValues }) {
         <div>
             <Header>{header}</Header>
 
-            <form id="agency-form" className="mt-2">
+            <form id="agency-form" className="mt-2 max-h-56 overflow-y-scroll">
                 {agencyList}
             </form>
         </div>
@@ -84,7 +84,7 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ children, zi, positioning, style }: SidebarProps) {
-    let classes = `absolute m-4 w-3/12 p-5 pt-4 ${BG_WHITE_COLOR} border border-slate-400 rounded-lg drop-shadow-2xl shadow-inner `;
+    let classes = `opacity-90 absolute m-4 w-3/12 md:max-w-sm p-5 pt-4 ${BG_WHITE_COLOR} border border-slate-400 rounded-lg drop-shadow-2xl shadow-inner `;
     classes += positioning ?? "";
 
     return (
@@ -146,7 +146,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const filtered = data
         ? data.map((ag) => {
               return {
-                  shouldShow: ag.city === currentCity,
+                  shouldShow: (ag.city === currentCity) || (ag.city === "Toronto" && currentCity === "Kitchener-Waterloo"),
                   ...ag,
               };
           })
@@ -279,6 +279,19 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                         Github!
                     </a>
                 </p>
+
+                <p className="text-xs pt-3">
+                    See my other projects{" "}
+                    <a
+                        href="https://henryn.xyz"
+                        target="_blank"
+                        className="underline"
+                        rel="noreferrer"
+                    >
+                        here!
+                    </a>
+                </p>
+
             </Sidebar>
             <MapboxMap
                 timeData={timeData}

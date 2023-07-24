@@ -34,23 +34,26 @@ FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
 # Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --recipe-path recipe.json --features prod
-RUN cargo build -p gtfs-structure-2 --release
+RUN cargo chef cook --profile prod --recipe-path recipe.json --features prod
+
+COPY gtfs-structure gtfs-structure
+COPY gtfs-structure-2 gtfs-structure-2
+
+RUN cargo build -p gtfs-structure-2 --profile prod
 
 # Build application
 COPY src src
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
-COPY gtfs-structure gtfs-structure
-COPY gtfs-structure-2 gtfs-structure-2
-RUN cargo build --release --features prod
+
+RUN cargo build --profile prod --features prod
 
 FROM base AS run
 WORKDIR /app
 #COPY certificates /app/certificates
 #COPY city-gtfs /app/city-gtfs
 #COPY web/public /app/web/public
-COPY --from=builder /app/target/release/timetoreach /usr/bin/timetoreach
+COPY --from=builder /app/target/prod/timetoreach /usr/bin/timetoreach
 
 ENV RUST_LOG info,timetoreach=debug,h2=info,hyper=info,warp=info,rustls=info
 ENTRYPOINT ["/usr/bin/timetoreach"]

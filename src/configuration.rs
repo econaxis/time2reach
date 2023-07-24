@@ -7,6 +7,6 @@ pub struct Configuration {
     pub start_time: Time,
     pub duration_secs: f64,
     pub location: LatLng,
-    pub agency_ids: FxHashSet<u8>,
+    pub agency_ids: FxHashSet<u16>,
     pub modes: Vec<RouteType>,
 }

@@ -55,7 +55,7 @@ query_limit = 1000000000
 # endpoint="s3.us-east-1.amazonaws.com"
 
 [cache.file]
-base = "/tmp/vancouver-cache"
+base = "/Users/henry/timetoreach/vancouver-cache"
 baseurl = "http://example.com/tiles"
 
 

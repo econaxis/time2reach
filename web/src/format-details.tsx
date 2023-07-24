@@ -199,6 +199,20 @@ export interface DetailPopupProps {
     arrival_time: number;
 }
 
+function calculateDuration(details: TripDetails[], arrivalTime: number) {
+    const first = details[0];
+    if (first.method === "Walking") {
+        if (details.length >= 2) {
+            const second = details[1] as TripDetailsTransit;
+            const startTime = second.boarding.time - (first as TripDetailsWalking).time;
+            return arrivalTime - startTime;
+        }
+    } else if (first.method === "Transit") {
+        return arrivalTime - (first as TripDetailsTransit).boarding.time;
+    }
+    throw new Error("Unknown duration");
+}
+
 export function DetailPopup({ details, arrival_time: arrivalTime }: DetailPopupProps) {
     let key_count = 0;
     const detailEntries = details.map((d) => {
@@ -209,12 +223,16 @@ export function DetailPopup({ details, arrival_time: arrivalTime }: DetailPopupP
         }
     });
 
+    let duration;
+    try {
+        duration = formatDuration(calculateDuration(details, arrivalTime));
+    } catch (e) {
+        console.error("Error calculating duration", e);
+    }
     return (
         <Sidebar positioning="bottom-0 right-0 absolute z-50 hidden sm:block" zi={100}>
             {detailEntries}
-            <p className="mt-2 ml-1 text-xs font-bold">
-                Arrival time: {formatDuration(arrivalTime)}
-            </p>
+            {duration && <p className="mt-2 ml-1 text-xs font-bold">Duration: {duration}</p>}
         </Sidebar>
     );
 }

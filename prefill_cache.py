@@ -45,15 +45,34 @@ MONTREAL_2 = (45.430926507657276, -73.76828002313724)
 NYC_1 = (40.64775151884592, -74.1134681369716)
 NYC_2 = (40.94121411047778, -73.78936332225874)
 
+
+TORONTO = (43.6532, -79.3832)
+
+PARIS_1 = (48.91191595093818, 2.1980415114905725)
+
+LONDON_1 = (51.672343, -0.148271)
+
+SAN_FRANCISCO = (37.789407162468066, -122.35309872004174)
+SAN_FRANCISCO1 = (37.50211486594995, -122.10646136267307)
+SF2 = 37.7690145460696, -122.43082602680231
+SF3 = 37.803398137952186, -122.22809341889861
+
 # to_explore.put(Explore.from_latlong(*NYC_1, 7))
-to_explore.put(Explore.from_latlong(*NYC_2, 7))
-to_explore.put(Explore.from_latlong(*VANCOUVER_TL, 7))
-to_explore.put(Explore.from_latlong(*VANCOUVER_BR, 7))
-to_explore.put(Explore.from_latlong(*MONTREAL_1, 7))
-to_explore.put(Explore.from_latlong(*MONTREAL_2, 7))
+# to_explore.put(Explore.from_latlong(*NYC_2, 7))
+# to_explore.put(Explore.from_latlong(*VANCOUVER_TL, 7))
+# to_explore.put(Explore.from_latlong(*VANCOUVER_BR, 7))
+# to_explore.put(Explore.from_latlong(*MONTREAL_1, 7))
+# to_explore.put(Explore.from_latlong(*MONTREAL_2, 7))
+# to_explore.put(Explore.from_latlong(*PARIS_1, 7))
+# to_explore.put(Explore.from_latlong(*TORONTO, 7))
+# to_explore.put(Explore.from_latlong(*SAN_FRANCISCO, 8))
+# to_explore.put(Explore.from_latlong(*SAN_FRANCISCO1, 8))
+to_explore.put(Explore.from_latlong(*SF2, 8))
+to_explore.put(Explore.from_latlong(*SF3, 8))
+# to_explore.put(Explore.from_latlong(*LONDON_1, 7))
 
 to_explore_calculated = set()
-MAX_ZOOM = 13
+MAX_ZOOM = 16
 while not to_explore.empty():
     explore = to_explore.get_nowait()
     to_explore_calculated.add(explore)
@@ -69,7 +88,10 @@ while not to_explore.empty():
 
 
 def pre_check(coord: Explore):
-    return os.path.exists(f"/tmp/vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf")
+    return os.path.exists(f"vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf")
+    # if os.path.exists(f"vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf"):
+    #     os.remove(f"vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf")
+    # return True
 with FuturesSession() as session:
     futures = []
     completed = 0

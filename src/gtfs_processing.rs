@@ -51,6 +51,12 @@ impl RoutePickupTimes {
             direction: crate::direction_to_bool(&trip.direction_id.unwrap()),
         };
 
+
+        // TODO: fix this and ignore the bus pickup if time is null
+        if stop_time.arrival_time.is_none() {
+            return;
+        }
+
         let bus_pickup = BusPickupInfo {
             timestamp: Time(stop_time.arrival_time.unwrap() as f64),
             stop_sequence_no: stop_time.stop_sequence,

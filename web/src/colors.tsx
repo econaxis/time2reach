@@ -181,14 +181,14 @@ function Tick({ noRotate, children, lpercentage }: TickProps) {
     return (
         <div className="absolute left-0 inline-block" style={{ left: `${lpercentage}%` }}>
             <span
-                className="inline-block text-xs font-extralight"
+                className="inline-block text-xxs font-extralight"
                 style={{
-                    transform: noRotate ? "" : "translate(-80%, -30%) rotate(45deg)",
+                    transform: noRotate ? "" : "translate(-40%, 0%)",
                 }}
             >
                 {children}
             </span>
-            <svg width="0.5" height="4">
+            <svg width="2.0" height="4">
                 <rect x="0" y="0" width="0.5" height="4" fill={color} />
             </svg>
         </div>
@@ -226,7 +226,7 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
     const spread = tcm.max - tcm.min;
 
     const ticks: any[] = [];
-    for (let i = 0; i <= spread + 1; i += 3600 * 0.5) {
+    for (let i = 0; i <= spread + 1; i += 3600 * 0.25) {
         const percentage = Math.round((i / spread) * 100);
         const duration = formatDuration(i);
         const cleaned = duration.substring(1, 5);
@@ -249,12 +249,12 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
     const cssStyle = "linear-gradient(to right," + cssGradient.join(",") + ")";
     return (
         <div
-            className={`hidden sm:block ${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 max-w-sm lg:max-w-md pb-2 pt-0.5 lg:pb-5 lg:pt-2 px-5 pl-7 lg:px-9 rounded-lg`}
+            className={`hidden sm:block ${BG_WHITE_COLOR} absolute bottom-0 l-0 m-4 z-50 w-60 max-w-sm lg:max-w-md pb-3 pr-4 pl-5 rounded-lg`}
         >
-            <Header>Legend (Duration of Trip)</Header>
+            <Header>Trip Duration</Header>
             <div
-                className="w-full m-auto mt-4 md:mt-7 relative left-0 top-0"
-                style={{ height: "1.7rem" }}
+                className="w-full m-auto mt-1 md:mt-2 relative left-0 top-0"
+                style={{ height: "1.7rem", left: "2px" }}
             >
                 {ticks}
             </div>
