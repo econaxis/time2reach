@@ -74,9 +74,12 @@ pub fn check_cache<'a>(
     );
     cache
         .get(&hash)
-        .map(|x| {
-            ad.rs_list.write().unwrap().promote(x.request.rs_list_index);
-            warp::reply::json(&x.value)
+        .and_then(|x| {
+            if ad.rs_list.write().unwrap().promote(x.request.rs_list_index) {
+                Some(warp::reply::json(&x.value))
+            } else {
+                None
+            }
         })
         .ok_or(hash)
 }

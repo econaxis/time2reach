@@ -39,10 +39,20 @@ export function MapboxGLCanvasBrightnessHack({ brightness }: { brightness: numbe
     return <></>;
 }
 
+function setPathToCity(city: string) {
+    // window.location.search = `?city=${encodeURIComponent(city)}`;
+    window.history.pushState({}, "", encodeURIComponent(city));
+}
+
 export function App() {
     const queryClient = new QueryClient({});
 
-    const DEFAULT_CITY = "Paris";
+    const path = decodeURIComponent(window.location.pathname).substring(1);
+
+    let DEFAULT_CITY = "Toronto";
+    if (path in CITY_LOCATION) {
+        DEFAULT_CITY = path;
+    }
 
     const [currentCity, setCurrentCity] = useState(DEFAULT_CITY);
     const [currentStartingLoc, setCurrentStartingLoc] = useState(CITY_LOCATION[DEFAULT_CITY]);
@@ -53,6 +63,7 @@ export function App() {
     const setCityFromPill = (cityName: string) => {
         setCurrentCity(cityName);
         setCurrentStartingLoc(CITY_LOCATION[cityName]);
+        setPathToCity(cityName);
     };
 
     const brightnessCtx = { brightness, setBrightness }

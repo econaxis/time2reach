@@ -111,6 +111,7 @@ pub fn gtfspaths() -> Vec<(&'static str, City)> {
         ("nyc-bus", City::NewYorkCity),
         ("nj-bus", City::NewYorkCity),
         ("nj-rail", City::NewYorkCity),
+        ("path-nj-us", City::NewYorkCity),
         ("vancouver-translink", City::Vancouver),
         ("montreal", City::Montreal),
         ("paris-all", City::Paris),

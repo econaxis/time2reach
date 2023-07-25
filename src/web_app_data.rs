@@ -25,7 +25,7 @@ impl CityAppData {
             gtfs,
             spatial,
             rs_template: Arc::new(rs),
-            rs_list: RwLock::new(RoadStructureList::new(250)),
+            rs_list: RwLock::new(RoadStructureList::new()),
         }
     }
 }
@@ -67,17 +67,22 @@ impl RoadStructureList {
         }
     }
 
-    pub fn promote(&mut self, key: CacheKey) {
-        self.route_mut(key).promote(&key.1);
+    pub fn promote(&mut self, key: CacheKey) -> bool {
+        if self.route_mut(key).contains(&key.1) {
+            self.route_mut(key).promote(&key.1);
+            true
+        } else {
+            false
+        }
     }
     pub fn get(&self, key: CacheKey) -> Option<&RoadStructure> {
         self.route(key).peek(&key.1)
     }
 
-    pub fn new(max: usize) -> Self {
+    pub fn new() -> Self {
         RoadStructureList {
-            inner: LruCache::new(NonZeroUsize::new(max).unwrap()),
-            inner_large: LruCache::new(NonZeroUsize::new(20).unwrap()),
+            inner: LruCache::new(NonZeroUsize::new(40).unwrap()),
+            inner_large: LruCache::new(NonZeroUsize::new(10).unwrap()),
             counter: 0,
         }
     }

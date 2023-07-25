@@ -168,7 +168,7 @@ function setupMapboxMap(
                 .catch((e) => {
                     if (e.toString().includes("SyntaxError: Unexpected token")) {
                         alert("Unexpected error. Please refresh the page and try again.")
-                        window.location.reload();
+                        // window.location.reload();
                     }
                     if (e.toString().includes("aborted a request")) {
                         return;
@@ -308,7 +308,7 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
         if (map == null) return;
         map.setCenter(currentPos);
 
-        map.setZoom(12);
+        map.setZoom(11);
     }, [currentPos]);
 
     return (
