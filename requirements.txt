@@ -1,2 +1,3 @@
 pymongo
+cv2
 pandas

@@ -9,7 +9,7 @@ else
   source deploy/.env.prod
 fi
 
-docker login ghcr.io -u USERNAME -p GITHUB_PAT
+docker login ghcr.io -u USERNAME -p $DOCKER_WRITE
 docker build -t ghcr.io/econaxis/test .
 docker push ghcr.io/econaxis/test
 
@@ -19,4 +19,4 @@ ssh -o StrictHostKeyChecking=no $HOST -t "pwd; sh data2/deploy/setup-docker-on-h
 
 
 
-rsync -rvahzP --filter=":- target :- .git" --exclude="web/dist" --exclude=".git" --exclude="cache" --exclude="target" --exclude="venv*" --exclude="web/node_modules" . 34.30.48.109:data2
+#rsync -rvahzP --filter=":- target :- .git" --exclude="web/dist" --exclude=".git" --exclude="cache" --exclude="target" --exclude="venv*" --exclude="web/node_modules" . 34.30.48.109:data2

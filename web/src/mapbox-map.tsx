@@ -128,9 +128,8 @@ function setupMapboxMap(
             currentMap.on("dblclick", dblClickHandler);
         }
 
-
         const hoverCallback = (e) => {
-            if (e.originalEvent.altKey) {
+            if (e.originalEvent.altKey || GIF_RENDER) {
                 return;
             }
 
@@ -204,8 +203,8 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
     const [rerender, setRerender] = useState(false);
 
     const [detailPopup, setDetailPopup] = useState<{
-        details: TripDetailsTransit[];
-        seconds: number;
+        details: TripDetailsTransit[]
+        seconds: number
     } | null>(null);
 
     timeDataRef.current = timeData;
@@ -236,11 +235,13 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
         mapboxgl.accessToken =
             "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
 
+
         const map1 = new mapboxgl.Map({
             container: mapContainer.current, // container ID
             style: "mapbox://styles/mapbox/dark-v11", // style URL
             center: currentPos, // starting position [lng, lat]
-            zoom: 12, // starting zoom
+            zoom: 10.58, // starting zoom
+            preserveDrawingBuffer: true
         });
         setMap(map1);
         map1.doubleClickZoom.disable();
@@ -304,13 +305,14 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
         });
     }, [paintProperty, mapboxLoading, rerender]);
 
-    useEffect(() => {
-        if (map == null) return;
-        map.setCenter(currentPos);
+    // useEffect(() => {
+    //     if (map == null) return;
+    //     map.setCenter(currentPos);
+    //
+    //     map.setZoom(11);
+    // }, [currentPos]);
 
-        map.setZoom(11);
-    }, [currentPos]);
-
+    // console.log("Center loc is ", map?.getCenter())
     return (
         <Fragment>
             {detailPopup != null ? (

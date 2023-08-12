@@ -16,6 +16,7 @@ pub enum City {
     Montreal,
     #[serde(rename = "San Francisco")]
     SanFrancisco,
+    Chicago
 }
 
 impl FromStr for City {
@@ -29,6 +30,7 @@ impl FromStr for City {
             "vancouver" => Ok(City::Vancouver),
             "paris" => Ok(City::Paris),
             "sanfrancisco" => Ok(City::SanFrancisco),
+            "chicago" => Ok(City::Chicago),
             _ => {
                 log::error!("{s} is not a city");
                 Err(format!("{s} not a city"))
@@ -46,6 +48,7 @@ impl City {
             City::Montreal => (45.5017, -73.5673), // Center location of Montreal (latitude, longitude)
             City::Paris => (48.8566, 2.3522), // Center location of Paris (latitude, longitude)
             City::SanFrancisco => (37.7749, -122.4194), // Center location of San Francisco (latitude, longitude)
+            City::Chicago => (41.8781, -87.6298), // Center location of Chicago (latitude, longitude)
         };
 
         [coords.0, coords.1]
@@ -58,6 +61,7 @@ impl City {
             City::Vancouver => "Vancouver",
             City::Paris => "Paris",
             City::SanFrancisco => "SanFrancisco",
+            City::Chicago => "Chicago",
         }
     }
 }
@@ -115,7 +119,8 @@ pub fn gtfspaths() -> Vec<(&'static str, City)> {
         ("vancouver-translink", City::Vancouver),
         ("montreal", City::Montreal),
         ("paris-all", City::Paris),
-        ("sanfran", City::SanFrancisco)
+        ("sanfran", City::SanFrancisco),
+        ("chicago", City::Chicago)
     ]
 }
 

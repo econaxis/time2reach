@@ -7,6 +7,8 @@ import track from "./analytics";
 import "./control-sidebar.css";
 import { MapboxMap, setAndColorNewOriginLocation } from "./mapbox-map";
 import { LoadingSpinner } from "./loading-spinner";
+import { formatTime } from "./format-details";
+import { GIF_RENDER_START_TIME, GIF_RENDER, useGifRenderNewAnimationFrame } from "./gif-generator";
 
 interface Agency {
     agencyCode: string;
@@ -138,6 +140,10 @@ const MODES = [
         agencyCode: "rail",
         agencyLongName: "Train",
     },
+    {
+        agencyCode: "ferry",
+        agencyLongName: "Ferry",
+    },
 ];
 
 export function ControlSidebar({ defaultStartLoc, currentCity }) {
@@ -171,6 +177,13 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     useEffect(() => {
         setLastWorkingLocation(defaultStartLoc);
         setCurrentStartingLoc(defaultStartLoc);
+
+        if (GIF_RENDER) {
+            // setStartTime(4 * 3600)
+            setStartTime(GIF_RENDER_START_TIME)
+            // setStartTime(60240)
+        }
+
     }, [defaultStartLoc]);
 
     useEffect(() => {
@@ -182,11 +195,14 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                 startTime,
             };
             setSpinner(true);
+            console.log("Start time is", formatTime(startTime))
+            console.log("Location is", currentStartingLoc)
             setAndColorNewOriginLocation(currentStartingLoc, joinedOptions)
                 .then((data) => {
                     setPaintProperty(data.m);
                     setTimeData(data);
                     setLastWorkingLocation(currentStartingLoc);
+
                 })
                 .catch((err) => {
                     setCurrentStartingLoc(lastWorkingLocation);
@@ -194,6 +210,10 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                 });
         }
     }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime]);
+
+    
+    // Activates only when GIF_RENDER = true
+    useGifRenderNewAnimationFrame(spinner, startTime, setStartTime);
 
     const onAgencyChange = (agencies1: object) => {
         track("agency-change", agencies1);

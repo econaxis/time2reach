@@ -7,8 +7,12 @@ import math
 import queue
 
 import sys
-from requests_futures.sessions import FuturesSession
 
+import shapely.geometry
+from requests_futures.sessions import FuturesSession
+from shapely.geometry import Point
+
+from download_gpkg import SAN_FRAN, create_poly_from_geojson
 url = sys.argv[1]
 
 
@@ -18,6 +22,18 @@ def lat_lon_to_tile(lat, lon, zoom):
     y = (1 - math.log(math.tan(lat_rad) + 1 / math.cos(lat_rad)) / math.pi) / 2 * (2 ** zoom)
     return int(x), int(y)
 
+# Generate the reverse code of lat_lon_to_tile that returns bounds of the tile in shapely format
+def tile_to_lat_lon_bounds(x, y, zoom):
+    n = 2.0 ** zoom
+    lon_deg = x / n * 360.0 - 180.0
+    lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y / n)))
+    lat_deg = math.degrees(lat_rad)
+
+    n = 2.0 ** zoom
+    lon_deg2 = (x + 1) / n * 360.0 - 180.0
+    lat_rad2 = math.atan(math.sinh(math.pi * (1 - 2 * (y + 1) / n)))
+    lat_deg2 = math.degrees(lat_rad2)
+    return shapely.geometry.box(min(lon_deg, lon_deg2), min(lat_deg, lat_deg2), max(lon_deg2, lon_deg), max(lat_deg2, lat_deg))
 
 @dataclasses.dataclass
 class Explore:
@@ -56,6 +72,8 @@ SAN_FRANCISCO = (37.789407162468066, -122.35309872004174)
 SAN_FRANCISCO1 = (37.50211486594995, -122.10646136267307)
 SF2 = 37.7690145460696, -122.43082602680231
 SF3 = 37.803398137952186, -122.22809341889861
+CHICAGO = 41.88502620493033, -87.64866240164858
+CHICAGO2 = 42.0965437845508, -87.73648980584558
 
 # to_explore.put(Explore.from_latlong(*NYC_1, 7))
 # to_explore.put(Explore.from_latlong(*NYC_2, 7))
@@ -67,8 +85,9 @@ SF3 = 37.803398137952186, -122.22809341889861
 # to_explore.put(Explore.from_latlong(*TORONTO, 7))
 # to_explore.put(Explore.from_latlong(*SAN_FRANCISCO, 8))
 # to_explore.put(Explore.from_latlong(*SAN_FRANCISCO1, 8))
-to_explore.put(Explore.from_latlong(*SF2, 8))
-to_explore.put(Explore.from_latlong(*SF3, 8))
+to_explore.put(Explore.from_latlong(*SF3, 7))
+to_explore.put(Explore.from_latlong(*SF2, 7))
+
 # to_explore.put(Explore.from_latlong(*LONDON_1, 7))
 
 to_explore_calculated = set()
@@ -87,8 +106,14 @@ while not to_explore.empty():
         to_explore.put(Explore(cur_zoom, multiplier * explore.x + 1, multiplier * explore.y + 1))
 
 
+SF_POLY = create_poly_from_geojson(SAN_FRAN)
+
 def pre_check(coord: Explore):
-    return os.path.exists(f"vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf")
+    latlng = tile_to_lat_lon_bounds(coord.x, coord.y, coord.zoom)
+    if SF_POLY.intersects(latlng):
+        return os.path.exists(f"vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf")
+    else:
+        return True
     # if os.path.exists(f"vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf"):
     #     os.remove(f"vancouver-cache/all_cities/{coord.zoom}/{coord.x}/{coord.y}.pbf")
     # return True
@@ -99,7 +124,6 @@ with FuturesSession() as session:
         assert coord.zoom >= 7
 
         if pre_check(coord):
-            print("Skipping passed pre-check")
             completed += 1
             continue
         r = session.get(f'{url}/{coord.zoom}/{coord.x}/{coord.y}.pbf')
@@ -109,7 +133,8 @@ with FuturesSession() as session:
             for future in as_completed(futures):
                 resp = future.result()
 #                 resp.raise_for_status()
-                print("Completed! ", resp, len(resp.content), f"{completed} out of {len(to_explore_calculated)}")
+                if completed % 100 == 0:
+                    print("Completed! ", resp, len(resp.content), f"{completed} out of {len(to_explore_calculated)}")
                 completed += 1
             futures = []
 

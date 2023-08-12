@@ -58,6 +58,7 @@ impl TryFrom<&str> for RouteType {
             "tram" => Ok(RouteType::Tramway),
             "subway" => Ok(RouteType::Subway),
             "rail" => Ok(RouteType::Rail),
+            "ferry" => Ok(RouteType::Ferry),
             _ => Err(format!("Unknown route type: {}", value)),
         }
     }

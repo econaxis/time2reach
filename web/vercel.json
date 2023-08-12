@@ -1,3 +1,7 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source":  "/api/v2/(.*)", "destination": "https://api-map-v2.henryn.xyz/$1" },
+    { "source": "/robots.txt", "destination": "/robots/robots.txt"},
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

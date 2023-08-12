@@ -4,10 +4,16 @@
 
 @media only screen and (max-width: 650px) {
     .btm48 {
-        top: 70%;
+        top: 75%;
     }
     .top40 {
-        top: 75%;
+        top: 82%;
+        opacity: 100%;
         @apply w-full mx-auto left-0 right-0;
     }
+}
+
+
+.city-pill::-webkit-scrollbar {
+    display: none;
 }
