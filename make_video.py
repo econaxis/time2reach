@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 if os.path.exists("/System/Library/Fonts/Supplemental/AmericanTypewriter.ttc"):
     font_path = "/System/Library/Fonts/Supplemental/AmericanTypewriter.ttc"  # Replace with the actual path to the font file.
 else:
-    font_path = "~/AmericanTypewriter.ttc"
+    font_path = "../AmericanTypewriter.ttc"
 font = ImageFont.truetype(font_path, size=150)
 legend = Image.open("legend.png")
 legend = legend.resize([int(1.35 * s) for s in legend.size])
@@ -72,7 +72,7 @@ def format_seconds(seconds):
 
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
-def create_video_from_images(image_list, output_file):
+def create_video_from_images(image_list, output_file, output_dir):
     frame_size = None
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -103,7 +103,7 @@ def create_video_from_images(image_list, output_file):
 
             for frame, time in frames:
                 all_frames.append((frame, time))
-                cv2.imwrite(f"/tmp/processed{time}.png", frame)
+                cv2.imwrite(f"{output_dir}/processed{time}.png", frame)
 
     all_frames = sorted(all_frames, key=lambda x: x[1])
 
@@ -123,11 +123,11 @@ if __name__ == "__main__":
     output_video_file = "/Users/henry/Documents/imgs-toronto/output_video.mp4"
     output_video_file = sys.argv[2]
 
-    image_list = [os.path.join(image_folder, img) for img in os.listdir(image_folder) if img.endswith(".png")][0:2]
+    image_list = [os.path.join(image_folder, img) for img in os.listdir(image_folder) if img.endswith(".png") and img.startswith("test_")]
     numbers = [format_seconds(int(re.findall(r"test_(\d+)( \(1\))?.png", image_path)[0][0])) for image_path in image_list]
 
     images = [x for x in zip(image_list, numbers)]
     images = sorted(images, key=lambda x: x[1])
     images = images[0:100]
 
-    create_video_from_images(images, output_video_file)
+    create_video_from_images(images, output_video_file, image_folder)
