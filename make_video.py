@@ -7,9 +7,13 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
-font_path = "/System/Library/Fonts/Supplemental/AmericanTypewriter.ttc"  # Replace with the actual path to the font file.
+if os.path.exists("/System/Library/Fonts/Supplemental/AmericanTypewriter.ttc"):
+    font_path = "/System/Library/Fonts/Supplemental/AmericanTypewriter.ttc"  # Replace with the actual path to the font file.
+else:
+    font_path = "~/AmericanTypewriter.ttc"
 font = ImageFont.truetype(font_path, size=150)
-static = Image.open("legend.png")
+legend = Image.open("legend.png")
+legend = legend.resize([int(1.35 * s) for s in legend.size])
 
 
 def add_text_to_frame(frame_batch):
@@ -21,29 +25,34 @@ def add_text_to_frame(frame_batch):
 
         # Convert frame to PIL image
         pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        draw = ImageDraw.Draw(pil_image)
 
         # Load the custom font
 
         # Get the size of the text to place it correctly
 
         # Calculate the position to place the text at the bottom right corner
-        text_x = frame.shape[1] - 1094  # 10 pixels padding from the right
-        text_y = frame.shape[0] - 512  # 10 pixels padding from the bottom
+        text_x = frame.shape[1] - 100
+        text_y = frame.shape[0] - 530
 
-        legend_x = frame.shape[1] - static.size[0] - 90
-        legend_y = frame.shape[0] - static.size[1] - 90
+        legend_x = frame.shape[1] - legend.size[0] - 90
+        legend_y = frame.shape[0] - legend.size[1] - 90
 
         # Add the text to the frame
-        draw.text((text_x, text_y), text, font=font, fill=(255, 255, 255))  # White color (RGB format)
-        pil_image.paste(static, (legend_x, legend_y), static)
+        # Anchor text bottom right
+        # Draw text but with bottom right anchor
+        pil_image = ImageEnhance.Brightness(pil_image).enhance(1.35)
+
+        pil_image.paste(legend, (legend_x, legend_y), legend)
+
+        draw = ImageDraw.Draw(pil_image)
+
+        draw.text((text_x, text_y), text, font=font, fill=(255, 255, 255), anchor = "rs")  # White color (RGB format)
 
         if prev_frame is not None:
             pil_image_blend = Image.blend(pil_image, prev_frame, 0.5)
             frames_with_text.append((cv2.cvtColor(np.array(pil_image_blend), cv2.COLOR_RGB2BGR), text))
 
         # Increase brightness of image
-        pil_image = ImageEnhance.Brightness(pil_image).enhance(1.35)
         # Convert back to OpenCV format
         frames_with_text.append((cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR), text))
 
@@ -94,9 +103,9 @@ def create_video_from_images(image_list, output_file):
 
             for frame, time in frames:
                 all_frames.append((frame, time))
+                cv2.imwrite(f"/tmp/processed{time}.png", frame)
 
     all_frames = sorted(all_frames, key=lambda x: x[1])
-    print([x[1] for x in all_frames])
 
     for frame, time in all_frames:
         if frame_size is None:
@@ -107,16 +116,18 @@ def create_video_from_images(image_list, output_file):
 
     out.release()
 
+import sys
 if __name__ == "__main__":
     # Replace "image_folder" with the path to the folder containing your PNG images.
-    image_folder = "/Users/henry/Documents/imgs-toronto"
+    image_folder = sys.argv[1]
     output_video_file = "/Users/henry/Documents/imgs-toronto/output_video.mp4"
+    output_video_file = sys.argv[2]
 
-    image_list = [os.path.join(image_folder, img) for img in os.listdir(image_folder) if img.endswith(".png")]
+    image_list = [os.path.join(image_folder, img) for img in os.listdir(image_folder) if img.endswith(".png")][0:2]
     numbers = [format_seconds(int(re.findall(r"test_(\d+)( \(1\))?.png", image_path)[0][0])) for image_path in image_list]
 
     images = [x for x in zip(image_list, numbers)]
     images = sorted(images, key=lambda x: x[1])
-    images = images[0:1500]
+    images = images[0:100]
 
     create_video_from_images(images, output_video_file)
