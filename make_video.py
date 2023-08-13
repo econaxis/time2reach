@@ -102,7 +102,7 @@ def create_video_from_images(image_list, output_file, output_dir):
                 print("Processed ", processed, "out of ", len(image_list), " images.")
 
             for frame, time in frames:
-                all_frames.append((frame, time))
+                # all_frames.append((frame, time))
                 cv2.imwrite(f"{output_dir}/processed{time}.png", frame)
 
     all_frames = sorted(all_frames, key=lambda x: x[1])
@@ -117,6 +117,17 @@ def create_video_from_images(image_list, output_file, output_dir):
     out.release()
 
 import sys
+
+# [5, 10, 15, 7] Target: 100
+# solution(95) + 5
+# solution(90) + 10
+
+
+# ways(10) = ways(8) + ways(9)
+# ways(8) = ways(6) + ways(7)
+
+
+# [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 if __name__ == "__main__":
     # Replace "image_folder" with the path to the folder containing your PNG images.
     image_folder = sys.argv[1]
