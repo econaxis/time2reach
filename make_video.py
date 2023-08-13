@@ -23,6 +23,7 @@ def add_text_to_frame(frame_batch):
     prev_frame = None
     for frame, text in frame_batch:
 
+
         # Convert frame to PIL image
         pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
@@ -91,6 +92,12 @@ def create_video_from_images(image_list, output_file, output_dir):
 
             images = image_list[i:i+WINDOW]
 
+            images = list(filter(lambda x: not os.path.exists(f"{output_dir}/processed{x[1]}.png"), images))
+
+            if len(images) == 0:
+                print("Filtered everything...")
+                continue
+
             future = executor.submit(process_single_image, images)
             futures.append(future)
 
@@ -139,6 +146,6 @@ if __name__ == "__main__":
 
     images = [x for x in zip(image_list, numbers)]
     images = sorted(images, key=lambda x: x[1])
-    images = images[0:100]
+    images = images[0:1000000]
 
     create_video_from_images(images, output_video_file, image_folder)
