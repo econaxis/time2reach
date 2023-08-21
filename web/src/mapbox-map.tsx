@@ -240,7 +240,7 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
             container: mapContainer.current, // container ID
             style: "mapbox://styles/mapbox/dark-v11", // style URL
             center: currentPos, // starting position [lng, lat]
-            zoom: 10.58, // starting zoom
+            zoom: 10.98, // starting zoom
             preserveDrawingBuffer: true
         });
         setMap(map1);

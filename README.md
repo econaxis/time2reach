@@ -1,48 +1,54 @@
-# gdal-sys
+![image.png](image.png)
 
-[![Build Status](https://travis-ci.org/georust/gdal.png?branch=master)](https://travis-ci.org/georust/gdal)
 
-Low level [GDAL](http://gdal.org/) bindings for [Rust](http://www.rust-lang.org/).
-The build script will try to auto-dectect the installed GDAL version.
+# Time To Reach - Transit Travel-time Map
 
-Contains:
+It's a travel-time map for public transit that shows which areas of the city are most accessible by public transit.
 
-* mapping of data types
-* raster (GDAL) and vector (OGR) operations
-* error handling
-* spatial reference operations
+I built this while trying to look for housing in Toronto. I found myself going back and forth on Google Maps trying to compare which locations have a shorter commute via transit. I completed this project long after I found a place, but hopefully it helps someone else.
 
-## Build
 
-The build script should work an Linux and Windows systems. It can be configured with a couple of environment variables:
+# How it works
 
-* if `GDAL_INCLUDE_DIR` or `GDAL_LIB_DIR` are defined, they will be used
-* otherwise, if `GDAL_HOME` is defined, the build script looks for `GDAL_HOME/include`, `GDAL_HOME/lib` and `GDAL_HOME/bin`
-* finally, `pkg-config` is queried to determine the `GDAL` location
-* you can define `GDAL_STATIC` to link `GDAL` statically
+The app consists of a Rust backend which queries the transit schedule data (in GTFS format) and a React frontend which displays the map and colors each road segment according to how long it takes to reach that segment from the origin.
 
-The include directories are only used if you choose to generate the bindings at build time.
+## Generating times to reach for each road
 
-On Linux, building should work out-of-the-box.
+The backend uses heuristics-based BFS search on each trip from the origin. At all stops along that trip (`time_to_reach.rs:all_stops_along_trip()`),
+we "disembark" and see what other routes we can take from that stop (`time_to_reach.rs:explore_from_point()`). For each possible
+new route, we do the same thing: get on and along all stops, see what other new connections can be made.
 
-On Windows, the easiest solution is to point the `GDAL_HOME` environment variable to the `GDAL` folder.
+There are some heuristics to make each query faster:
+ - We only get off a stop if we haven't reached that stop before (or we have reached it before but at a *worse time*). 
+ - Rather than using a queue like in traditional BFS, we prioritize exploring train/subway routes first, as they are faster and result in less work.
 
-* `windows-msvc` requires `gdal_i.lib` to be found in `%GDAL_HOME%\lib`.
-* `windows-gnu` requires either `gdal_i.lib` in `%GDAL_HOME%\lib` OR `gdal{version}.dll` in `%GDAL_HOME%\bin`.
 
-## Generated bindings
+## Rendering the tiles
 
-By default, gdal-sys will detect the version of libgdal you have installed and
-attempt to use prebuilt bindings corresponding to that version. Alternatively,
-you can generate your own bindings from your libgdal installation by specifying
-the `bindgen` feature.
+I used an approach similar to how Google Maps displays traffic congestion (red, yellow, green). I used the Python library 
+OSMnx (`download_gpkg.py:generate_geopackage_all_cities`) to download road vectors from OpenStreetMaps and loaded them into 
+a PostGIS database. 
 
-## Creating prebuilt bindings
+Using Mapbox's vector tile sources and Expressions feature, I could color these road segments based on their ID:
 
-If a new version of GDAL is released, you (as a `gdal` contributor) can
-generate new bindings for inclusion in the `gdal-sys` source distribution by
-building with the `bindgen` feature, and then copying the generated file. For
-example (the hash will differ in your build):
+```typescript
+map.setPaintProperty("transit-layer", "line-color",
+    ["get", ["to-string", ["id"]], ["literal", timeToReachData]],
+);
+```
 
-    $ cargo build --features bindgen
-    $ cp target/debug/build/gdal-sys-db833e3088b78e57/out/bindings.rs gdal-sys/prebuilt-bindings/gdal_3.6.rs
+`timeToReachData` converts road segment IDs to a color, based on how long it takes to reach that segment.
+
+## Drawing paths
+
+When you hover over any particular point, the app draws the path from the origin. The path shows you which buses or trains to take. 
+We cache the results of the BFS search as a tree of individual vehicle trips. For example, if all destinations require you to take 
+the Line 1 Subway, we only store that trip once. If a trip is a transfer from a previous trip, we store the Id of the parent trip
+in `InProcessTrip.previous_transfer` (`in_progress_trip.rs`).
+
+When you hover over a point, we simply traverse the tree backwards via the `previous_transfer` pointer until we reach the origin.
+
+This approach requires very little memory to store all the possible trips and their paths from the origin. Since these trips are immutable,
+we store them inside an `Arena` to avoid lifetime problems. Since Arenas store trips contiguously, we also don't experience
+memory fragmentation problems that come with large trees. Freeing the memory of the tree is also incredibly performant, as 
+we just clear the memory of the Arena.

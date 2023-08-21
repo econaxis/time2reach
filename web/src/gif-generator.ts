@@ -28,11 +28,11 @@ export function useGifRenderNewAnimationFrame(
             setTimeout(() => {
                 saveImage(startTime.toString());
                 setStartTime((prev) => prev + 60);
-            }, 300);
+            }, 1500);
         }
     }, [spinner])
 }
 
 export let GIF_RENDER_START_TIME = 5 * 3600;
-GIF_RENDER_START_TIME = 65940;
+GIF_RENDER_START_TIME = 43500;
 export const GIF_RENDER = IS_LOCAL && true;
