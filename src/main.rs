@@ -33,7 +33,6 @@ use rustc_hash::FxHashSet;
 use gtfs_structure_2::IdType;
 use std::time::Instant;
 
-
 use crate::road_structure::RoadStructure;
 use crate::web::LatLng;
 use configuration::Configuration;
@@ -41,9 +40,9 @@ use gtfs_structure_2::gtfs_wrapper::Gtfs1;
 
 use crate::agencies::{Agency, City};
 use crate::formatter::time_to_point;
+use crate::gtfs_setup::get_agency_id_from_short_name;
 use time::Time;
 use trips_arena::TripsArena;
-use crate::gtfs_setup::get_agency_id_from_short_name;
 
 const WALKING_SPEED: f64 = 1.42;
 const STRAIGHT_WALKING_SPEED: f64 = 1.25;
@@ -68,7 +67,10 @@ fn direction_to_bool(d: &DirectionType) -> bool {
 fn main1() {
     let (gtfs, agency) = setup_gtfs();
 
-    let agency_ids: FxHashSet<u16> = agency.iter().map(|a| get_agency_id_from_short_name(&a.public_name).unwrap()).collect();
+    let agency_ids: FxHashSet<u16> = agency
+        .iter()
+        .map(|a| get_agency_id_from_short_name(&a.public_name).unwrap())
+        .collect();
     let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&City::Paris, &gtfs);
 
     let mut rs = RoadStructure::new_city(City::Paris);
@@ -89,7 +91,13 @@ fn main1() {
             },
         );
         let et = rs.save();
-        println!("Edge times: {:?} {:?} {:?} {}", et[0], et[1], et[2], et.len());
+        println!(
+            "Edge times: {:?} {:?} {:?} {}",
+            et[0],
+            et[1],
+            et[2],
+            et.len()
+        );
         let _fmter = time_to_point(
             &rs,
             &rs.trips_arena,

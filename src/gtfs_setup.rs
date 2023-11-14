@@ -1,5 +1,5 @@
 use crate::trips_arena::TripsArena;
-use gtfs_structure_2::gtfs_wrapper::{Gtfs0, Gtfs0WithCity, Gtfs1, LibraryGTFS, split_by_agency};
+use gtfs_structure_2::gtfs_wrapper::{split_by_agency, Gtfs0, Gtfs0WithCity, Gtfs1, LibraryGTFS};
 use id_arena::Id;
 use lazy_static::lazy_static;
 use log::info;
@@ -7,10 +7,10 @@ use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 
+use crate::agencies::City;
 use crate::gtfs_processing::StopsWithTrips;
 use crate::in_progress_trip::InProgressTrip;
 use std::sync::Mutex;
-use crate::agencies::City;
 lazy_static! {
     static ref AGENCY_MAP: Mutex<FxHashMap<String, u16>> = Mutex::new(FxHashMap::default());
 }
@@ -49,9 +49,15 @@ pub fn initialize_gtfs_as_bson(path: &str, city: City) -> Vec<Gtfs1> {
 
         let library = LibraryGTFS::from_path(path).unwrap();
 
-        let gtfslist = split_by_agency(library).into_iter().map(Gtfs0::from).map(|gtfs0| Gtfs0WithCity {
-            gtfs0, agency_city: city.get_gpkg_path().to_string()
-        }).map(Gtfs1::from).collect();
+        let gtfslist = split_by_agency(library)
+            .into_iter()
+            .map(Gtfs0::from)
+            .map(|gtfs0| Gtfs0WithCity {
+                gtfs0,
+                agency_city: city.get_gpkg_path().to_string(),
+            })
+            .map(Gtfs1::from)
+            .collect();
         let bytes = rkyv::to_bytes::<_, 1024>(&gtfslist).unwrap();
         file.write_all(&bytes).unwrap();
         info!("GTFS created");
@@ -74,7 +80,12 @@ pub fn initialize_gtfs_as_bson(path: &str, city: City) -> Vec<Gtfs1> {
         let sample_id = agency.stops.keys().next().unwrap();
         let mut map = AGENCY_MAP.lock().unwrap();
         map.insert(short_name.to_string(), sample_id.0);
-        println!("Agency {}: {} {}", sample_id.0, agency.agency_name, agency.generated_shapes.len());
+        println!(
+            "Agency {}: {} {}",
+            sample_id.0,
+            agency.agency_name,
+            agency.generated_shapes.len()
+        );
     }
     result
 }

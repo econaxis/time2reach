@@ -248,24 +248,27 @@ pub struct Trip {
     /// Indicates the direction of travel for a trip. This field is not used in routing; it provides a way to separate trips by direction when publishing time tables
     pub direction_id: Option<DirectionType>,
     /// Identifies the block to which the trip belongs. A block consists of a single trip or many sequential trips made using the same vehicle, defined by shared service days and block_id. A block_id can have trips with different service days, making distinct blocks
-    pub block_id: Option<String>
+    pub block_id: Option<String>,
 }
-
 
 impl Trip {
     fn generate_shape_for_trip(&self, gtfs: &Gtfs1) -> Vec<Shape> {
         assert_eq!(self.shape_id, None);
 
-        self.stop_times.iter().enumerate().map(|(index, st)| {
-            let stop = &gtfs.stops[&st.stop_id];
-            Shape {
-                id: (0, 0),
-                latitude: stop.latitude.unwrap(),
-                longitude: stop.longitude.unwrap(),
-                sequence: index,
-                dist_traveled: None,
-            }
-        }).collect()
+        self.stop_times
+            .iter()
+            .enumerate()
+            .map(|(index, st)| {
+                let stop = &gtfs.stops[&st.stop_id];
+                Shape {
+                    id: (0, 0),
+                    latitude: stop.latitude.unwrap(),
+                    longitude: stop.longitude.unwrap(),
+                    sequence: index,
+                    dist_traveled: None,
+                }
+            })
+            .collect()
     }
 }
 
@@ -340,7 +343,6 @@ pub struct Gtfs0 {
     pub agency: Agency,
 }
 
-
 #[derive(Archive, Serialize, Deserialize, Debug, Default)]
 #[archive(check_bytes)]
 pub struct Gtfs1 {
@@ -357,7 +359,7 @@ pub struct Gtfs1 {
     pub calendar: Calendar,
     pub agency_id: u16,
     pub agency_city: String,
-    pub agency_name: String
+    pub agency_name: String,
 }
 
 impl Gtfs1 {
@@ -378,10 +380,13 @@ impl Gtfs1 {
 
     pub fn get_shape(&self, trip: &Trip) -> &Vec<Shape> {
         let shape_id = trip.shape_id.unwrap();
-        &self.shapes.get(&shape_id).or_else(|| self.generated_shapes.get(&shape_id)).unwrap()
+        &self
+            .shapes
+            .get(&shape_id)
+            .or_else(|| self.generated_shapes.get(&shape_id))
+            .unwrap()
     }
 }
-
 
 pub struct Gtfs0WithCity {
     pub gtfs0: Gtfs0,
@@ -486,7 +491,11 @@ fn process_stop_times_with_shape_dist_travelled(gtfs: &mut Gtfs1) {
     }
 }
 
-fn place_stop_along_shape(stops_map: &FxHashMap<IdType, Stop>, geo_shape: &FxHashMap<IdType, RTree<GeomWithData<Line<[f64; 2]>, usize>>>, trip: &mut Trip) {
+fn place_stop_along_shape(
+    stops_map: &FxHashMap<IdType, Stop>,
+    geo_shape: &FxHashMap<IdType, RTree<GeomWithData<Line<[f64; 2]>, usize>>>,
+    trip: &mut Trip,
+) {
     for stop_time in &mut trip.stop_times {
         let stop = &stops_map[&stop_time.stop_id];
         let shape_rstar = &geo_shape[&trip.shape_id.unwrap()];
@@ -509,7 +518,9 @@ fn place_stop_along_shape(stops_map: &FxHashMap<IdType, Stop>, geo_shape: &FxHas
     }
 }
 
-fn generate_rtree_for_shapes(shapes: &FxHashMap<IdType, Vec<Shape>>) -> FxHashMap<IdType, RTree<GeomWithData<Line<[f64; 2]>, usize>>> {
+fn generate_rtree_for_shapes(
+    shapes: &FxHashMap<IdType, Vec<Shape>>,
+) -> FxHashMap<IdType, RTree<GeomWithData<Line<[f64; 2]>, usize>>> {
     let geo_shape: FxHashMap<_, _> = shapes
         .iter()
         .map(|(id, shape)| {
@@ -566,17 +577,20 @@ pub fn split_by_agency(mut gtfs: LibraryGTFS) -> Vec<LibraryGTFS> {
     'a: for agency in gtfs.agencies.as_ref().unwrap() {
         let agency_id = agency.id.clone().unwrap();
 
-
         println!("Found agency: {}", agency.name);
 
         // We care about shapes, calendar, calendar_dates, stops, routes, trips, stop_times
         // routes -> trips -> calendar -> calendar_dates -> shape -> stop_times -> stops
 
-        let (routes, trips, calendar, calendar_dates, shape, stop_times, stops) = extract_objects_by_agency(&gtfs, &agency_id);
+        let (routes, trips, calendar, calendar_dates, shape, stop_times, stops) =
+            extract_objects_by_agency(&gtfs, &agency_id);
 
         for st in &stop_times {
-            if st.arrival_time.is_none()  {
-                eprintln!("Missing arrival time for stop time {:?} agency {}", st, agency.name);
+            if st.arrival_time.is_none() {
+                eprintln!(
+                    "Missing arrival time for stop time {:?} agency {}",
+                    st, agency.name
+                );
                 continue 'a;
             }
         }
@@ -616,25 +630,86 @@ where
     }
 }
 
-fn extract_objects_by_agency(gtfs: &LibraryGTFS, agency_id: &str) -> (Vec<gtfs_structures::Route>, Vec<gtfs_structures::RawTrip>, Vec<gtfs_structures::Calendar>, Vec<gtfs_structures::CalendarDate>, Vec<gtfs_structures::Shape>, Vec<gtfs_structures::RawStopTime>, Vec<gtfs_structures::Stop>) {
+fn extract_objects_by_agency(
+    gtfs: &LibraryGTFS,
+    agency_id: &str,
+) -> (
+    Vec<gtfs_structures::Route>,
+    Vec<gtfs_structures::RawTrip>,
+    Vec<gtfs_structures::Calendar>,
+    Vec<gtfs_structures::CalendarDate>,
+    Vec<gtfs_structures::Shape>,
+    Vec<gtfs_structures::RawStopTime>,
+    Vec<gtfs_structures::Stop>,
+) {
     // Nasty code to extract all the objects depending on agency_id
-    let routes = gtfs.routes.as_ref().unwrap().iter().filter(|x| (x.agency_id.as_ref().unwrap() == agency_id)).cloned().collect::<Vec<_>>();
+    let routes = gtfs
+        .routes
+        .as_ref()
+        .unwrap()
+        .iter()
+        .filter(|x| (x.agency_id.as_ref().unwrap() == agency_id))
+        .cloned()
+        .collect::<Vec<_>>();
 
     let routes_hash = build_hashset(&routes, |x| x.id.clone());
-    let trips = gtfs.trips.as_ref().unwrap().iter().filter(|x| routes_hash.contains(&x.route_id)).cloned().collect::<Vec<_>>();
+    let trips = gtfs
+        .trips
+        .as_ref()
+        .unwrap()
+        .iter()
+        .filter(|x| routes_hash.contains(&x.route_id))
+        .cloned()
+        .collect::<Vec<_>>();
     let trips_service_id_hash: FxHashSet<String> = build_hashset(&trips, |x| x.service_id.clone());
-    let trips_shape_hash: FxHashSet<String> = build_hashset(&trips, |x| x.shape_id.clone().unwrap_or("NOT FOUND".to_string()));
+    let trips_shape_hash: FxHashSet<String> = build_hashset(&trips, |x| {
+        x.shape_id.clone().unwrap_or("NOT FOUND".to_string())
+    });
     let trips_id_hash = build_hashset(&trips, |x| x.id.clone());
-    let calendar = unwrap_or_default(&gtfs.calendar).iter().filter(|x| trips_service_id_hash.contains(&x.id)).cloned().collect::<Vec<_>>();
-    let calendar_dates = unwrap_or_default(&gtfs.calendar_dates).iter().filter(|x| trips_service_id_hash.contains(&x.service_id)).cloned().collect::<Vec<_>>();
+    let calendar = unwrap_or_default(&gtfs.calendar)
+        .iter()
+        .filter(|x| trips_service_id_hash.contains(&x.id))
+        .cloned()
+        .collect::<Vec<_>>();
+    let calendar_dates = unwrap_or_default(&gtfs.calendar_dates)
+        .iter()
+        .filter(|x| trips_service_id_hash.contains(&x.service_id))
+        .cloned()
+        .collect::<Vec<_>>();
 
-    let shape = unwrap_or_default(&gtfs.shapes).iter().filter(|x| trips_shape_hash.contains(&x.id)).cloned().collect::<Vec<_>>();
+    let shape = unwrap_or_default(&gtfs.shapes)
+        .iter()
+        .filter(|x| trips_shape_hash.contains(&x.id))
+        .cloned()
+        .collect::<Vec<_>>();
 
-    let stop_times = gtfs.stop_times.as_ref().unwrap().iter().filter(|x| trips_id_hash.contains(&x.trip_id)).cloned().collect::<Vec<_>>();
+    let stop_times = gtfs
+        .stop_times
+        .as_ref()
+        .unwrap()
+        .iter()
+        .filter(|x| trips_id_hash.contains(&x.trip_id))
+        .cloned()
+        .collect::<Vec<_>>();
 
     let stop_id_hash = build_hashset(&stop_times, |x| x.stop_id.clone());
-    let stops = gtfs.stops.as_ref().unwrap().iter().filter(|x| stop_id_hash.contains(&x.id)).cloned().collect::<Vec<_>>();
-    (routes, trips, calendar, calendar_dates, shape, stop_times, stops)
+    let stops = gtfs
+        .stops
+        .as_ref()
+        .unwrap()
+        .iter()
+        .filter(|x| stop_id_hash.contains(&x.id))
+        .cloned()
+        .collect::<Vec<_>>();
+    (
+        routes,
+        trips,
+        calendar,
+        calendar_dates,
+        shape,
+        stop_times,
+        stops,
+    )
 }
 
 impl From<LibraryGTFS> for Gtfs0 {

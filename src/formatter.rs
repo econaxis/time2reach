@@ -19,7 +19,6 @@ fn construct_shape_for_ip_trip(gtfs: &Gtfs1, trip: &InProgressTrip) -> LineStrin
     // let shape = &gtfs.shapes[&gtfs_trip.shape_id.unwrap()];
     let shape = gtfs.get_shape(&gtfs_trip);
 
-
     let boarding_stop_time = &gtfs_trip.stop_times[trip.boarding_stop_time_idx];
     let get_off_stop_time = &gtfs_trip.stop_times[trip.get_off_stop_time_idx];
     let start_index = boarding_stop_time.shape_index;

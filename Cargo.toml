@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 gtfs-structure-2 = {path="gtfs-structure-2"}
+bike = {path="bike"}
 rstar = "0.11.0"
 proj = { version = "0.27.0" }
 lazy_static = "1.4.0"
@@ -29,7 +30,7 @@ env_logger = "0.10.0"
 rustc-hash = "1.1.0"
 anyhow = "1.0.72"
 [workspace]
-members = ["gtfs-structure", "gtfs-structure-2"]
+members = ["gtfs-structure", "gtfs-structure-2", "bike", "petgraph"]
 
 [features]
 default = []

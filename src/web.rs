@@ -1,8 +1,9 @@
-use crate::agencies::{load_all_gtfs, City, Agency};
-use futures::{StreamExt};
+use crate::agencies::{load_all_gtfs, Agency, City};
+use futures::StreamExt;
 
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
+use bike::route;
 use crate::road_structure::EdgeId;
 use crate::{gtfs_setup, time_to_reach, trip_details, Gtfs1, RoadStructure, Time};
 use gtfs_structure_2::gtfs_wrapper::RouteType;
@@ -17,11 +18,10 @@ use std::io::{ErrorKind, Read};
 use std::path::PathBuf;
 use std::{fmt, io};
 
-use anyhow::{anyhow};
+use anyhow::{anyhow, Context};
 use futures::stream::FuturesUnordered;
 use std::sync::Arc;
-
-
+use geojson::GeoJson;
 
 use crate::trip_details::CalculateRequest;
 use crate::web_app_data::{AllAppData, CacheKey, CityAppData};
@@ -29,11 +29,11 @@ use crate::web_cache::{check_cache, insert_cache};
 use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
 use warp::log::{Info, Log};
-use warp::path::Tail;
-use warp::reject::{Reject};
+use warp::path::{Exact, Tail};
+use warp::reject::Reject;
 use warp::reply::Json;
 use warp::reply::Response;
-use warp::{Filter, Reply};
+use warp::{Filter, Rejection, Reply};
 
 fn gtfs_to_city_appdata(city: City, gtfs: Gtfs1) -> CityAppData {
     let data = gtfs_setup::generate_stops_trips(&gtfs).into_spatial(&city, &gtfs);
@@ -165,6 +165,16 @@ pub struct LatLng {
     pub longitude: f64,
 }
 
+impl From<LatLng> for bike::Point {
+    fn from(value: LatLng) -> Self {
+        Self {
+            lat: value.latitude,
+            lon: value.longitude,
+            ele: 0.0,
+        }
+    }
+}
+
 impl LatLng {
     pub fn from_lat_lng(lat: f64, lng: f64) -> Self {
         Self {
@@ -252,28 +262,54 @@ fn get_file(str: Tail) -> anyhow::Result<Vec<u8>> {
 
 #[derive(Serialize, Deserialize)]
 struct IDQuery {
-    id: Option<u64>
+    id: Option<u64>,
 }
 
+#[derive(Deserialize)]
+struct BikeCalculateRequest {
+    start: LatLng,
+    end: LatLng,
+}
+pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    let bike_endpoint = warp::post()
+        .and(with_appdata(appdata.clone()))
+        .and(warp::path!("bike"))
+        .and(warp::body::json())
+        .map(|ad: Arc<AllAppData>, req: serde_json::Value | {
+            let req: BikeCalculateRequest = serde_json::from_value(req).with_context(|| "JSON Deserialization Error")?;
+
+            route(
+                &ad.bikegraph,
+                req.start.into(),
+                req.end.into(),
+            )
+        })
+        .map(|r: anyhow::Result<GeoJson>| match r {
+            Ok(a) => warp::reply::json(&a).into_response(),
+            Err(e) => warp::reply::with_status(format!("{:#}", e), StatusCode::BAD_REQUEST).into_response(),
+        });
+
+    bike_endpoint
+}
 pub async fn main() {
-    let all_gtfs = load_all_gtfs();
+    // let all_gtfs = load_all_gtfs();
+    let agencies: Vec<Agency> = Vec::new();
+    // let agencies: Vec<Agency> = all_gtfs.values().map(|a| &a.1).flatten().cloned().collect();
+    // println!("Agencies is {:?}", agencies);
+    // let all_gtfs_future = all_gtfs.into_iter().map(|(city, (gtfs, _agency))| {
+    //     tokio::task::spawn_blocking(move || (city, gtfs_to_city_appdata(city, gtfs)))
+    // });
 
-    let agencies: Vec<Agency> = all_gtfs.values().map(|a| &a.1).flatten().cloned().collect();
-
-    println!("Agencies is {:?}", agencies);
-    let all_gtfs_future = all_gtfs.into_iter().map(|(city, (gtfs, _agency))| {
-        tokio::task::spawn_blocking(move || (city, gtfs_to_city_appdata(city, gtfs)))
-    });
-
+    //
+    // let mut temp = FuturesUnordered::from_iter(all_gtfs_future);
+    // while let Some(result) = temp.next().await {
+    //     let (city, ad) = result.unwrap();
+    //     all_gtfs.insert(city, ad);
+    // }
     let mut all_gtfs: FxHashMap<City, CityAppData> = FxHashMap::default();
+    let appdata = Arc::new(AllAppData { ads: all_gtfs, bikegraph: Arc::new(bike::parse_graph()) });
 
-    let mut temp = FuturesUnordered::from_iter(all_gtfs_future);
-    while let Some(result) = temp.next().await {
-        let (city, ad) = result.unwrap();
-        all_gtfs.insert(city, ad);
-    }
-
-    let appdata = Arc::new(AllAppData { ads: all_gtfs });
+    let bike_endpoint = bike_endpoints(appdata.clone());
 
     let cors_policy = warp::cors()
         .allow_any_origin()
@@ -283,6 +319,9 @@ pub async fn main() {
             "Accept",
             "X-Requested-With",
             "Content-Type",
+            "content-type",
+            "content-length",
+            "date"
         ])
         .allow_methods(["POST", "GET"]);
 
@@ -367,6 +406,7 @@ pub async fn main() {
         .or(details)
         .or(mvt_endpoint)
         .or(hello)
+        .or(bike_endpoint)
         .with(cors_policy)
         .with(log);
 

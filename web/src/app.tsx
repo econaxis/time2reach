@@ -9,6 +9,7 @@ import { ControlSidebar } from "./control-sidebar";
 import { BlurBackground, WelcomePopup } from "./welcome-popup";
 import { InformationIcon } from "./information-icon";
 import { type BrightnessContextInt } from "./time-slider";
+import { BikeMap } from "./bike";
 
 export const BG_WHITE_COLOR = "bg-zinc-50";
 
@@ -46,6 +47,10 @@ function setPathToCity(city: string) {
 }
 
 export function App() {
+    return <BikeMap/>
+}
+
+export function Time2ReachApp() {
     const queryClient = new QueryClient({});
 
     const path = decodeURIComponent(window.location.pathname).substring(1);

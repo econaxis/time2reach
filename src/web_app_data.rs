@@ -3,9 +3,9 @@ use crate::road_structure::RoadStructureInner;
 use crate::{City, Gtfs1, RoadStructure};
 use lru::LruCache;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
 use std::sync::{Arc, RwLock};
-use serde::{Deserialize, Serialize};
 
 pub struct CityAppData {
     pub gtfs: Gtfs1,
@@ -16,6 +16,7 @@ pub struct CityAppData {
 
 pub struct AllAppData {
     pub ads: FxHashMap<City, CityAppData>,
+    pub bikegraph: Arc<bike::Graph>,
 }
 
 impl CityAppData {

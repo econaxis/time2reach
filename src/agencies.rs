@@ -16,7 +16,7 @@ pub enum City {
     Montreal,
     #[serde(rename = "San Francisco")]
     SanFrancisco,
-    Chicago
+    Chicago,
 }
 
 impl FromStr for City {
@@ -46,7 +46,7 @@ impl City {
             City::Vancouver => (49.2827, -123.1207), // Center location of Vancouver (latitude, longitude)
             City::Toronto => (43.6532, -79.3832), // Center location of Toronto (latitude, longitude)
             City::Montreal => (45.5017, -73.5673), // Center location of Montreal (latitude, longitude)
-            City::Paris => (48.8566, 2.3522), // Center location of Paris (latitude, longitude)
+            City::Paris => (48.8566, 2.3522),      // Center location of Paris (latitude, longitude)
             City::SanFrancisco => (37.7749, -122.4194), // Center location of San Francisco (latitude, longitude)
             City::Chicago => (41.8781, -87.6298), // Center location of Chicago (latitude, longitude)
         };
@@ -77,10 +77,8 @@ pub struct Agency {
 pub fn load_all_gtfs() -> FxHashMap<City, (Gtfs1, Vec<Agency>)> {
     let mut result: FxHashMap<City, (Gtfs1, Vec<Agency>)> = FxHashMap::default();
 
-
     for (path, city) in gtfspaths() {
-        let gtfs_list =
-            initialize_gtfs_as_bson(&format!("city-gtfs/{}", path), city);
+        let gtfs_list = initialize_gtfs_as_bson(&format!("city-gtfs/{}", path), city);
 
         for this_gtfs in gtfs_list {
             let agency = Agency {
@@ -120,8 +118,8 @@ pub fn gtfspaths() -> Vec<(&'static str, City)> {
         ("montreal", City::Montreal),
         ("paris-all", City::Paris),
         ("sanfran", City::SanFrancisco),
-        ("chicago", City::Chicago)
-    ]
+        ("chicago", City::Chicago),
+    ];
 }
 
 // pub fn agencies() -> Vec<&'static Agency> {
