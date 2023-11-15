@@ -1,16 +1,16 @@
 use geojson::{FeatureCollection, Value as GeoJsonValue};
+use crate::rate_bicycle_friendliness;
 use geojson::{Feature, GeoJson, Geometry};
 use petgraph::algo::astar;
 use petgraph::graph::{EdgeIndex, EdgeReference, NodeIndex, UnGraph};
 use petgraph::prelude::EdgeRef;
-use petgraph::{Undirected};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use petgraph::matrix_graph::Zero;
 use petgraph::visit::IntoEdgeReferences;
+use crate::bicycle_rating::filter_by_tag;
 
 type AGraph = UnGraph<Node, Edge>;
 
@@ -107,21 +107,35 @@ struct Edge {
     points: Vec<Point>,
 }
 
+const DO_NOT_EXPLORE: f64 = std::f64::MAX;
+
 fn real_edge_weight<'a>(graph: &'a Graph, edgeref: EdgeReference<'a, Edge>) -> f64 {
     // Calculate the real edge weight including elevation difference
     let edge = edgeref.weight();
+
+    let bicyle_friendly = rate_bicycle_friendliness(&edge.kvs);
+
+    let bicycle_penalty = match bicyle_friendly {
+        0 => {
+            return DO_NOT_EXPLORE;
+        },
+        1 => 1.90,
+        2 => 1.40,
+        3 => 1.0,
+        4 => 0.90,
+        5 => 0.85,
+        _ => panic!("Invalid bicycle rating"),
+    };
+
     let source = graph.graph.node_weight(edgeref.source()).unwrap();
     let target = graph.graph.node_weight(edgeref.target()).unwrap();
     let elevation_diff = target.ele - source.ele;
     let slope = elevation_diff / edge.dist;
 
-    let elevation_penalty = (slope * 200.0).powf(2.0).abs() * elevation_diff.signum() * edge.dist;
+    let elevation_penalty = (slope * 10.0).powf(2.0).abs() * elevation_diff.signum() * edge.dist;
     let elevation_penalty = if elevation_penalty.is_nan() { 0.0 } else { elevation_penalty };
 
-
-    println!("{} {}", edge.dist, elevation_penalty);
-
-    (edge.dist + elevation_penalty * 1.0).max(edge.dist * 0.85)
+    (edge.dist + elevation_penalty * 1.0).max(edge.dist * 0.85) * bicycle_penalty
 }
 
 pub fn parse_graph() -> Graph {
@@ -145,6 +159,8 @@ pub fn parse_graph() -> Graph {
 
 
     let mut edge_indices: HashMap<usize, EdgeIndex> = HashMap::new();
+    let (_changed, edges) = filter_ways_by_bike_friendliness(edges);
+
     for edge in &edges {
         let source_index = node_indices[edge.source];
         let target_index = node_indices[edge.target];
@@ -169,6 +185,27 @@ pub fn parse_graph() -> Graph {
         graph,
         location_index,
     }
+}
+
+fn filter_ways_by_bike_friendliness(edges: Vec<Edge>) -> (bool, Vec<Edge>) {
+    let mut changed = false;
+    let new_edges = edges.into_iter().filter(|edge| {
+        if filter_by_tag(&edge.kvs) == false {
+            changed = true;
+            return false;
+        }
+        // Filter nodes
+        match rate_bicycle_friendliness(&edge.kvs) {
+            0 => {
+                changed = true;
+                return false;
+            },
+            _ => {}
+        }
+        return true;
+    }).collect::<Vec<Edge>>();
+
+    (changed, new_edges)
 }
 
 fn point_list_geojson(g: &AGraph) -> GeoJson {
@@ -233,6 +270,63 @@ pub fn main() {
 
     route(&graph, start, end);
 }
+
+fn render_route(graph: &Graph, nodes: &[NodeIndex]) -> GeoJson {
+    // For each node in the path, find the edge that connects it to the next node
+    // Then add all the pointlist in the edge
+    type Position = Vec<f64>;
+
+    fn comp_positions(a: &Position, b: &Position) -> bool {
+        (a[0] - b[0]).abs() < 0.001 &&  (a[1] - b[1]).abs() < 0.001
+    }
+
+    let mut last_end: Option<Position> = None;
+
+    let coordinates: Vec<Position> = nodes.windows(2).flat_map(|indices| {
+        let prev = indices[0];
+        let prevnode = &graph.graph[prev];
+        let cur = indices[1];
+
+        let edge = graph.graph.find_edge(prev, cur).unwrap();
+        let edge = &graph.graph[edge];
+
+        let points_iterator: Box<dyn Iterator<Item=&Point>> = if edge.source == prevnode.id {
+            Box::new(edge.points.iter())
+        } else {
+            Box::new(edge.points.iter().rev())
+        };
+
+        let mut pointlist = points_iterator.map(|point| {
+            vec![point.lon, point.lat]
+        }).collect::<Vec<Position>>();
+
+        assert!(pointlist.len() >= 2);
+
+        let last_pointlist = pointlist.last().unwrap().clone();
+
+        if last_end.as_ref().map(|end| comp_positions(&end, &last_pointlist)).unwrap_or(false) {
+            pointlist.truncate(pointlist.len() - 1);
+        };
+
+        last_end = Some(last_pointlist);
+
+        pointlist
+    }).collect();
+
+
+    let line_string = GeoJsonValue::LineString(coordinates);
+    let geometry = Geometry::new(line_string);
+
+    let feature = Feature {
+        bbox: None,
+        geometry: Some(geometry),
+        id: None,
+        properties: None,
+        foreign_members: None,
+    };
+
+    GeoJson::Feature(feature)
+}
 pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson> {
     // Find the nearest nodes in the graph to the specified coordinates
     let start_nodes = find_nearest_nodes(&graph, &start);
@@ -283,27 +377,8 @@ pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson>
             (dist_accum_prev, node.ele)
         }).collect::<Vec<(f64, f64)>>();
 
-        // Convert the path to GeoJSON LineString
-        let coordinates: Vec<Vec<f64>> = path
-            .iter()
-            .map(|&node_index| {
-                let node = &graph.graph[node_index];
-                vec![node.lon, node.lat]
-            })
-            .collect();
+        let geojson = render_route(&graph, &path);
 
-        let line_string = GeoJsonValue::LineString(coordinates);
-        let geometry = Geometry::new(line_string);
-
-        let feature = Feature {
-            bbox: None,
-            geometry: Some(geometry),
-            id: None,
-            properties: None,
-            foreign_members: None,
-        };
-
-        let geojson = GeoJson::Feature(feature);
         println!("{}", serde_json::to_string(&geojson).unwrap());
         println!("{:?}", heights);
 

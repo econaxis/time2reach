@@ -11,3 +11,6 @@ serde_json = "1.0.108"
 petgraph = { path = "../petgraph" }
 geojson = "0.24.1"
 anyhow = "1.0.75"
+
+[profile.dev.package.serde_json]
+opt-level = 3
