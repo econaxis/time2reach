@@ -5,7 +5,7 @@ import { BG_WHITE_COLOR } from "./app";
 import { formatDuration } from "./format-details";
 import { Header } from "./control-sidebar";
 import { type ReactNode, useRef } from "react";
-import {GIF_RENDER} from "./gif-generator";
+import { GIF_RENDER } from "./gif-generator";
 
 function generateCmap(shades: number): string[] {
     const cmap = createColorMap({
@@ -108,7 +108,7 @@ export class TimeColorMapper {
         durationRange: number,
         agencies: Record<string, boolean>,
         modes: Record<string, boolean>,
-        // @ts-ignore
+        // @ts-expect-error
         minDuration: number
     ): Promise<Response> {
         const data = await fetch(`http://localhost:8000/${startTime}`);
@@ -121,7 +121,7 @@ export class TimeColorMapper {
         durationRange: number,
         agencies: Record<string, boolean>,
         modes: Record<string, boolean>,
-        // @ts-ignore
+        // @ts-expect-error
         minDuration: number
     ): Promise<TimeColorMapper> {
         const body = {
@@ -184,17 +184,17 @@ export class TimeColorMapper {
 }
 
 export interface ColorLegendProps {
-    tcm: TimeColorMapper;
-    currentHover?: number;
+    tcm: TimeColorMapper
+    currentHover?: number
 }
 
 export interface TickTriangleProps {
-    lpercentage: number;
+    lpercentage: number
 }
 
 export interface TickProps extends TickTriangleProps {
-    noRotate?: boolean;
-    children: ReactNode;
+    noRotate?: boolean
+    children: ReactNode
 }
 
 const squareSize = 25;
@@ -217,7 +217,6 @@ function Tick({ noRotate, children, lpercentage }: TickProps) {
         </div>
     );
 }
-
 
 function TickTriangle({ lpercentage }: TickTriangleProps) {
     return (
@@ -253,7 +252,7 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
 
     // const cssGradient: string[] = [];
 
-    const colors: Array<ReactNode> = []
+    const colors: ReactNode[] = []
 
     const spread = tcm.max - tcm.min;
 
@@ -276,7 +275,6 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
             );
         }
     }
-
 
     // for (let i = 0; i <= spread + 1; i += 3600 * 0.25) {
     //     const percentage = Math.round((i / spread) * 100);
@@ -313,10 +311,10 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
             <div>
                 {colors}
             </div>
-            {/*<div*/}
-            {/*    className="rounded-md w-full m-auto"*/}
-            {/*    style={{ background: cssStyle, height: "1.5rem" }}*/}
-            {/*></div>*/}
+            {/* <div */}
+            {/*    className="rounded-md w-full m-auto" */}
+            {/*    style={{ background: cssStyle, height: "1.5rem" }} */}
+            {/* ></div> */}
         </div>
     );
 }

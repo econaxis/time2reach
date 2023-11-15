@@ -26,7 +26,7 @@ export const CITY_LOCATION = {
     "Kitchener-Waterloo": new mapboxgl.LngLat(-80.4935412978086, 43.45134086953097),
     Paris: new mapboxgl.LngLat(2.3522, 48.8566),
     "San Francisco": new mapboxgl.LngLat(-122.4194, 37.7749),
-    "Chicago": new mapboxgl.LngLat(-87.6298, 41.8781),
+    Chicago: new mapboxgl.LngLat(-87.6298, 41.8781),
 };
 
 export function MapboxGLCanvasBrightnessHack({ brightness }: { brightness: number }) {

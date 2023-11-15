@@ -11,13 +11,13 @@ import { formatTime } from "./format-details";
 import { GIF_RENDER_START_TIME, GIF_RENDER, useGifRenderNewAnimationFrame } from "./gif-generator";
 
 interface Agency {
-    agencyCode: string;
-    agencyLongName: string;
-    city: string;
+    agencyCode: string
+    agencyLongName: string
+    city: string
 }
 
 export interface AgencyEntryProps {
-    setSelectValue: (value: string, status: string) => void;
+    setSelectValue: (value: string, status: string) => void
 }
 
 export function AgencyEntry({
@@ -47,7 +47,7 @@ export function AgencyEntry({
 }
 
 export interface HeaderProps {
-    children?: ReactNode;
+    children?: ReactNode
 }
 export function Header({ children }: HeaderProps) {
     return <h2 className="font-medium text-md border-b mt-2 md:mt-3">{children}</h2>;
@@ -79,10 +79,10 @@ export function AgencyForm({ agencies, header, updateValues }) {
 }
 
 export interface SidebarProps {
-    positioning?: string;
-    children?: any[];
-    zi?: number;
-    style?: Record<string, any>;
+    positioning?: string
+    children?: any[]
+    zi?: number
+    style?: Record<string, any>
 }
 
 export function Sidebar({ children, zi, positioning, style }: SidebarProps) {
@@ -183,7 +183,6 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
             setStartTime(GIF_RENDER_START_TIME)
             // setStartTime(60240)
         }
-
     }, [defaultStartLoc]);
 
     useEffect(() => {
@@ -202,7 +201,6 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                     setPaintProperty(data.m);
                     setTimeData(data);
                     setLastWorkingLocation(currentStartingLoc);
-
                 })
                 .catch((err) => {
                     setCurrentStartingLoc(lastWorkingLocation);
@@ -211,7 +209,6 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
         }
     }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime]);
 
-    
     // Activates only when GIF_RENDER = true
     useGifRenderNewAnimationFrame(spinner, startTime, setStartTime);
 

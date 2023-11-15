@@ -9,7 +9,7 @@ import { installDoubleTap } from "./double-tap-recognizer";
 
 export const defaultColor = "rgba(143,143,143,0.13)";
 
-const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
+export const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
     features: [],
 };
@@ -234,7 +234,6 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
 
         mapboxgl.accessToken =
             "pk.eyJ1IjoiaGVucnkyODMzIiwiYSI6ImNsZjhxM2lhczF4OHgzc3BxdG54MHU4eGMifQ.LpZVW1YPKfvrVgmBbEqh4A";
-
 
         const map1 = new mapboxgl.Map({
             container: mapContainer.current, // container ID

@@ -4,7 +4,7 @@ import { IS_LOCAL } from "./dev-api";
 
 export function saveImage(name: string) {
     Object.defineProperty(window, "devicePixelRatio", {
-        get: function () {
+        get: function() {
             return 350 / 96;
         },
     });
@@ -12,7 +12,7 @@ export function saveImage(name: string) {
     const CANVAS_CLASS = ".mapboxgl-canvas";
     const canvas = document.querySelector(CANVAS_CLASS) as HTMLCanvasElement;
 
-    // @ts-ignore
+    // @ts-expect-error
     canvas.toBlob((blob) => {
         saveAs(blob, "test/" + name + ".png");
     });
