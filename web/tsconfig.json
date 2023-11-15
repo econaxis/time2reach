@@ -11,24 +11,26 @@
       "DOM.Iterable",
       "ESNext"
     ],
-//    "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": false,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
-//    "forceConsistentCasingInFileNames": true,
+//    "strict": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "ESNext",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "jsxImportSource": "react",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
-  "include": [
-    "src",
-    "main.tsx"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "main.tsx"],
+  "exclude": ["node_modules"],
+
   "references": [
     {
       "path": "./tsconfig.node.json"

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use geojson::{FeatureCollection, Value as GeoJsonValue};
 use crate::rate_bicycle_friendliness;
 use geojson::{Feature, GeoJson, Geometry};
@@ -12,7 +13,7 @@ use std::io::Read;
 use petgraph::visit::IntoEdgeReferences;
 use crate::bicycle_rating::filter_by_tag;
 
-type AGraph = UnGraph<Node, Edge>;
+pub type AGraph = UnGraph<Node, Edge>;
 
 pub struct Graph {
     graph: AGraph,
@@ -38,6 +39,9 @@ pub struct Point {
 
 
 impl Point {
+    fn eq(&self, b: &Point) -> bool {
+        self.haversine_distance(b) <= 0.001
+    }
     fn haversine_distance(&self, other: &Point) -> f64 {
         const EARTH_RADIUS: f64 = 6371.0; // Earth radius in kilometers
 
@@ -54,8 +58,9 @@ impl Point {
     }
 }
 
+#[derive(Clone)]
 struct PointSnap {
-    point: Point,
+    pub point: Point,
     edge_id: usize,
 }
 
@@ -271,10 +276,42 @@ pub fn main() {
     route(&graph, start, end);
 }
 
-fn render_route(graph: &Graph, nodes: &[NodeIndex]) -> GeoJson {
+fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSnap, end_snap: PointSnap) -> GeoJson {
+    let align_snap_endpoints = |nodes: &[NodeIndex], edge_id: usize, is_end: bool| -> (NodeIndex, NodeIndex) {
+        let edge_endpoints = graph.graph.edge_endpoints(EdgeIndex::new(edge_id)).unwrap();
+
+        let index = if is_end {
+            nodes.len() - 1
+        } else {
+            0
+        };
+
+        if edge_endpoints.0 == nodes[index] {
+            (edge_endpoints.0, edge_endpoints.1)
+        } else if edge_endpoints.1 == nodes[index] {
+            (edge_endpoints.1, edge_endpoints.0)
+        } else {
+            panic!("Edge does not contain start node")
+        }
+    };
     // For each node in the path, find the edge that connects it to the next node
     // Then add all the pointlist in the edge
     type Position = Vec<f64>;
+
+
+    let start_snap_edge_endpoints = align_snap_endpoints(&nodes, start_snap.edge_id, false);
+    let end_snap_edge_endpoints = align_snap_endpoints(&nodes, end_snap.edge_id, true);
+    
+    if start_snap_edge_endpoints.1 != nodes[1] {
+        // We have to start from the other end of the edge to "cross" the start_snap node
+        nodes.to_mut().insert(0, start_snap_edge_endpoints.1);
+    }
+
+    if end_snap_edge_endpoints.1 != nodes[nodes.len() - 2] {
+        // We have to end all the way the other end of the edge to "cross" the start_snap node
+        nodes.to_mut().push(end_snap_edge_endpoints.1);
+    }
+    println!("End snap edge endpoints {:?} {:?}", end_snap_edge_endpoints, nodes);
 
     fn comp_positions(a: &Position, b: &Position) -> bool {
         (a[0] - b[0]).abs() < 0.001 &&  (a[1] - b[1]).abs() < 0.001
@@ -282,10 +319,15 @@ fn render_route(graph: &Graph, nodes: &[NodeIndex]) -> GeoJson {
 
     let mut last_end: Option<Position> = None;
 
+    let mut has_started = false;
+    let mut has_ended = false;
+
     let coordinates: Vec<Position> = nodes.windows(2).flat_map(|indices| {
         let prev = indices[0];
         let prevnode = &graph.graph[prev];
         let cur = indices[1];
+
+        println!("Processing edges {:?} {:?}", prev, cur);
 
         let edge = graph.graph.find_edge(prev, cur).unwrap();
         let edge = &graph.graph[edge];
@@ -296,23 +338,35 @@ fn render_route(graph: &Graph, nodes: &[NodeIndex]) -> GeoJson {
             Box::new(edge.points.iter().rev())
         };
 
-        let mut pointlist = points_iterator.map(|point| {
-            vec![point.lon, point.lat]
+        let mut pointlist = points_iterator.filter_map(|point| {
+            if !has_started && start_snap.point.eq(point) {
+                has_started = true;
+            }
+
+            if has_started && !has_ended && end_snap.point.eq(point) {
+                has_ended = true;
+            }
+            if has_started && !has_ended {
+                Some(vec![point.lon, point.lat])
+            } else {
+                None
+            }
         }).collect::<Vec<Position>>();
 
-        assert!(pointlist.len() >= 2);
+        if !pointlist.is_empty() {
+            let last_pointlist = pointlist.last().unwrap().clone();
 
-        let last_pointlist = pointlist.last().unwrap().clone();
+            if last_end.as_ref().map(|end| comp_positions(&end, &last_pointlist)).unwrap_or(false) {
+                pointlist.truncate(pointlist.len() - 1);
+            };
 
-        if last_end.as_ref().map(|end| comp_positions(&end, &last_pointlist)).unwrap_or(false) {
-            pointlist.truncate(pointlist.len() - 1);
-        };
-
-        last_end = Some(last_pointlist);
-
+            last_end = Some(last_pointlist);
+        }
         pointlist
     }).collect();
 
+    assert!(has_started);
+    assert!(has_ended);
 
     let line_string = GeoJsonValue::LineString(coordinates);
     let geometry = Geometry::new(line_string);
@@ -329,8 +383,8 @@ fn render_route(graph: &Graph, nodes: &[NodeIndex]) -> GeoJson {
 }
 pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson> {
     // Find the nearest nodes in the graph to the specified coordinates
-    let start_nodes = find_nearest_nodes(&graph, &start);
-    let end_nodes = find_nearest_nodes(&graph, &end);
+    let (start_snap, start_nodes) = find_nearest_nodes(&graph, &start);
+    let (end_snap, end_nodes) = find_nearest_nodes(&graph, &end);
 
     let start_node = start_nodes[0];
 
@@ -363,8 +417,6 @@ pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson>
             cost
         },
     ) {
-        println!("Total cost: {}", cost);
-
         let mut dist_accum = 0.0;
         let heights = path.as_slice().windows(2).map(|node_index| {
             let prev = node_index[0];
@@ -377,7 +429,7 @@ pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson>
             (dist_accum_prev, node.ele)
         }).collect::<Vec<(f64, f64)>>();
 
-        let geojson = render_route(&graph, &path);
+        let geojson = render_route(&graph, Cow::from(&path), start_snap, end_snap);
 
         println!("{}", serde_json::to_string(&geojson).unwrap());
         println!("{:?}", heights);
@@ -405,10 +457,17 @@ pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson>
     // println!("{}", serde_json::to_string(&geojson).unwrap());
 }
 
-fn find_nearest_nodes(graph: &Graph, point: &Point) -> Vec<NodeIndex> {
+fn find_nearest_nodes(graph: &Graph, point: &Point) -> (PointSnap, Vec<NodeIndex>) {
     let pgraph = &graph.graph;
-    let closest = graph.location_index.snap_closest(point);
+    let closest = graph.location_index.snap_closest(point).clone();
 
     let endpoints = pgraph.edge_endpoints(EdgeIndex::new(closest.edge_id)).unwrap();
-    vec![endpoints.0, endpoints.1]
+
+    // Check
+    let edge = pgraph.find_edge(endpoints.0, endpoints.1).unwrap();
+    let edge = &pgraph[edge];
+    assert!(edge.points.iter().find(|x| closest.point.eq(x)).is_some());
+
+    println!("Closest edge: {:?} (E{}) {:?}", endpoints, edge.id, edge.points);
+    (closest, vec![endpoints.0, endpoints.1])
 }

@@ -28,14 +28,24 @@
         "vite-plugin-svgr": "^3.2.0"
     },
     "dependencies": {
+        "@radix-ui/react-slot": "^1.0.2",
+        "@radix-ui/react-switch": "^1.0.3",
+        "@types/node": "^20.9.0",
         "@types/react": "^18.2.14",
         "@vitejs/plugin-react": "^4.0.2",
         "autoprefixer": "^10.4.14",
+        "chart.js": "^4.4.0",
+        "class-variance-authority": "^0.7.0",
+        "clsx": "^2.0.0",
         "colormap": "^2.3.2",
+        "lucide-react": "^0.292.0",
         "mapbox-gl": "^2.15",
         "react": "^18.2.0",
+        "react-chartjs-2": "^5.2.0",
         "react-dom": "^18.2.0",
-        "react-query": "^3.39.3"
+        "react-query": "^3.39.3",
+        "tailwind-merge": "^2.0.0",
+        "tailwindcss-animate": "^1.0.7"
     },
     "prettier": {
         "tabWidth": 4,

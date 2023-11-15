@@ -65,7 +65,7 @@ pub fn rate_bicycle_friendliness(osm_tags: &HashMap<String, String>) -> u8 {
         _ => {}
     }
 
-    eprintln!("No bicycle-related tags found for this way. {:?}", osm_tags);
+    // eprintln!("No bicycle-related tags found for this way. {:?}", osm_tags);
 
     return 2;
 }

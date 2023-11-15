@@ -4,6 +4,7 @@ import { MapboxWrapper } from "./mapbox-wrapper";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { SetupMapbox } from "./setupMapbox";
 import { RenderBikeRoute } from "./renderRoute";
+import ElevationChart from "./elevation-chart";
 
 export function BikeMap() {
     const queryClient = new QueryClient({});
@@ -21,12 +22,19 @@ export function BikeMap() {
         renderRouteMap = map;
     }
 
-    return (
-        <QueryClientProvider client={queryClient}>
-            <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}>
-                <SetupMapbox setOrigin={setOrigin} setDestination={setDestination} map={map} />
-                <RenderBikeRoute origin={origin} destination={destination} map={renderRouteMap} />
-            </MapboxWrapper>
-        </QueryClientProvider>
+    const numbersArray = Array.from({ length: 10000 }, (_, i) =>
+        Math.floor(Math.random() * (i * 4 + 1)) + i * 3.9
     );
+
+    return (
+        <ElevationChart data={numbersArray}/>
+    )
+    // return (
+    //     // <QueryClientProvider client={queryClient}>
+    //     //     <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}>
+    //     //         <SetupMapbox setOrigin={setOrigin} setDestination={setDestination} map={map} />
+    //     //         <RenderBikeRoute origin={origin} destination={destination} map={renderRouteMap} />
+    //     //     </MapboxWrapper>
+    //     // </QueryClientProvider>
+    // );
 }
