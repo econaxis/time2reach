@@ -16,7 +16,7 @@
     "allowSyntheticDefaultImports": true,
 //    "strict": true,
     "module": "ESNext",
-    "moduleResolution": "ESNext",
+    "moduleResolution": "Node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,

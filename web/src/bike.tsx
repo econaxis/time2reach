@@ -1,10 +1,10 @@
 import { useState } from "react";
 import mapboxgl from "mapbox-gl";
-import { MapboxWrapper } from "./mapbox-wrapper";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { SetupMapbox } from "./setupMapbox";
 import { RenderBikeRoute } from "./renderRoute";
 import ElevationChart from "./elevation-chart";
+import "../app/globals.css"
 
 export function BikeMap() {
     const queryClient = new QueryClient({});
@@ -22,7 +22,7 @@ export function BikeMap() {
         renderRouteMap = map;
     }
 
-    const numbersArray = Array.from({ length: 10000 }, (_, i) =>
+    const numbersArray = Array.from({ length: 100 }, (_, i) =>
         Math.floor(Math.random() * (i * 4 + 1)) + i * 3.9
     );
 
