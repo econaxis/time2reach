@@ -1,216 +1,19 @@
 use std::borrow::Cow;
 use geojson::{FeatureCollection, Value as GeoJsonValue};
-use crate::rate_bicycle_friendliness;
+use crate::{graph, real_edge_weight};
 use geojson::{Feature, GeoJson, Geometry};
 use petgraph::algo::astar;
-use petgraph::graph::{EdgeIndex, EdgeReference, NodeIndex, UnGraph};
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::prelude::EdgeRef;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
+use serde::Serialize;
+use serde_json::json;
 use petgraph::visit::IntoEdgeReferences;
-use crate::bicycle_rating::filter_by_tag;
-
-pub type AGraph = UnGraph<Node, Edge>;
-
-pub struct Graph {
-    graph: AGraph,
-    location_index: LocationIndex,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-struct Node {
-    id: usize,
-    #[serde(rename = "lat")]
-    lat: f64,
-    #[serde(rename = "lon")]
-    lon: f64,
-    ele: f64,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct Point {
-    pub lat: f64,
-    pub lon: f64,
-    pub ele: f64,
-}
-
-
-impl Point {
-    fn eq(&self, b: &Point) -> bool {
-        self.haversine_distance(b) <= 0.001
-    }
-    fn haversine_distance(&self, other: &Point) -> f64 {
-        const EARTH_RADIUS: f64 = 6371.0; // Earth radius in kilometers
-
-        let d_lat = (other.lat - self.lat).to_radians();
-        let d_lon = (other.lon - self.lon).to_radians();
-
-        let a = (d_lat / 2.0).sin() * (d_lat / 2.0).sin()
-            + self.lat.to_radians().cos() * other.lat.to_radians().cos()
-            * (d_lon / 2.0).sin() * (d_lon / 2.0).sin();
-
-        let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
-
-        EARTH_RADIUS * c * 1000.0
-    }
-}
+use crate::graph::{AGraph, Graph, Point};
 
 #[derive(Clone)]
-struct PointSnap {
+pub struct PointSnap {
     pub point: Point,
-    edge_id: usize,
-}
-
-struct LocationIndex {
-    points: Vec<PointSnap>,
-}
-
-impl LocationIndex {
-    fn snap_closest(&self, point: &Point) -> &PointSnap {
-        // TODO: Use a spatial index to speed this up
-        let mut best = None;
-        let mut best_dist = std::f64::MAX;
-        for point_snap in &self.points {
-            let dist = (point_snap.point.lat - point.lat).powi(2)
-                + (point_snap.point.lon - point.lon).powi(2);
-            if dist < best_dist {
-                best_dist = dist;
-                best = Some(point_snap);
-            }
-        }
-        best.unwrap()
-    }
-}
-
-impl Node {
-    fn debug_coords(&self) -> (f64, f64) {
-        (self.lat, self.lon)
-    }
-
-    fn point(&self) -> Point {
-        Point {
-            lat: self.lat,
-            lon: self.lon,
-            ele: self.ele,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-struct Edge {
-    id: usize,
-    #[serde(rename = "nodeA")]
-    source: usize,
-    #[serde(rename = "nodeB")]
-    target: usize,
-    dist: f64,
-    #[serde(rename = "kvs")]
-    kvs: HashMap<String, String>,
-    points: Vec<Point>,
-}
-
-const DO_NOT_EXPLORE: f64 = std::f64::MAX;
-
-fn real_edge_weight<'a>(graph: &'a Graph, edgeref: EdgeReference<'a, Edge>) -> f64 {
-    // Calculate the real edge weight including elevation difference
-    let edge = edgeref.weight();
-
-    let bicyle_friendly = rate_bicycle_friendliness(&edge.kvs);
-
-    let bicycle_penalty = match bicyle_friendly {
-        0 => {
-            return DO_NOT_EXPLORE;
-        },
-        1 => 1.90,
-        2 => 1.40,
-        3 => 1.0,
-        4 => 0.90,
-        5 => 0.85,
-        _ => panic!("Invalid bicycle rating"),
-    };
-
-    let source = graph.graph.node_weight(edgeref.source()).unwrap();
-    let target = graph.graph.node_weight(edgeref.target()).unwrap();
-    let elevation_diff = target.ele - source.ele;
-    let slope = elevation_diff / edge.dist;
-
-    let elevation_penalty = (slope * 10.0).powf(2.0).abs() * elevation_diff.signum() * edge.dist;
-    let elevation_penalty = if elevation_penalty.is_nan() { 0.0 } else { elevation_penalty };
-
-    (edge.dist + elevation_penalty * 1.0).max(edge.dist * 0.85) * bicycle_penalty
-}
-
-pub fn parse_graph() -> Graph {
-    let mut file = File::open("/Users/henry/graphhopper/export.json").unwrap();
-    let mut json_str = String::new();
-    file.read_to_string(&mut json_str);
-
-    let result: Value = serde_json::from_str(&json_str).expect("Error parsing JSON");
-
-    let nodes: Vec<Node> =
-        serde_json::from_value(result["nodes"].clone()).expect("Error parsing nodes");
-    let edges: Vec<Edge> =
-        serde_json::from_value(result["edges"].clone()).expect("Error parsing edges");
-
-    // Create a petgraph from the parsed nodes and edges
-    let mut graph = AGraph::new_undirected();
-    let node_indices: Vec<NodeIndex> = nodes
-        .iter()
-        .map(|node| graph.add_node(node.clone()))
-        .collect();
-
-
-    let mut edge_indices: HashMap<usize, EdgeIndex> = HashMap::new();
-    let (_changed, edges) = filter_ways_by_bike_friendliness(edges);
-
-    for edge in &edges {
-        let source_index = node_indices[edge.source];
-        let target_index = node_indices[edge.target];
-
-        let edge_index = graph.add_edge(source_index, target_index, edge.clone());
-        edge_indices.insert(edge.id, edge_index);
-        // let edge_index1 = graph.add_edge(target_index, source_index, edge.reverse());
-    }
-
-    let location_index = LocationIndex {
-        points: edges.iter().map(|edge| PointSnap {
-            point: Point {
-                lat: edge.points[0].lat,
-                lon: edge.points[0].lon,
-                ele: edge.points[0].ele,
-            },
-            edge_id: edge_indices[&edge.id].index(),
-        }).collect(),
-    };
-
-    Graph {
-        graph,
-        location_index,
-    }
-}
-
-fn filter_ways_by_bike_friendliness(edges: Vec<Edge>) -> (bool, Vec<Edge>) {
-    let mut changed = false;
-    let new_edges = edges.into_iter().filter(|edge| {
-        if filter_by_tag(&edge.kvs) == false {
-            changed = true;
-            return false;
-        }
-        // Filter nodes
-        match rate_bicycle_friendliness(&edge.kvs) {
-            0 => {
-                changed = true;
-                return false;
-            },
-            _ => {}
-        }
-        return true;
-    }).collect::<Vec<Edge>>();
-
-    (changed, new_edges)
+    pub(crate) edge_id: usize,
 }
 
 fn point_list_geojson(g: &AGraph) -> GeoJson {
@@ -254,7 +57,7 @@ fn point_list_geojson(g: &AGraph) -> GeoJson {
 }
 
 pub fn main() {
-    let graph = parse_graph();
+    let graph = graph::parse_graph();
 
     // let gj = point_list_geojson(&graph.graph);
     // println!("{}", serde_json::to_string(&gj).unwrap());
@@ -280,6 +83,12 @@ pub fn main() {
 pub struct RouteResponse {
     pub route: GeoJson,
     pub elevation: Vec<(f64, f64)>,
+    pub elevation_index: Vec<usize>
+}
+type Position = Vec<f64>;
+
+fn comp_positions(a: &Position, b: &Position) -> bool {
+    (a[0] - b[0]).abs() < 0.001 &&  (a[1] - b[1]).abs() < 0.001
 }
 fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSnap, end_snap: PointSnap) -> RouteResponse {
     let align_snap_endpoints = |nodes: &[NodeIndex], edge_id: usize, is_end: bool| -> (NodeIndex, NodeIndex) {
@@ -301,9 +110,6 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
     };
     // For each node in the path, find the edge that connects it to the next node
     // Then add all the pointlist in the edge
-    type Position = Vec<f64>;
-
-
     let start_snap_edge_endpoints = align_snap_endpoints(&nodes, start_snap.edge_id, false);
     let end_snap_edge_endpoints = align_snap_endpoints(&nodes, end_snap.edge_id, true);
     
@@ -316,32 +122,27 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         // We have to end all the way the other end of the edge to "cross" the start_snap node
         nodes.to_mut().push(end_snap_edge_endpoints.1);
     }
-    println!("End snap edge endpoints {:?} {:?}", end_snap_edge_endpoints, nodes);
 
-    fn comp_positions(a: &Position, b: &Position) -> bool {
-        (a[0] - b[0]).abs() < 0.001 &&  (a[1] - b[1]).abs() < 0.001
-    }
 
-    let mut last_end: Option<Position> = None;
+    let mut last_end: Option<Point> = None;
 
     let mut has_started = false;
     let mut has_ended = false;
 
     let mut elevations = Vec::new();
+
+    // Maps each linestring point to an elevation index
+    // Since we're rendering curved routes, one node has multiple linestring points
+    let mut elevation_index_map: Vec<usize> = Vec::new();
+
     let mut cumdist = 0.0;
     let coordinates: Vec<Position> = nodes.windows(2).flat_map(|indices| {
         let prev = indices[0];
         let prevnode = &graph.graph[prev];
         let cur = indices[1];
 
-        println!("Processing edges {:?} {:?}", prev, cur);
-
         let edge = graph.graph.find_edge(prev, cur).unwrap();
         let edge = &graph.graph[edge];
-
-        // Calculate elevations
-        elevations.push((cumdist, prevnode.ele));
-        cumdist += edge.dist;
 
         let points_iterator: Box<dyn Iterator<Item=&Point>> = if edge.source == prevnode.id {
             Box::new(edge.points.iter())
@@ -358,22 +159,43 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
                 has_ended = true;
             }
             if has_started && !has_ended {
-                Some(vec![point.lon, point.lat])
+                Some(point.clone())
             } else {
                 None
             }
-        }).collect::<Vec<Position>>();
+        }).collect::<Vec<Point>>();
 
         if !pointlist.is_empty() {
             let last_pointlist = pointlist.last().unwrap().clone();
 
-            if last_end.as_ref().map(|end| comp_positions(&end, &last_pointlist)).unwrap_or(false) {
+            if last_end.as_ref().map(|end| end.haversine_distance(&last_pointlist) <= 0.001).unwrap_or(false) {
                 pointlist.truncate(pointlist.len() - 1);
+
             };
 
             last_end = Some(last_pointlist);
         }
-        pointlist
+
+        let mut prev: Option<Point> = None;
+        let mut current_cumdist = cumdist;
+        pointlist.iter().for_each(|x| {
+            elevation_index_map.push(elevations.len());
+
+            if let Some(prev) = &prev {
+                current_cumdist += prev.haversine_distance_ele(&x);
+            }
+            prev = Some(x.clone());
+            elevations.push((current_cumdist, x.ele));
+        });
+
+        if !pointlist.is_empty() {
+            // assert!((current_cumdist - cumdist + edge.dist).abs() < 0.0001, "Distance mismatch: {} {}", current_cumdist - cumdist, edge.dist);
+            // cumdist += edge.dist;
+            cumdist = current_cumdist;
+        }
+
+
+        pointlist.into_iter().map(|point| vec![point.lon, point.lat])
     }).collect();
 
     if let Some(last) = nodes.last() {
@@ -381,11 +203,13 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         elevations.push((cumdist, node.ele));
     }
 
-
     assert!(has_started);
     assert!(has_ended);
+    assert_eq!(coordinates.len(), elevation_index_map.len());
+    // assert!(*elevation_index_map.last().unwrap() == &elevations.len() - 1);
 
     let line_string = GeoJsonValue::LineString(coordinates);
+
     let geometry = Geometry::new(line_string);
 
     let feature = Feature {
@@ -399,6 +223,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
     RouteResponse {
         route: GeoJson::Feature(feature),
         elevation: elevations,
+        elevation_index: elevation_index_map
     }
 }
 pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<RouteResponse> {
@@ -425,7 +250,7 @@ pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<RouteRes
             end_nodes.contains(&finish)
         },
         |e| {
-            real_edge_weight(&graph, e)
+            real_edge_weight::real_edge_weight(&graph.graph, e)
         }, // Cost function, using edge distance
         |node: NodeIndex| {
             points_checked.push(node);
