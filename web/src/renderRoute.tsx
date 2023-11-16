@@ -2,6 +2,8 @@ import { Fragment, useEffect } from "react";
 import type mapboxgl from "mapbox-gl";
 import { useQuery } from "react-query";
 import { EMPTY_GEOJSON } from "./mapbox-map";
+import RouteHighlight, { HighlightedPointElev, type HighlightedPointGeoJSON } from "@/routeHighlight";
+import { type LineString } from "geojson";
 
 export interface RenderStraightRouteProps {
     map: mapboxgl.Map | undefined
@@ -11,7 +13,8 @@ export interface RenderStraightRouteProps {
 
 export interface RenderRouteProps {
     map: mapboxgl.Map | undefined
-    routeData?: GeoJSON.FeatureCollection
+    routeData?: GeoJSON.FeatureCollection<LineString>
+    children?: React.ReactNode
 }
 
 export function RenderRoute(props: RenderRouteProps) {
@@ -54,33 +57,7 @@ export function RenderRoute(props: RenderRouteProps) {
         (map.getSource("route") as mapboxgl.GeoJSONSource).setData(routeData);
     }, [map, routeData]);
 
-    return <Fragment />;
-}
-
-export function RenderStraightRoute(props: RenderStraightRouteProps) {
-    const { origin, destination } = props;
-
-    if (!origin || !destination) {
-        return <Fragment />;
-    }
-
-    const routeData: GeoJSON.FeatureCollection = {
-        type: "FeatureCollection",
-        features: [
-            {
-                type: "Feature",
-                properties: {},
-                geometry: {
-                    type: "LineString",
-                    coordinates: [
-                        [origin.lng, origin.lat],
-                        [destination.lng, destination.lat]
-                    ]
-                }
-            }
-        ]
-    };
-    return <RenderRoute map={props.map} routeData={routeData} />;
+    return <Fragment> {props.children} </Fragment>;
 }
 
 async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.LngLat) {
@@ -114,6 +91,7 @@ async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.L
 
 export interface RenderBikeRouteProps extends RenderStraightRouteProps {
     setElevations: (elevations: number[]) => void
+    setHighlightedPoints: (_: HighlightedPointElev) => void
 }
 
 export function RenderBikeRoute(props: RenderBikeRouteProps) {
@@ -122,25 +100,37 @@ export function RenderBikeRoute(props: RenderBikeRouteProps) {
     const enabled = !!(origin && destination);
 
     // Use react-query to query the bike route
-    const { data, isLoading } = useQuery(["bike-route", origin, destination], async() => {
+    const { data, isLoading, isError } = useQuery(["bike-route", origin, destination], async() => {
         return await fetchBikeRoute(origin, destination);
     }, {
         enabled
     });
 
+    if (isError) {
+        console.error("Error fetching bike route", data);
+        return <Fragment />;
+    }
     if (isLoading || !data) {
         return <Fragment />;
     }
 
-    const { route, elevation } = data;
+    const { route, elevation, elevation_index: elevationIndex } = data;
 
-    const routeData: GeoJSON.FeatureCollection = {
+    const routeData: GeoJSON.FeatureCollection<LineString> = {
         type: "FeatureCollection",
         features: [
             route
         ]
     };
 
+    const setHighlightedPoints = (hp: HighlightedPointGeoJSON) => {
+        // Map the index from the route to the elevation index
+        const idx = elevationIndex[hp.geojson_index];
+        props.setHighlightedPoints({ elevation_index: idx })
+    }
+
     props.setElevations(elevation);
-    return <RenderRoute map={props.map} routeData={routeData} />;
+    return <RenderRoute map={props.map} routeData={routeData}>
+        <RouteHighlight map={props.map} routeData={routeData} setHighlightedPoints={setHighlightedPoints}/>
+    </RenderRoute>;
 }

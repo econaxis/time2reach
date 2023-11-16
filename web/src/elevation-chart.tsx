@@ -1,23 +1,19 @@
-import React from "react";
 import Chart from "chart.js/auto";
+import { type Chart as ChartJS } from "chart.js";
 import { Line } from "react-chartjs-2";
 
-import { BellRing, Check } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { type HighlightedPointElev } from "@/routeHighlight";
+import { useRef } from "react";
 
 interface LineGraphProps {
-    data: number[]
+    elevationData: number[]
+    hp?: HighlightedPointElev
 }
 
 // @ts-expect-error unused but it's fine because we need to import Chart to work
@@ -25,8 +21,10 @@ function _unused() {
     return Chart.length + 1;
 }
 
-export default function ElevationChart({ data }) {
-    if (!data) {
+export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
+    const chartRef = useRef<ChartJS | undefined>()
+
+    if (!elevationData) {
         return <></>;
     }
 
@@ -34,7 +32,7 @@ export default function ElevationChart({ data }) {
         datasets: [
             {
                 label: "",
-                data: data.map((a) => ({ x: a[0], y: a[1] })),
+                data: elevationData.map((a) => ({ x: a[0], y: a[1] })),
                 borderColor: "rgba(75,192,192,1)",
                 borderWidth: 1,
                 radius: 0,
@@ -42,19 +40,38 @@ export default function ElevationChart({ data }) {
             },
             {
                 label: "",
-                data: [{ x: 0, y: data[data.length - 1][1] }],
+                data: [{ x: 0, y: elevationData[elevationData.length - 1][1] }],
                 yAxisID: "y1",
             }
         ],
     };
 
-    const maxRight = data[data.length - 1][1] + 1;
-    const maxLeft = Math.max(...data.map((a) => a[1]));
+    if (hp) {
+        const chart = chartRef.current;
+        chart.setActiveElements([{
+            datasetIndex: 0,
+            index: hp.elevation_index,
+        }])
+        // tooltip.setActiveElements([
+        //     {
+        //         datasetIndex: 0,
+        //         index: hp.elevation_index,
+        //     }
+        // ], {
+        //     x: (chartArea.left + chartArea.right) / 2,
+        //     y: (chartArea.top + chartArea.bottom) / 2,
+        // });
+        chart.update();
+    }
+
+    const maxRight = elevationData[elevationData.length - 1][1] as number + 1;
+    const maxLeft = Math.max(...elevationData.map((a) => a[1]));
 
     const maxTotal = Math.max(maxRight, maxLeft);
-    const distance = Math.round(data[data.length - 1][0]);
+    const distance = Math.round(elevationData[elevationData.length - 1][0]);
     const useKilometers = distance > 4000;
     const options = {
+        animation: false,
         scales: {
             y1: {
                 grid: { drawTicks: false },
@@ -63,8 +80,8 @@ export default function ElevationChart({ data }) {
                 ticks: {
                     stepSize: 1,
                     autoSkip: false,
-                    callback: (value, index, values) => {
-                        if (value === Math.round(data[data.length - 1][1])) return value.toString();
+                    callback: (value, _index, _values) => {
+                        if (value === Math.round(elevationData[elevationData.length - 1][1])) return value.toString();
                         // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
                     },
                 },
@@ -82,7 +99,7 @@ export default function ElevationChart({ data }) {
                         if (index === values.length - 1) {
                             return value.toString();
                         } else if (index === 0) return value.toString();
-                        else if (value === Math.round(data[0][1])) return value.toString();
+                        else if (value === Math.round(elevationData[0][1])) return value.toString();
                         // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
                     },
                 },
@@ -90,11 +107,11 @@ export default function ElevationChart({ data }) {
             x: {
                 grid: { drawTicks: false },
                 min: 0,
-                max: Math.round(Math.max(...data.map((a) => a[0]))),
+                max: Math.round(Math.max(...elevationData.map((a) => a[0]))),
                 ticks: {
                     display: true,
                     autoSkip: false,
-                    callback: (value, index, values) => {
+                    callback: (value, _index, _values) => {
                         if (value !== 0) {
                             if (useKilometers) return (Math.round(value / 100) / 10).toString();
                             else return value.toString();
@@ -106,6 +123,12 @@ export default function ElevationChart({ data }) {
         },
         plugins: { legend: { display: false } },
         interaction: { intersect: false },
+        elements: {
+            point: {
+                hoverRadius: 2.2,
+                hoverBorderWidth: 4.5
+            }
+        }
     };
     return (
         <Card className="w-[320px] relative z-10">
@@ -113,7 +136,7 @@ export default function ElevationChart({ data }) {
                 <CardTitle>Elevation Chart</CardTitle>
             </CardHeader>
             <CardContent className="p-2.5">
-                <Line data={chartData} options={options} />
+                <Line ref={chartRef} data={chartData} options={options} />
             </CardContent>
         </Card>
     );

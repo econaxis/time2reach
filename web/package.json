@@ -30,6 +30,7 @@
     "dependencies": {
         "@radix-ui/react-slot": "^1.0.2",
         "@radix-ui/react-switch": "^1.0.3",
+        "@turf/turf": "^6.5.0",
         "@types/node": "^20.9.0",
         "@types/react": "^18.2.14",
         "@vitejs/plugin-react": "^4.0.2",

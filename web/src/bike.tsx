@@ -6,6 +6,7 @@ import { RenderBikeRoute } from "./renderRoute";
 import ElevationChart from "./elevation-chart";
 import "../app/globals.css"
 import { MapboxWrapper } from "@/mapbox-wrapper";
+import { HighlightedPointElev, HighlightedPointGeoJSON } from "@/routeHighlight";
 
 export interface OrgDest {
     origin: mapboxgl.LngLat
@@ -23,6 +24,7 @@ export function BikeMap() {
     const [orgDest, setOrgDest] = useState<OrgDest | undefined>(DEFAULT_ORGDEST); // [origin, destination
     const [map, setMap] = useState<mapboxgl.Map | undefined>(undefined);
     const [elevations, setElevations] = useState<number[] | undefined>(undefined);
+    const [highlightedPoint, setHighlightedPoint] = useState<HighlightedPointElev | undefined>(undefined); // [origin, destination
 
     const mapOnLoad = (map: mapboxgl.Map) => {
         setMap(map);
@@ -33,13 +35,16 @@ export function BikeMap() {
         renderRouteMap = map;
     }
 
+    const setHighlightedPoints = (hp: HighlightedPointElev) => {
+        setHighlightedPoint(hp)
+    };
 
     return (
         <QueryClientProvider client={queryClient}>
             <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}>
-                <ElevationChart data={elevations}/>
+                <ElevationChart elevationData={elevations} hp={highlightedPoint}/>
                 <SetupMapbox setOrgDest={setOrgDest} map={map} />
-                <RenderBikeRoute origin={orgDest.origin} destination={orgDest.destination} map={renderRouteMap} setElevations={setElevations} />
+                <RenderBikeRoute origin={orgDest.origin} destination={orgDest.destination} map={renderRouteMap} setElevations={setElevations} setHighlightedPoints={setHighlightedPoints} />
             </MapboxWrapper>
         </QueryClientProvider>
     );
