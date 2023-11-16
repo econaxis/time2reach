@@ -5,7 +5,7 @@ use geojson::{Feature, GeoJson, Geometry};
 use petgraph::algo::astar;
 use petgraph::graph::{EdgeIndex, EdgeReference, NodeIndex, UnGraph};
 use petgraph::prelude::EdgeRef;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs::File;
@@ -276,7 +276,12 @@ pub fn main() {
     route(&graph, start, end);
 }
 
-fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSnap, end_snap: PointSnap) -> GeoJson {
+#[derive(Serialize)]
+pub struct RouteResponse {
+    pub route: GeoJson,
+    pub elevation: Vec<(f64, f64)>,
+}
+fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSnap, end_snap: PointSnap) -> RouteResponse {
     let align_snap_endpoints = |nodes: &[NodeIndex], edge_id: usize, is_end: bool| -> (NodeIndex, NodeIndex) {
         let edge_endpoints = graph.graph.edge_endpoints(EdgeIndex::new(edge_id)).unwrap();
 
@@ -322,6 +327,8 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
     let mut has_started = false;
     let mut has_ended = false;
 
+    let mut elevations = Vec::new();
+    let mut cumdist = 0.0;
     let coordinates: Vec<Position> = nodes.windows(2).flat_map(|indices| {
         let prev = indices[0];
         let prevnode = &graph.graph[prev];
@@ -331,6 +338,10 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
 
         let edge = graph.graph.find_edge(prev, cur).unwrap();
         let edge = &graph.graph[edge];
+
+        // Calculate elevations
+        elevations.push((cumdist, prevnode.ele));
+        cumdist += edge.dist;
 
         let points_iterator: Box<dyn Iterator<Item=&Point>> = if edge.source == prevnode.id {
             Box::new(edge.points.iter())
@@ -365,6 +376,12 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         pointlist
     }).collect();
 
+    if let Some(last) = nodes.last() {
+        let node = &graph.graph[*last];
+        elevations.push((cumdist, node.ele));
+    }
+
+
     assert!(has_started);
     assert!(has_ended);
 
@@ -379,9 +396,12 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         foreign_members: None,
     };
 
-    GeoJson::Feature(feature)
+    RouteResponse {
+        route: GeoJson::Feature(feature),
+        elevation: elevations,
+    }
 }
-pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson> {
+pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<RouteResponse> {
     // Find the nearest nodes in the graph to the specified coordinates
     let (start_snap, start_nodes) = find_nearest_nodes(&graph, &start);
     let (end_snap, end_nodes) = find_nearest_nodes(&graph, &end);
@@ -429,12 +449,9 @@ pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<GeoJson>
             (dist_accum_prev, node.ele)
         }).collect::<Vec<(f64, f64)>>();
 
-        let geojson = render_route(&graph, Cow::from(&path), start_snap, end_snap);
+        let response = render_route(&graph, Cow::from(&path), start_snap, end_snap);
 
-        println!("{}", serde_json::to_string(&geojson).unwrap());
-        println!("{:?}", heights);
-
-        Ok(geojson)
+        Ok(response)
     } else {
         println!("No path found");
         Err(anyhow::Error::msg("No path found"))

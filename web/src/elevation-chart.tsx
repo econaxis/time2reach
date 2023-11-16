@@ -2,10 +2,10 @@ import React from "react";
 import Chart from "chart.js/auto";
 import { Line } from "react-chartjs-2";
 
-import { BellRing, Check } from "lucide-react"
+import { BellRing, Check } from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
@@ -13,8 +13,8 @@ import {
     CardFooter,
     CardHeader,
     CardTitle,
-} from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
+} from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 
 interface LineGraphProps {
     data: number[]
@@ -25,93 +25,96 @@ function _unused() {
     return Chart.length + 1;
 }
 
-const notifications = [
-    {
-        title: "Your call has been confirmed.",
-        description: "1 hour ago",
-    },
-    {
-        title: "You have a new message!",
-        description: "1 hour ago",
-    },
-    {
-        title: "Your subscription is expiring soon!",
-        description: "2 hours ago",
-    },
-]
+export default function ElevationChart({ data }) {
+    if (!data) {
+        return <></>;
+    }
 
-type CardProps = React.ComponentProps<typeof Card>
-
-export function CardDemo({ className, ...props }: CardProps) {
-    return (
-        <Card className={cn("w-[380px]", className)} {...props}>
-            <CardHeader>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>You have 3 unread messages.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-                <div className=" flex items-center space-x-4 rounded-md border p-4">
-                    <BellRing />
-                    <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                            Push Notifications
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                            Send notifications to device.
-                        </p>
-                    </div>
-                    <Switch />
-                </div>
-                <div>
-                    {notifications.map((notification, index) => (
-                        <div
-                            key={index}
-                            className="mb-4 grid grid-cols-[25px_1fr] items-start pb-4 last:mb-0 last:pb-0"
-                        >
-                            <span className="flex h-2 w-2 translate-y-1 rounded-full bg-sky-500" />
-                            <div className="space-y-1">
-                                <p className="text-sm font-medium leading-none">
-                                    {notification.title}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    {notification.description}
-                                </p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-            <CardFooter>
-                <Button className="w-full">
-                    <Check className="mr-2 h-4 w-4" /> Mark all as read
-                </Button>
-            </CardFooter>
-        </Card>
-    )
-}
-
-const ElevationChart: React.FC<LineGraphProps> = ({ data }) => {
     const chartData = {
-        labels: Array.from({ length: data.length }, (_, index) => index + 1),
         datasets: [
             {
                 label: "",
-                data,
+                data: data.map((a) => ({ x: a[0], y: a[1] })),
                 borderColor: "rgba(75,192,192,1)",
                 borderWidth: 1,
                 radius: 0,
+                fill: { target: "origin", above: "rgba(75,192,192,0.4)" },
             },
+            {
+                label: "",
+                data: [{ x: 0, y: data[data.length - 1][1] }],
+                yAxisID: "y1",
+            }
         ],
     };
 
-    const options = { plugins: { legend: { display: false } }, interaction: { intersect: false } };
-    return (
-        <div style={{ width: 300, height: 600 }}>
-            <h2>Floating Point Numbers Line Graph</h2>
-            <Line data={chartData} options={options} />
-            <CardDemo/>
-        </div>
-    );
-};
+    const maxRight = data[data.length - 1][1] + 1;
+    const maxLeft = Math.max(...data.map((a) => a[1]));
 
-export default ElevationChart;
+    const maxTotal = Math.max(maxRight, maxLeft);
+    const distance = Math.round(data[data.length - 1][0]);
+    const useKilometers = distance > 4000;
+    const options = {
+        scales: {
+            y1: {
+                grid: { drawTicks: false },
+                min: 0,
+                max: maxTotal,
+                ticks: {
+                    stepSize: 1,
+                    autoSkip: false,
+                    callback: (value, index, values) => {
+                        if (value === Math.round(data[data.length - 1][1])) return value.toString();
+                        // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
+                    },
+                },
+                type: "linear",
+                position: 'right'
+            },
+            y: {
+                grid: { drawTicks: false },
+                min: 0,
+                max: maxTotal,
+                ticks: {
+                    stepSize: 1,
+                    autoSkip: false,
+                    callback: (value, index, values) => {
+                        if (index === values.length - 1) {
+                            return value.toString();
+                        } else if (index === 0) return value.toString();
+                        else if (value === Math.round(data[0][1])) return value.toString();
+                        // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
+                    },
+                },
+            },
+            x: {
+                grid: { drawTicks: false },
+                min: 0,
+                max: Math.round(Math.max(...data.map((a) => a[0]))),
+                ticks: {
+                    display: true,
+                    autoSkip: false,
+                    callback: (value, index, values) => {
+                        if (value !== 0) {
+                            if (useKilometers) return (Math.round(value / 100) / 10).toString();
+                            else return value.toString();
+                        } else return null;
+                    },
+                },
+                type: "linear",
+            },
+        },
+        plugins: { legend: { display: false } },
+        interaction: { intersect: false },
+    };
+    return (
+        <Card className="w-[320px] relative z-10">
+            <CardHeader className="p-4">
+                <CardTitle>Elevation Chart</CardTitle>
+            </CardHeader>
+            <CardContent className="p-2.5">
+                <Line data={chartData} options={options} />
+            </CardContent>
+        </Card>
+    );
+}

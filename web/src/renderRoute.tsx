@@ -113,6 +113,7 @@ async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.L
 }
 
 export interface RenderBikeRouteProps extends RenderStraightRouteProps {
+    setElevations: (elevations: number[]) => void
 }
 
 export function RenderBikeRoute(props: RenderBikeRouteProps) {
@@ -127,15 +128,19 @@ export function RenderBikeRoute(props: RenderBikeRouteProps) {
         enabled
     });
 
-    if (isLoading) {
+    if (isLoading || !data) {
         return <Fragment />;
     }
+
+    const { route, elevation } = data;
 
     const routeData: GeoJSON.FeatureCollection = {
         type: "FeatureCollection",
         features: [
-            data
+            route
         ]
     };
+
+    props.setElevations(elevation);
     return <RenderRoute map={props.map} routeData={routeData} />;
 }

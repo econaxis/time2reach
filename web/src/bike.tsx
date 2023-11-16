@@ -5,13 +5,24 @@ import { SetupMapbox } from "./setupMapbox";
 import { RenderBikeRoute } from "./renderRoute";
 import ElevationChart from "./elevation-chart";
 import "../app/globals.css"
+import { MapboxWrapper } from "@/mapbox-wrapper";
+
+export interface OrgDest {
+    origin: mapboxgl.LngLat
+    destination: mapboxgl.LngLat
+}
+
+const DEFAULT_ORGDEST = {
+    origin: new mapboxgl.LngLat(-122.4194, 37.7749),
+    destination: new mapboxgl.LngLat(-122.4194, 37.7749)
+}
 
 export function BikeMap() {
     const queryClient = new QueryClient({});
 
-    const [origin, setOrigin] = useState<mapboxgl.LngLat | undefined>(undefined);
-    const [destination, setDestination] = useState<mapboxgl.LngLat | undefined>(undefined);
+    const [orgDest, setOrgDest] = useState<OrgDest | undefined>(DEFAULT_ORGDEST); // [origin, destination
     const [map, setMap] = useState<mapboxgl.Map | undefined>(undefined);
+    const [elevations, setElevations] = useState<number[] | undefined>(undefined);
 
     const mapOnLoad = (map: mapboxgl.Map) => {
         setMap(map);
@@ -22,19 +33,14 @@ export function BikeMap() {
         renderRouteMap = map;
     }
 
-    const numbersArray = Array.from({ length: 100 }, (_, i) =>
-        Math.floor(Math.random() * (i * 4 + 1)) + i * 3.9
-    );
 
     return (
-        <ElevationChart data={numbersArray}/>
-    )
-    // return (
-    //     // <QueryClientProvider client={queryClient}>
-    //     //     <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}>
-    //     //         <SetupMapbox setOrigin={setOrigin} setDestination={setDestination} map={map} />
-    //     //         <RenderBikeRoute origin={origin} destination={destination} map={renderRouteMap} />
-    //     //     </MapboxWrapper>
-    //     // </QueryClientProvider>
-    // );
+        <QueryClientProvider client={queryClient}>
+            <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}>
+                <ElevationChart data={elevations}/>
+                <SetupMapbox setOrgDest={setOrgDest} map={map} />
+                <RenderBikeRoute origin={orgDest.origin} destination={orgDest.destination} map={renderRouteMap} setElevations={setElevations} />
+            </MapboxWrapper>
+        </QueryClientProvider>
+    );
 }

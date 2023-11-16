@@ -1,9 +1,10 @@
 use crate::agencies::{load_all_gtfs, Agency, City};
+
 use futures::StreamExt;
 
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
-use bike::route;
+use bike::{route, RouteResponse};
 use crate::road_structure::EdgeId;
 use crate::{gtfs_setup, time_to_reach, trip_details, Gtfs1, RoadStructure, Time};
 use gtfs_structure_2::gtfs_wrapper::RouteType;
@@ -284,7 +285,7 @@ pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Re
                 req.end.into(),
             )
         })
-        .map(|r: anyhow::Result<GeoJson>| match r {
+        .map(|r: anyhow::Result<RouteResponse>| match r {
             Ok(a) => warp::reply::json(&a).into_response(),
             Err(e) => warp::reply::with_status(format!("{:#}", e), StatusCode::BAD_REQUEST).into_response(),
         });
