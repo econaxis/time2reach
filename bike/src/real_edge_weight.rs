@@ -44,15 +44,15 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
         _ => panic!("Invalid bicycle rating"),
     };
 
-    let bicycle_penalty_scaled = (bicycle_penalty + 0.5f64).powf(options.prefer_protected_bike_lanes + 1.0);
+    let bicycle_penalty_scaled = (bicycle_penalty + 0.5f64).powf((options.prefer_protected_bike_lanes) * 3.0);
 
     let source = graph.node_weight(edgeref.source()).unwrap();
     let target = graph.node_weight(edgeref.target()).unwrap();
     let elevation_diff = target.ele - source.ele;
     let slope = elevation_diff / edge.dist;
 
-    let elevation_penalty = (slope * 15.0).powf(2.0).abs() * elevation_diff.signum() * edge.dist;
+    let elevation_penalty = (slope * 20.0).powf(2.5).abs() * elevation_diff.signum() * edge.dist;
     let elevation_penalty = if elevation_penalty.is_nan() { 0.0 } else { elevation_penalty };
 
-    (edge.dist + elevation_penalty * options.avoid_steep_hills).max(edge.dist * 0.85) * bicycle_penalty_scaled
+    (edge.dist + elevation_penalty * options.avoid_steep_hills * 10.0).max(edge.dist * 0.85) * bicycle_penalty_scaled
 }

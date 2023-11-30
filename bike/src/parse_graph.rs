@@ -1,4 +1,6 @@
 use std::borrow::Cow;
+use std::ops::{Add, AddAssign};
+use crate::calories;
 use geojson::{FeatureCollection, Value as GeoJsonValue};
 use crate::{graph, real_edge_weight};
 use geojson::{Feature, GeoJson, Geometry};
@@ -71,11 +73,34 @@ pub fn main() {
     println!("{:?}", result);
 }
 
+#[derive(Serialize, Debug, Default)]
+pub struct Energy {
+    pub calories: f64,
+    pub uphill_meters: f64,
+    pub downhill_meters: f64,
+}
+
+impl AddAssign for Energy {
+    fn add_assign(&mut self, rhs: Self) {
+        self.calories += rhs.calories;
+        self.uphill_meters += rhs.uphill_meters;
+        self.downhill_meters += rhs.downhill_meters;
+    }
+}
+
 #[derive(Serialize, Debug)]
 pub struct RouteResponse {
     pub route: GeoJson,
     pub elevation: Vec<(f64, f64)>,
     pub elevation_index: Vec<usize>,
+    pub energy: Option<Energy>,
+}
+
+impl RouteResponse {
+    fn with_energy(mut self, energy: Energy) -> Self {
+        self.energy = Some(energy);
+        self
+    }
 }
 
 type Position = Vec<f64>;
@@ -217,6 +242,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         route: GeoJson::Feature(feature),
         elevation: elevations,
         elevation_index: elevation_index_map,
+        energy: None
     }
 }
 
@@ -277,7 +303,8 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
             return Err(anyhow::Error::msg("No path found"));
         }
         let response = render_route(&graph, Cow::from(&path), start_snap, end_snap);
-        Ok(response)
+        let energy = calories::calculate_energy(&path, &graph.graph);
+        Ok(response.with_energy(energy))
     } else {
         println!("No path found");
         Err(anyhow::Error::msg("No path found"))

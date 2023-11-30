@@ -22,7 +22,7 @@ pub struct Node {
     pub lat: f64,
     #[serde(rename = "lon")]
     pub lon: f64,
-    pub(crate) ele: f64,
+    pub ele: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]

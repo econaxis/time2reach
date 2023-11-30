@@ -3,6 +3,7 @@ mod bicycle_rating;
 mod real_edge_weight;
 mod graph;
 
+mod calories;
 pub use parse_graph::*;
 pub use bicycle_rating::rate_bicycle_friendliness;
 

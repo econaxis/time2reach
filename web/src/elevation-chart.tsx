@@ -72,7 +72,7 @@ export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
     const distance = Math.round(elevationData[elevationData.length - 1][0]);
     const useKilometers = distance > 4000;
     const options = {
-        animation: false,
+        animation: true,
         scales: {
             y1: {
                 grid: { drawTicks: false },
@@ -81,8 +81,14 @@ export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
                 ticks: {
                     stepSize: 1,
                     autoSkip: false,
-                    callback: (value, _index, _values) => {
-                        if (value === Math.round(elevationData[elevationData.length - 1][1])) return value.toString();
+                    callback: (value, index, values) => {
+                        if (index === values.length - 1) {
+                            // Max elevation tick
+                            return Math.round(value).toString();
+                        } else if (value === Math.round(elevationData[elevationData.length - 1][1])) {
+                            // End (destination) tick
+                            return value.toString();
+                        }
                         // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
                     },
                 },
@@ -97,11 +103,13 @@ export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
                     stepSize: 1,
                     autoSkip: false,
                     callback: (value, index, values) => {
-                        if (index === values.length - 1) {
-                            return value.toString();
-                        } else if (index === 0) return value.toString();
-                        else if (value === Math.round(elevationData[0][1])) return value.toString();
-                        // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
+                         if (index === 0) {
+                             // 0 tick
+                            return Math.round(value).toString();
+                        } else if (value === Math.round(elevationData[0][1])) {
+                             // Start (origin) tick
+                            return Math.round(value).toString();
+                        }
                     },
                 },
             },
@@ -132,7 +140,7 @@ export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
         }
     };
     return (
-        <Card className="w-[320px] relative z-10">
+        <Card className="w-[320px] absolute top-0 left-0 z-10">
             <CardHeader className="p-4">
                 <CardTitle>Elevation (meters)</CardTitle>
             </CardHeader>

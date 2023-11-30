@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from "react";
+import React, { Fragment, useCallback, useEffect, useReducer } from "react";
 import type mapboxgl from "mapbox-gl";
 import { useQuery } from "react-query";
 import { EMPTY_GEOJSON } from "./mapbox-map";
@@ -7,9 +7,10 @@ import RouteHighlight, {
     type HighlightedPointGeoJSON,
 } from "@/routeHighlight";
 import { type LineString } from "geojson";
-import { RouteSettings } from "@/bike";
+import { Settings } from "@/Settings";
 
 export const ROUTE_COLOR_BLUE = "#6A7EB8";
+
 export interface RenderStraightRouteProps {
     map: mapboxgl.Map | undefined
     origin: mapboxgl.LngLat | undefined
@@ -35,23 +36,26 @@ export function RenderRoute(props: RenderRouteProps) {
         if (!map.getSource("route")) {
             map.addSource("route", {
                 type: "geojson",
-                data: EMPTY_GEOJSON
+                data: EMPTY_GEOJSON,
             });
 
-            map.addLayer({
-                id: "route",
-                type: "line",
-                source: "route",
-                layout: {
-                    "line-join": "round",
-                    "line-cap": "round",
-                    "line-sort-key": 1000
+            map.addLayer(
+                {
+                    id: "route",
+                    type: "line",
+                    source: "route",
+                    layout: {
+                        "line-join": "round",
+                        "line-cap": "round",
+                        "line-sort-key": 1000,
+                    },
+                    paint: {
+                        "line-color": ROUTE_COLOR_BLUE,
+                        "line-width": 4.2,
+                    },
                 },
-                paint: {
-                    "line-color": ROUTE_COLOR_BLUE,
-                    "line-width": 4.2,
-                }
-            }, "admin1");
+                "admin1"
+            );
         }
     }, [map]);
     useEffect(() => {
@@ -65,7 +69,11 @@ export function RenderRoute(props: RenderRouteProps) {
     return <Fragment> {props.children} </Fragment>;
 }
 
-async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.LngLat, routeSettings?: RouteSettings) {
+async function fetchBikeRoute(
+    origin?: mapboxgl.LngLat,
+    destination?: mapboxgl.LngLat,
+    routeSettings?: RouteSettings
+) {
     if (!origin || !destination || !routeSettings) {
         throw new Error("Origin or destination or route settings not set");
     }
@@ -73,20 +81,20 @@ async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.L
     const postData = {
         start: {
             latitude: origin.lat,
-            longitude: origin.lng
+            longitude: origin.lng,
         },
         end: {
             latitude: destination.lat,
-            longitude: destination.lng
+            longitude: destination.lng,
         },
-        options: routeSettings
+        options: routeSettings,
     };
     const req = await fetch(url, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
-        body: JSON.stringify(postData)
+        body: JSON.stringify(postData),
     });
 
     if (!req.ok) {
@@ -98,46 +106,117 @@ async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.L
 export interface RenderBikeRouteProps extends RenderStraightRouteProps {
     setElevations: (elevations: number[]) => void
     setHighlightedPoints: (_: HighlightedPointElev) => void
-    routeSettings: RouteSettings
+    reverseOrgDest: () => void
+}
+
+export interface RouteSettings {
+    avoidHills: number
+    preferProtectedLanes: number
+}
+
+function defaultRouteSettings(): RouteSettings {
+    return {
+        avoidHills: 0.5,
+        preferProtectedLanes: 0.5,
+    };
+}
+
+function routeSettingsReducer(
+    state: RouteSettings,
+    action: { type: "setAvoidHills" | "setPreferProtectedLanes", value: number }
+): RouteSettings {
+    switch (action.type) {
+        case "setAvoidHills":
+            return {
+                ...state,
+                avoidHills: action.value,
+            };
+        case "setPreferProtectedLanes":
+            return {
+                ...state,
+                preferProtectedLanes: action.value,
+            };
+        default:
+            return state;
+    }
+}
+
+export interface EnergyResponse {
+    calories: number
+    uphill_meters: number
+    downhill_meters: number
 }
 
 export function RenderBikeRoute(props: RenderBikeRouteProps) {
-    const { origin, destination } = props;
+    const { origin, destination, reverseOrgDest } = props;
+    const previousCalories = React.useRef<number>(0);
+
+    const [routeSettings, dispatchRouteSettings] = useReducer(
+        routeSettingsReducer,
+        defaultRouteSettings()
+    );
+
+    const setAvoidHills = useCallback((x) => {
+        dispatchRouteSettings({ type: "setAvoidHills", value: x });
+    }, [])
+
+    const setPreferProtectedLanes = useCallback((x) => {
+        dispatchRouteSettings({ type: "setPreferProtectedLanes", value: x });
+    }, [])
 
     const enabled = !!(origin && destination);
 
     // Use react-query to query the bike route
-    const { data, isLoading, isError } = useQuery(["bike-route", origin, destination, props.routeSettings], async() => {
-        return await fetchBikeRoute(origin, destination, props.routeSettings);
-    }, {
-        enabled,
-    });
+    const { data, isLoading, isError } = useQuery(
+        ["bike-route", origin, destination, routeSettings],
+        async() => {
+            return await fetchBikeRoute(origin, destination, routeSettings);
+        },
+        {
+            enabled,
+        }
+    );
 
+    let calories: number = previousCalories.current;
+    let bikeRouteComponent: React.JSX.Element = null;
     if (isError) {
         console.error("Error fetching bike route", data);
-        return <Fragment />;
+    } else if (isLoading || !data) {
+        console.log("Loading bike route...")
+    } else {
+        const { route, elevation, elevation_index: elevationIndex, energy } = data;
+
+        calories = energy.calories;
+        previousCalories.current = calories;
+
+        const routeData: GeoJSON.FeatureCollection<LineString> = {
+            type: "FeatureCollection",
+            features: [route],
+        };
+
+        const setHighlightedPoints = (hp: HighlightedPointGeoJSON) => {
+            // Map the index from the route to the elevation index
+            const idx = elevationIndex[hp.geojson_index];
+            props.setHighlightedPoints({ elevation_index: idx });
+        };
+
+        props.setElevations(elevation);
+        bikeRouteComponent = <RenderRoute map={props.map} routeData={routeData}>
+                    <RouteHighlight
+                        map={props.map}
+                        routeData={routeData}
+                        setHighlightedPoints={setHighlightedPoints}
+                    />
+                </RenderRoute>;
     }
-    if (isLoading || !data) {
-        return <Fragment />;
-    }
 
-    const { route, elevation, elevation_index: elevationIndex } = data;
-
-    const routeData: GeoJSON.FeatureCollection<LineString> = {
-        type: "FeatureCollection",
-        features: [
-            route
-        ]
-    };
-
-    const setHighlightedPoints = (hp: HighlightedPointGeoJSON) => {
-        // Map the index from the route to the elevation index
-        const idx = elevationIndex[hp.geojson_index];
-        props.setHighlightedPoints({ elevation_index: idx })
-    }
-
-    props.setElevations(elevation);
-    return <RenderRoute map={props.map} routeData={routeData}>
-        <RouteHighlight map={props.map} routeData={routeData} setHighlightedPoints={setHighlightedPoints}/>
-    </RenderRoute>;
+    return <>
+        <Settings
+            calories={calories} // TODO: replace with previous calories
+            setAvoidHills={setAvoidHills}
+            setPreferProtectedLanes={setPreferProtectedLanes}
+            reverseOrgDest={reverseOrgDest}
+        />
+        {bikeRouteComponent}
+    </>
 }
