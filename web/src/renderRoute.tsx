@@ -2,9 +2,14 @@ import { Fragment, useEffect } from "react";
 import type mapboxgl from "mapbox-gl";
 import { useQuery } from "react-query";
 import { EMPTY_GEOJSON } from "./mapbox-map";
-import RouteHighlight, { HighlightedPointElev, type HighlightedPointGeoJSON } from "@/routeHighlight";
+import RouteHighlight, {
+    type HighlightedPointElev,
+    type HighlightedPointGeoJSON,
+} from "@/routeHighlight";
 import { type LineString } from "geojson";
+import { RouteSettings } from "@/bike";
 
+export const ROUTE_COLOR_BLUE = "#6A7EB8";
 export interface RenderStraightRouteProps {
     map: mapboxgl.Map | undefined
     origin: mapboxgl.LngLat | undefined
@@ -43,7 +48,7 @@ export function RenderRoute(props: RenderRouteProps) {
                     "line-sort-key": 1000
                 },
                 paint: {
-                    "line-color": "#445fb0",
+                    "line-color": ROUTE_COLOR_BLUE,
                     "line-width": 4.2,
                 }
             }, "admin1");
@@ -60,9 +65,9 @@ export function RenderRoute(props: RenderRouteProps) {
     return <Fragment> {props.children} </Fragment>;
 }
 
-async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.LngLat) {
-    if (!origin || !destination) {
-        throw new Error("Origin or destination not set");
+async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.LngLat, routeSettings?: RouteSettings) {
+    if (!origin || !destination || !routeSettings) {
+        throw new Error("Origin or destination or route settings not set");
     }
     const url = `http://localhost:3030/bike`;
     const postData = {
@@ -73,7 +78,8 @@ async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.L
         end: {
             latitude: destination.lat,
             longitude: destination.lng
-        }
+        },
+        options: routeSettings
     };
     const req = await fetch(url, {
         method: "POST",
@@ -92,6 +98,7 @@ async function fetchBikeRoute(origin?: mapboxgl.LngLat, destination?: mapboxgl.L
 export interface RenderBikeRouteProps extends RenderStraightRouteProps {
     setElevations: (elevations: number[]) => void
     setHighlightedPoints: (_: HighlightedPointElev) => void
+    routeSettings: RouteSettings
 }
 
 export function RenderBikeRoute(props: RenderBikeRouteProps) {
@@ -100,10 +107,10 @@ export function RenderBikeRoute(props: RenderBikeRouteProps) {
     const enabled = !!(origin && destination);
 
     // Use react-query to query the bike route
-    const { data, isLoading, isError } = useQuery(["bike-route", origin, destination], async() => {
-        return await fetchBikeRoute(origin, destination);
+    const { data, isLoading, isError } = useQuery(["bike-route", origin, destination, props.routeSettings], async() => {
+        return await fetchBikeRoute(origin, destination, props.routeSettings);
     }, {
-        enabled
+        enabled,
     });
 
     if (isError) {

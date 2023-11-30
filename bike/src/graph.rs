@@ -78,6 +78,18 @@ pub struct LocationIndex {
 }
 
 impl LocationIndex {
+    pub fn new(edge_indices: &HashMap<usize, EdgeIndex>, edges: Vec<Edge>) -> LocationIndex {
+        LocationIndex {
+            points: edges.iter().map(|edge| PointSnap {
+                point: Point {
+                    lat: edge.points[0].lat,
+                    lon: edge.points[0].lon,
+                    ele: edge.points[0].ele,
+                },
+                edge_id: edge_indices[&edge.id].index(),
+            }).collect(),
+        }
+    }
     pub(crate) fn snap_closest(&self, point: &Point) -> &PointSnap {
         // TODO: Use a spatial index to speed this up
         let mut best = None;
@@ -153,16 +165,7 @@ pub fn parse_graph() -> Graph {
         // let edge_index1 = graph.add_edge(target_index, source_index, edge.reverse());
     }
 
-    let location_index = LocationIndex {
-        points: edges.iter().map(|edge| PointSnap {
-            point: Point {
-                lat: edge.points[0].lat,
-                lon: edge.points[0].lon,
-                ele: edge.points[0].ele,
-            },
-            edge_id: edge_indices[&edge.id].index(),
-        }).collect(),
-    };
+    let location_index = LocationIndex::new(&edge_indices, edges);
 
     Graph {
         graph,
@@ -183,7 +186,7 @@ fn filter_ways_by_bike_friendliness(edges: Vec<Edge>) -> (bool, Vec<Edge>) {
             0 => {
                 changed = true;
                 return false;
-            },
+            }
             _ => {}
         }
         return true;

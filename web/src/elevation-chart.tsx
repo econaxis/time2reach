@@ -21,6 +21,7 @@ function _unused() {
     return Chart.length + 1;
 }
 
+
 export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
     const chartRef = useRef<ChartJS | undefined>()
 
@@ -133,7 +134,7 @@ export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
     return (
         <Card className="w-[320px] relative z-10">
             <CardHeader className="p-4">
-                <CardTitle>Elevation Chart</CardTitle>
+                <CardTitle>Elevation (meters)</CardTitle>
             </CardHeader>
             <CardContent className="p-2.5">
                 <Line ref={chartRef} data={chartData} options={options} />

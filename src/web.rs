@@ -4,7 +4,7 @@ use futures::StreamExt;
 
 use crate::configuration::Configuration;
 use crate::gtfs_setup::get_agency_id_from_short_name;
-use bike::{route, RouteResponse};
+use bike::{route, RouteResponse, RouteOptions};
 use crate::road_structure::EdgeId;
 use crate::{gtfs_setup, time_to_reach, trip_details, Gtfs1, RoadStructure, Time};
 use gtfs_structure_2::gtfs_wrapper::RouteType;
@@ -270,6 +270,7 @@ struct IDQuery {
 struct BikeCalculateRequest {
     start: LatLng,
     end: LatLng,
+    options: Option<RouteOptions>
 }
 pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let bike_endpoint = warp::post()
@@ -283,6 +284,7 @@ pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Re
                 &ad.bikegraph,
                 req.start.into(),
                 req.end.into(),
+                req.options.unwrap_or_default()
             )
         })
         .map(|r: anyhow::Result<RouteResponse>| match r {

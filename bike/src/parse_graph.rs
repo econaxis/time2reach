@@ -9,6 +9,7 @@ use serde::Serialize;
 use serde_json::json;
 use petgraph::visit::IntoEdgeReferences;
 use crate::graph::{AGraph, Graph, Point};
+use crate::real_edge_weight::RouteOptions;
 
 #[derive(Clone)]
 pub struct PointSnap {
@@ -63,33 +64,26 @@ pub fn main() {
     // println!("{}", serde_json::to_string(&gj).unwrap());
 
     // Replace these coordinates with your actual coordinates
-    const START: (f64, f64) = (37.73167959059285, -122.44497075710883);
-    const END: (f64, f64) = (37.766034778541155, -122.45105332934128);
-    let start = Point {
-        lat: START.0,
-        lon: START.1,
-        ele: 0.0,
-    };
-    let end = Point {
-        lat: END.0,
-        lon: END.1,
-        ele: 0.0,
-    };
+    let start = Point { lat: 37.7791612, lon: -122.4351754, ele: 51.0 };
+    let end = Point { lat: 37.758454, lon: -122.446772, ele: 149.0 };
 
-    route(&graph, start, end);
+    let result = route(&graph, start, end, RouteOptions::default());
+    println!("{:?}", result);
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct RouteResponse {
     pub route: GeoJson,
     pub elevation: Vec<(f64, f64)>,
-    pub elevation_index: Vec<usize>
+    pub elevation_index: Vec<usize>,
 }
+
 type Position = Vec<f64>;
 
 fn comp_positions(a: &Position, b: &Position) -> bool {
-    (a[0] - b[0]).abs() < 0.001 &&  (a[1] - b[1]).abs() < 0.001
+    (a[0] - b[0]).abs() < 0.001 && (a[1] - b[1]).abs() < 0.001
 }
+
 fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSnap, end_snap: PointSnap) -> RouteResponse {
     let align_snap_endpoints = |nodes: &[NodeIndex], edge_id: usize, is_end: bool| -> (NodeIndex, NodeIndex) {
         let edge_endpoints = graph.graph.edge_endpoints(EdgeIndex::new(edge_id)).unwrap();
@@ -112,7 +106,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
     // Then add all the pointlist in the edge
     let start_snap_edge_endpoints = align_snap_endpoints(&nodes, start_snap.edge_id, false);
     let end_snap_edge_endpoints = align_snap_endpoints(&nodes, end_snap.edge_id, true);
-    
+
     if start_snap_edge_endpoints.1 != nodes[1] {
         // We have to start from the other end of the edge to "cross" the start_snap node
         nodes.to_mut().insert(0, start_snap_edge_endpoints.1);
@@ -170,7 +164,6 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
 
             if last_end.as_ref().map(|end| end.haversine_distance(&last_pointlist) <= 0.001).unwrap_or(false) {
                 pointlist.truncate(pointlist.len() - 1);
-
             };
 
             last_end = Some(last_pointlist);
@@ -223,34 +216,51 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
     RouteResponse {
         route: GeoJson::Feature(feature),
         elevation: elevations,
-        elevation_index: elevation_index_map
+        elevation_index: elevation_index_map,
     }
 }
-pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<RouteResponse> {
+
+fn get_finish_condition<'a>(graph: &'a Graph, end_nodes: &'a [NodeIndex]) -> impl Fn(NodeIndex) -> bool + 'a {
+    |node: NodeIndex| {
+        let node_pos = graph.graph[node].point();
+        end_nodes.iter().any(|en| {
+            if node == *en {
+                true
+            } else {
+                false
+                // let end_pos = graph.graph[*en].point();
+                //
+                // // Also allow anything within 50 meters of any end nodes
+                // node_pos.haversine_distance(&end_pos) < 50.0
+            }
+        })
+    }
+}
+
+pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> anyhow::Result<RouteResponse> {
     // Find the nearest nodes in the graph to the specified coordinates
     let (start_snap, start_nodes) = find_nearest_nodes(&graph, &start);
     let (end_snap, end_nodes) = find_nearest_nodes(&graph, &end);
 
     let start_node = start_nodes[0];
 
-    println!("Start node: {} {:?}", start_node.index(), graph.graph[start_node].debug_coords());
+    println!("Start node: {} {:?}", start_node.index(), graph.graph[start_node]);
 
     for end_node in &end_nodes {
-        println!("End node: {} {:?}", end_node.index(), graph.graph[*end_node].debug_coords());
+        println!("End node: {} {:?}", end_node.index(), graph.graph[*end_node]);
     }
+    println!("End edge {:?}", graph.graph[EdgeIndex::new(end_snap.edge_id)]);
 
     println!("DIST {}", start.haversine_distance(&end));
-    // Perform A* routing
+
     let mut points_checked = Vec::new();
 
     if let Some((cost, path)) = astar(
         &graph.graph,
         start_node,
-        |finish: NodeIndex| {
-            end_nodes.contains(&finish)
-        },
+        get_finish_condition(&graph, &end_nodes),
         |e| {
-            real_edge_weight::real_edge_weight(&graph.graph, e)
+            real_edge_weight::real_edge_weight(&graph.graph, e, &options)
         }, // Cost function, using edge distance
         |node: NodeIndex| {
             points_checked.push(node);
@@ -262,20 +272,11 @@ pub fn route(graph: &Graph, start: Point, end: Point) -> anyhow::Result<RouteRes
             cost
         },
     ) {
-        let mut dist_accum = 0.0;
-        let heights = path.as_slice().windows(2).map(|node_index| {
-            let prev = node_index[0];
-            let cur = node_index[1];
-
-            let edge = graph.graph.find_edge(prev, cur).unwrap();
-            let node = &graph.graph[cur];
-            let dist_accum_prev = dist_accum;
-            dist_accum += graph.graph[edge].dist;
-            (dist_accum_prev, node.ele)
-        }).collect::<Vec<(f64, f64)>>();
-
+        if path.len() < 2 {
+            println!("Path found but is too short!");
+            return Err(anyhow::Error::msg("No path found"));
+        }
         let response = render_route(&graph, Cow::from(&path), start_snap, end_snap);
-
         Ok(response)
     } else {
         println!("No path found");
