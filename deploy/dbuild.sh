@@ -1,6 +1,6 @@
 #!/bin/sh
 
-HOST=34.72.222.155
+HOST=34.173.85.101
 
 if [[ -z REMOTE_BUILD ]]; then
   echo "Remote build"

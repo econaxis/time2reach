@@ -12,6 +12,7 @@ FROM base as chef
 
 RUN apt-get install -y  build-essential pkg-config cmake libclang-dev libssl-dev --no-install-recommends
 
+COPY rust-toolchain.toml rust-toolchain.toml
 COPY deploy/deploy.sh deploy/
 RUN sh deploy/deploy.sh
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -24,6 +25,8 @@ COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 COPY gtfs-structure gtfs-structure
 COPY gtfs-structure-2 gtfs-structure-2
+COPY bike bike
+COPY petgraph petgraph
 
 COPY src src
 
@@ -38,6 +41,9 @@ RUN cargo chef cook --profile prod --recipe-path recipe.json --features prod
 
 COPY gtfs-structure gtfs-structure
 COPY gtfs-structure-2 gtfs-structure-2
+COPY bike bike
+COPY petgraph petgraph
+
 
 RUN cargo build -p gtfs-structure-2 --profile prod
 

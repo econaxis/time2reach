@@ -9,10 +9,13 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { type HighlightedPointElev } from "@/routeHighlight";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+import { color } from "chart.js/helpers";
+import { hashElevationData } from "@/bike";
 
 interface LineGraphProps {
-    elevationData: number[]
+    elevationDataHistory: number[][][]
+    elevationData: number[][]
     hp?: HighlightedPointElev
 }
 
@@ -21,14 +24,40 @@ function _unused() {
     return Chart.length + 1;
 }
 
+export default function ElevationChart({ elevationData, elevationDataHistory, hp }: LineGraphProps) {
+    const chartRef = useRef<ChartJS<"line"> | undefined>()
 
-export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
-    const chartRef = useRef<ChartJS | undefined>()
+    useEffect(() => {
+        if (hp && chartRef.current && elevationData) {
+            const chart = chartRef.current;
+            console.log("Setting active elements", hp.elevation_index, chart.data)
+
+            if (hp.elevation_index >= chart.data.datasets[0].data.length) {
+                console.warn("Elevation index out of bounds")
+                return
+            }
+            chart.setActiveElements([{
+                datasetIndex: 0,
+                index: hp.elevation_index,
+            }])
+            // tooltip.setActiveElements([
+            //     {
+            //         datasetIndex: 0,
+            //         index: hp.elevation_index,
+            //     }
+            // ], {
+            //     x: (chartArea.left + chartArea.right) / 2,
+            //     y: (chartArea.top + chartArea.bottom) / 2,
+            // });
+            chart.update();
+        }
+    }, [hp, chartRef.current]);
 
     if (!elevationData) {
         return <></>;
     }
 
+    console.log("Currently rendered: ", hashElevationData(elevationData), elevationData.length)
     const chartData = {
         datasets: [
             {
@@ -37,64 +66,68 @@ export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
                 borderColor: "rgba(75,192,192,1)",
                 borderWidth: 1,
                 radius: 0,
-                fill: { target: "origin", above: "rgba(75,192,192,0.4)" },
-            },
-            {
-                label: "",
-                data: [{ x: 0, y: elevationData[elevationData.length - 1][1] }],
-                yAxisID: "y1",
+                fill: { target: "origin", above: "rgba(45,231,231,0.2)" },
             }
         ],
     };
+    for (const [index, history] of elevationDataHistory.entries()) {
+        if (index === elevationDataHistory.length - 1) break;
+        if (index !== 0) continue;
 
-    if (hp) {
-        const chart = chartRef.current;
-        chart.setActiveElements([{
-            datasetIndex: 0,
-            index: hp.elevation_index,
-        }])
-        // tooltip.setActiveElements([
-        //     {
-        //         datasetIndex: 0,
-        //         index: hp.elevation_index,
-        //     }
-        // ], {
-        //     x: (chartArea.left + chartArea.right) / 2,
-        //     y: (chartArea.top + chartArea.bottom) / 2,
-        // });
-        chart.update();
+        const primary = "rgba(97,106,110,0.8)"
+        // const alpha = 0.2 + (0.8 / elevationDataHistory.length) * index;
+        const alpha = 0.8;
+        const secondary = `rgba(177,188,190,${alpha})`
+        const color = index === elevationDataHistory.length - 2 ? primary : secondary;
+
+        chartData.datasets.push({
+            borderColor: color,
+            borderWidth: 0.55,
+            data: history.map((a) => ({ x: a[0], y: a[1] })),
+            fill: undefined,
+            label: "",
+            radius: 0,
+            yAxisID: "y",
+        });
     }
 
-    const maxRight = elevationData[elevationData.length - 1][1] as number + 1;
-    const maxLeft = Math.max(...elevationData.map((a) => a[1]));
+    let elevData1: number[][];
+    if (elevationDataHistory.length > 0) {
+        elevData1 = elevationDataHistory[0];
+    } else {
+        elevData1 = elevationData;
+    }
+
+    const maxRight = elevData1[elevData1.length - 1][1] + 1;
+    const maxLeft = Math.max(...elevData1.map((a) => a[1]));
 
     const maxTotal = Math.max(maxRight, maxLeft);
-    const distance = Math.round(elevationData[elevationData.length - 1][0]);
+    const distance = Math.round(elevData1[elevData1.length - 1][0]);
     const useKilometers = distance > 4000;
     const options = {
-        animation: true,
+        animation: false as false,
         scales: {
-            y1: {
-                grid: { drawTicks: false },
-                min: 0,
-                max: maxTotal,
-                ticks: {
-                    stepSize: 1,
-                    autoSkip: false,
-                    callback: (value, index, values) => {
-                        if (index === values.length - 1) {
-                            // Max elevation tick
-                            return Math.round(value).toString();
-                        } else if (value === Math.round(elevationData[elevationData.length - 1][1])) {
-                            // End (destination) tick
-                            return value.toString();
-                        }
-                        // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
-                    },
-                },
-                type: "linear",
-                position: 'right'
-            },
+            // y1: {
+            //     grid: { drawTicks: false },
+            //     min: 0,
+            //     max: maxTotal,
+            //     ticks: {
+            //         stepSize: 1,
+            //         autoSkip: false,
+            //         callback: (value, index, values) => {
+            //             if (index === values.length - 1) {
+            //                 // Max elevation tick
+            //                 return Math.round(value).toString();
+            //             } else if (value === Math.round(elevationData[elevationData.length - 1][1])) {
+            //                 // End (destination) tick
+            //                 return value.toString();
+            //             }
+            //             // else if (value === Math.round(data[data.length - 1][1])) { return value.toString(); } else return null;
+            //         },
+            //     },
+            //     type: "linear",
+            //     position: 'right'
+            // },
             y: {
                 grid: { drawTicks: false },
                 min: 0,
@@ -102,11 +135,11 @@ export default function ElevationChart({ elevationData, hp }: LineGraphProps) {
                 ticks: {
                     stepSize: 1,
                     autoSkip: false,
-                    callback: (value, index, values) => {
+                    callback: (value, index, _values) => {
                          if (index === 0) {
                              // 0 tick
                             return Math.round(value).toString();
-                        } else if (value === Math.round(elevationData[0][1])) {
+                        } else if (value === Math.round(elevData1[0][1])) {
                              // Start (origin) tick
                             return Math.round(value).toString();
                         }

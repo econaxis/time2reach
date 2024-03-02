@@ -10,6 +10,7 @@ import { BlurBackground, WelcomePopup } from "./welcome-popup";
 import { InformationIcon } from "./information-icon";
 import { type BrightnessContextInt } from "./time-slider";
 import { BikeMap } from "./bike";
+import { JSX } from "react/jsx-runtime";
 
 export const BG_WHITE_COLOR = "bg-zinc-50";
 
@@ -30,13 +31,13 @@ export const CITY_LOCATION = {
 };
 
 export function MapboxGLCanvasBrightnessHack({ brightness }: { brightness: number }) {
-    const element1 = [...document.getElementsByClassName('mapboxgl-canvas')] as HTMLCanvasElement[];
+    const element1 = [...document.getElementsByClassName("mapboxgl-canvas")] as HTMLCanvasElement[];
     useEffect(() => {
         // Skip first element as that is the default map layer
         for (const element of element1) {
             if (element?.style) element.style.filter = `brightness(${brightness}%)`;
         }
-    }, [brightness, element1])
+    }, [brightness, element1]);
 
     return <></>;
 }
@@ -47,7 +48,15 @@ function setPathToCity(city: string) {
 }
 
 export function App() {
-    return <BikeMap/>
+    const path = window.location.pathname;
+
+    let component: JSX.Element;
+    if (path === "/bike") {
+        component = <BikeMap />;
+    } else {
+        component = <Time2ReachApp />;
+    }
+    return <React.StrictMode>{component}</React.StrictMode>;
 }
 
 export function Time2ReachApp() {
@@ -64,9 +73,10 @@ export function Time2ReachApp() {
     const [currentStartingLoc, setCurrentStartingLoc] = useState(CITY_LOCATION[DEFAULT_CITY]);
 
     const [popupAccepted, setPopupAccepted] = useState(false);
-    const [brightness, setBrightness] = useState(145);
+    const [brightness, setBrightness] = useState(135);
 
     const setCityFromPill = (cityName: string) => {
+        console.log("Set city", cityName)
         setCurrentCity(cityName);
         setCurrentStartingLoc(CITY_LOCATION[cityName]);
         setPathToCity(cityName);

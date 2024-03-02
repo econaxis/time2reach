@@ -69,6 +69,7 @@ fn calculate_calories_for_edge(from: NodeIndex, to: NodeIndex, graph: &AGraph) -
         calories,
         uphill_meters,
         downhill_meters,
+        total_meters: edge_dist,
     }
 }
 

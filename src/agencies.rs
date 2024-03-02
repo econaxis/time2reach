@@ -76,6 +76,9 @@ pub struct Agency {
 
 pub fn load_all_gtfs() -> FxHashMap<City, (Gtfs1, Vec<Agency>)> {
     let mut result: FxHashMap<City, (Gtfs1, Vec<Agency>)> = FxHashMap::default();
+    if !cfg!(feature = "prod") {
+        return result;
+    }
 
     for (path, city) in gtfspaths() {
         let gtfs_list = initialize_gtfs_as_bson(&format!("city-gtfs/{}", path), city);

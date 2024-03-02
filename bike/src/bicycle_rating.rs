@@ -21,51 +21,69 @@ pub fn filter_by_tag(osm_tags: &HashMap<String, String>) -> bool {
     }
     return true;
 }
+struct MaxValue<T> {
+    value: T,
+}
+
+impl<T: Ord> MaxValue<T> {
+    fn new(v: T) -> MaxValue<T> {
+        MaxValue { value: v }
+    }
+
+    fn update(&mut self, value: T) {
+        if value > self.value {
+            self.value = value;
+        }
+    }
+}
 pub fn rate_bicycle_friendliness(osm_tags: &HashMap<String, String>) -> u8 {
     // Check for bicycle-related tags
     let mut footway = false;
     let mut bicycle = false;
+
+    let mut high_score = MaxValue::new(0);
+
     for (key, value) in osm_tags {
         if key.starts_with("cycleway") {
             match value.as_str() {
-                "lane" | "opposite_lane" | "opposite" | "track" | "opposite_track" => return 5,  // Designated for bicycles
-                "shared_lane" | "share_busway" | "opposite_share_busway" | "shared" => return 4,  // Bicycle-friendly road
-                "no" => return 0,  // Not bicycle-friendly
+                "exclusive" | "lane" | "opposite_lane" | "opposite" | "track" | "opposite_track" => high_score.update(5),  // Designated for bicycles
+                "shared_lane" | "share_busway" | "opposite_share_busway" | "shared" => high_score.update(4),  // Bicycle-friendly road
+                "no" => high_score.update(0),  // Not bicycle-friendly
                 _ => {}
             }
         }
         // Check for highway type
         if key.starts_with("highway") {
             match value.as_str() {
-                "path" | "cycleway" => return 5,  // Designated for bicycles
-                "motorway" | "trunk" | "primary" | "secondary" => return 1,  // Less bicycle-friendly for busy roads
-                "tertiary" => return 2,
-                "service" | "residential" | "unclassified" => return 3,  // More bicycle-friendly for residential roads
+                "path" | "cycleway" => high_score.update(5),  // Designated for bicycles
+                "motorway" | "trunk" | "primary" | "secondary" => high_score.update(1),  // Less bicycle-friendly for busy roads
+                "tertiary" => high_score.update(2),
+                "service" | "residential" | "unclassified" => high_score.update(3),  // More bicycle-friendly for residential roads
                 "footway" | "pedestrian" => footway = true,
-                "steps" | "corridor" => return 0,  // Stairs are not bicycle-friendly
+                "steps" | "corridor" => high_score.update(0),  // Stairs are not bicycle-friendly
                 _ => {}  // Default rating for other highway types
             }
         }
         if key.starts_with("bicycle") {
             match value.as_str() {
-                "designated" => return 5,  // Designated for bicycles
+                "designated" => high_score.update(5),  // Designated for bicycles
                 "yes" | "permissive" | "use_sidepath" => {
                     bicycle = true;
                 }  // Bicycle-friendly road
-                "no" => return 0,  // Not bicycle-friendly
+                "no" => high_score.update(0),  // Not bicycle-friendly
                 _ => {}
             }
         }
     }
 
     match (footway, bicycle) {
-        (true, true) => return 5,  // Bicycle-friendly footway
-        (true, false) => return 0,
-        (false, true) => return 3,
+        (true, true) => high_score.update(5),  // Bicycle-friendly footway
+        (true, false) => high_score.update(0),
+        (false, true) => high_score.update(3),
         _ => {}
     }
 
     // eprintln!("No bicycle-related tags found for this way. {:?}", osm_tags);
 
-    return 2;
+    return high_score.value;
 }

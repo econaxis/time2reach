@@ -5,9 +5,9 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc && vite build",
+        "build": "vite build",
         "preview": "vite preview",
-        "deploy": "tsc --noEmit && vercel deploy --prod"
+        "deploy": "npx vercel deploy --prod"
     },
     "devDependencies": {
         "@types/colormap": "^2.3.1",

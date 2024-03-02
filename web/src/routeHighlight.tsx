@@ -54,10 +54,11 @@ export default function RouteHighlight(props: RouteHighlightProps) {
 
             // Check if the distance is within 10 meters
             if (projectedPoint.dist(projectedMouse) <= 25) {
+                console.log("HIGHLIGHTING", nearestParams.properties.index)
                 setHighlightPos({
                     point: projectedPoint
                 })
-                props.setHighlightedPoints({ geojson_index: nearestParams.properties.index });
+                props.setHighlightedPoints({ geojson_index: nearestParams.properties.index || 0 });
             } else {
                 setHighlightPos(undefined);
             }

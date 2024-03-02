@@ -9,6 +9,7 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::prelude::EdgeRef;
 use serde::Serialize;
 use serde_json::json;
+use crate::rate_bicycle_friendliness;
 use petgraph::visit::IntoEdgeReferences;
 use crate::graph::{AGraph, Graph, Point};
 use crate::real_edge_weight::RouteOptions;
@@ -78,6 +79,7 @@ pub struct Energy {
     pub calories: f64,
     pub uphill_meters: f64,
     pub downhill_meters: f64,
+    pub total_meters: f64,
 }
 
 impl AddAssign for Energy {
@@ -85,13 +87,14 @@ impl AddAssign for Energy {
         self.calories += rhs.calories;
         self.uphill_meters += rhs.uphill_meters;
         self.downhill_meters += rhs.downhill_meters;
+        self.total_meters += rhs.total_meters;
     }
 }
 
 #[derive(Serialize, Debug)]
 pub struct RouteResponse {
     pub route: GeoJson,
-    pub elevation: Vec<(f64, f64)>,
+    pub route_metadata: Vec<(f64, f64, u8)>,
     pub elevation_index: Vec<usize>,
     pub energy: Option<Energy>,
 }
@@ -148,7 +151,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
     let mut has_started = false;
     let mut has_ended = false;
 
-    let mut elevations = Vec::new();
+    let mut route_metadata = Vec::new();
 
     // Maps each linestring point to an elevation index
     // Since we're rendering curved routes, one node has multiple linestring points
@@ -197,13 +200,19 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         let mut prev: Option<Point> = None;
         let mut current_cumdist = cumdist;
         pointlist.iter().for_each(|x| {
-            elevation_index_map.push(elevations.len());
+            elevation_index_map.push(route_metadata.len());
 
             if let Some(prev) = &prev {
                 current_cumdist += prev.haversine_distance_ele(&x);
             }
             prev = Some(x.clone());
-            elevations.push((current_cumdist, x.ele));
+
+            let bike_friendly = rate_bicycle_friendliness(&edge.kvs);
+            if x.haversine_distance(&Point::new( 37.732368, -122.4397539)) <= 0.01 {
+                println!("Found matching point! {:?} {} {:?}", edge.kvs, bike_friendly, x);
+            }
+
+            route_metadata.push((current_cumdist, x.ele, bike_friendly));
         });
 
         if !pointlist.is_empty() {
@@ -212,13 +221,16 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
             cumdist = current_cumdist;
         }
 
-
         pointlist.into_iter().map(|point| vec![point.lon, point.lat])
     }).collect();
 
-    if let Some(last) = nodes.last() {
-        let node = &graph.graph[*last];
-        elevations.push((cumdist, node.ele));
+    if nodes.len() >= 2 {
+        let last = nodes[nodes.len() - 1];
+        let secondlast = nodes[nodes.len() - 2];
+        let node = &graph.graph[last];
+        let edge = graph.graph.find_edge(secondlast, last).unwrap();
+        let edge = &graph.graph[edge];
+        route_metadata.push((cumdist, node.ele, rate_bicycle_friendliness(&edge.kvs)));
     }
 
     assert!(has_started);
@@ -240,7 +252,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
 
     RouteResponse {
         route: GeoJson::Feature(feature),
-        elevation: elevations,
+        route_metadata,
         elevation_index: elevation_index_map,
         energy: None
     }
@@ -295,7 +307,7 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
             let point = node.point();
 
             let cost = end.haversine_distance(&point);
-            cost
+            cost * 0.80
         },
     ) {
         if path.len() < 2 {

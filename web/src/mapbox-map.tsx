@@ -6,6 +6,7 @@ import { getDetails } from "./get_data";
 import { DetailPopup, type TripDetailsTransit } from "./format-details";
 import track from "./analytics";
 import { installDoubleTap } from "./double-tap-recognizer";
+import { GIF_RENDER } from "@/gif-generator";
 
 export const defaultColor = "rgba(143,143,143,0.13)";
 
@@ -191,7 +192,7 @@ export async function setAndColorNewOriginLocation(currentLatLng, currentOptions
         currentOptions.duration,
         currentOptions.agencies,
         currentOptions.modes,
-        currentOptions.minDuration
+        // currentOptions.minDuration
     );
 }
 
@@ -304,12 +305,12 @@ export function MapboxMap({ timeData, paintProperty, setLatLng, setSpinnerLoadin
         });
     }, [paintProperty, mapboxLoading, rerender]);
 
-    // useEffect(() => {
-    //     if (map == null) return;
-    //     map.setCenter(currentPos);
-    //
-    //     map.setZoom(11);
-    // }, [currentPos]);
+    useEffect(() => {
+        if (map == null) return;
+        map.setCenter(currentPos);
+
+        map.setZoom(11);
+    }, [currentPos]);
 
     // console.log("Center loc is ", map?.getCenter())
     return (

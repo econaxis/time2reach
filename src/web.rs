@@ -295,21 +295,21 @@ pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Re
     bike_endpoint
 }
 pub async fn main() {
-    // let all_gtfs = load_all_gtfs();
+    let all_gtfs = load_all_gtfs();
     let agencies: Vec<Agency> = Vec::new();
-    // let agencies: Vec<Agency> = all_gtfs.values().map(|a| &a.1).flatten().cloned().collect();
-    // println!("Agencies is {:?}", agencies);
-    // let all_gtfs_future = all_gtfs.into_iter().map(|(city, (gtfs, _agency))| {
-    //     tokio::task::spawn_blocking(move || (city, gtfs_to_city_appdata(city, gtfs)))
-    // });
+    let agencies: Vec<Agency> = all_gtfs.values().map(|a| &a.1).flatten().cloned().collect();
+    println!("Agencies is {:?}", agencies);
+    let all_gtfs_future = all_gtfs.into_iter().map(|(city, (gtfs, _agency))| {
+        tokio::task::spawn_blocking(move || (city, gtfs_to_city_appdata(city, gtfs)))
+    });
 
-    //
-    // let mut temp = FuturesUnordered::from_iter(all_gtfs_future);
-    // while let Some(result) = temp.next().await {
-    //     let (city, ad) = result.unwrap();
-    //     all_gtfs.insert(city, ad);
-    // }
+
     let mut all_gtfs: FxHashMap<City, CityAppData> = FxHashMap::default();
+    let mut temp = FuturesUnordered::from_iter(all_gtfs_future);
+    while let Some(result) = temp.next().await {
+        let (city, ad) = result.unwrap();
+        all_gtfs.insert(city, ad);
+    }
     let appdata = Arc::new(AllAppData { ads: all_gtfs, bikegraph: Arc::new(bike::parse_graph()) });
 
     let bike_endpoint = bike_endpoints(appdata.clone());

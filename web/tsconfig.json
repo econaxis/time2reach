@@ -13,6 +13,7 @@
     ],
     "skipLibCheck": true,
     "esModuleInterop": false,
+    "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,
 //    "strict": true,
     "module": "ESNext",

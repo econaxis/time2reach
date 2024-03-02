@@ -12,7 +12,6 @@ export function saveImage(name: string) {
     const CANVAS_CLASS = ".mapboxgl-canvas";
     const canvas = document.querySelector(CANVAS_CLASS) as HTMLCanvasElement;
 
-    // @ts-expect-error
     canvas.toBlob((blob) => {
         saveAs(blob, "test/" + name + ".png");
     });
@@ -35,4 +34,4 @@ export function useGifRenderNewAnimationFrame(
 
 export let GIF_RENDER_START_TIME = 5 * 3600;
 GIF_RENDER_START_TIME = 43500;
-export const GIF_RENDER = IS_LOCAL && true;
+export const GIF_RENDER = IS_LOCAL && false;

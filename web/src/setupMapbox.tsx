@@ -3,9 +3,9 @@ import { Fragment, useEffect } from "react";
 import { type OrgDest } from "@/bike";
 
 export interface SetupProps {
-    map: mapboxgl.Map | undefined;
+    map: mapboxgl.Map | undefined
     // A function that takes a function that takes in an OrgDest and returns void
-    setOrgDest: (f: (orgDest: OrgDest) => OrgDest) => void;
+    setOrgDest: (f: (orgDest: OrgDest) => OrgDest) => void
 }
 
 export function SetupMapbox(props: SetupProps) {
@@ -14,7 +14,6 @@ export function SetupMapbox(props: SetupProps) {
         if (!map) {
             return;
         }
-        console.log("SETTING UP MAPBOX");
         const dblClickHandler = (e) => {
             e.preventDefault();
 

@@ -173,6 +173,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const [timeData, setTimeData] = useState<any>(null);
 
     const cityLocation = CITY_LOCATION[currentCity];
+    console.log("Current city mapbox", currentCity, cityLocation)
 
     useEffect(() => {
         setLastWorkingLocation(defaultStartLoc);

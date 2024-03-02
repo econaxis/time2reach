@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 export interface SliderProps {
     startValue: number
-    onChange: (value: number) => void
+    onChange: (value: number, commit: boolean) => void
     label: string
     hoverDescription: string
     className?: string
@@ -19,7 +19,7 @@ export function MySlider(props: SliderProps) {
 
     const id = props.label.toLowerCase().replace(" ", "-");
     return (
-        <div className={cn(props.className, "grid gap-2 pt-2")}>
+        <div className={cn(props.className, "grid gap-2 pt-1")}>
             <HoverCard openDelay={250}>
                 <HoverCardTrigger asChild>
                     <div className="grid gap-3">
@@ -33,10 +33,14 @@ export function MySlider(props: SliderProps) {
                             id={id}
                             max={1}
                             defaultValue={[value]}
-                            step={0.02}
+                            step={0.1}
                             onValueChange={(x) => {
                                 setValue(x[0]);
-                                props.onChange(x[0]);
+                                props.onChange(x[0], false);
+                            }}
+                            onValueCommit={(x) => {
+                                setValue(x[0]);
+                                props.onChange(x[0], true);
                             }}
                         />
                     </div>
@@ -49,23 +53,48 @@ export function MySlider(props: SliderProps) {
     );
 }
 
-export function CaloriesCounter({ calories }: RouteInformation) {
+function GeneralLabel({ label, value, hover }: { label: string, value: number, hover?: string}) {
+    return (
+        <HoverCard openDelay={250}>
+            <HoverCardTrigger asChild>
+                <div className=" flex items-center justify-between">
+                    <Label>{label}</Label>
+                    <span className="w-12 px-2 py-0.5 text-right text-sm text-muted-foreground">
+                        {value}
+                    </span>
+                </div>
+            </HoverCardTrigger>
+            {hover && <HoverCardContent className="w-[260px] text-sm p-3" side="left">
+                {hover}
+            </HoverCardContent>}
+        </HoverCard>
+    );
+}
+export function CaloriesCounter({ energy }: RouteInformation) {
+    const { calories, uphill_meters, downhill_meters, total_meters } = energy;
+
+    let units = "meters";
+    let distance = total_meters;
+    if (total_meters > 10000) {
+        distance = total_meters / 1000;
+        units = "km";
+    }
     return (
         <>
-            <hr className="mt-2" />
-            <HoverCard openDelay={250}>
-                <HoverCardTrigger asChild>
-                    <div className=" flex items-center justify-between">
-                        <Label>Calories consumed</Label>
-                        <span className="w-12 px-2 py-0.5 text-right text-sm text-muted-foreground">
-                            {Math.round(calories)}
-                        </span>
-                    </div>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-[260px] text-sm p-3" side="left">
-                    Rough estimate of calories consumed based on hills and distance, assuming 86 kg rider + bike mass.
-                </HoverCardContent>
-            </HoverCard>
+        <hr className="mt-2" />
+        <GeneralLabel
+            label={`Distance (${units})`}
+            value={Math.round(distance)}/>
+        <GeneralLabel
+            label="Calories consumed"
+            value={Math.round(calories)}
+            hover={`Rough estimate of calories consumed based on hills and distance, assuming 86 kg rider + bike mass.`}/>
+        <GeneralLabel
+            label="Uphill (meters)"
+            value={Math.round(uphill_meters)}/>
+        <GeneralLabel
+            label="Downhill (meters)"
+            value={Math.round(downhill_meters)}/>
         </>
     );
 }
@@ -74,20 +103,27 @@ function SwitchOrgDest({ reverseOrgDest }: { reverseOrgDest: () => void }) {
     return <Button className="active:bg-secondary-dark" variant="secondary" onClick={reverseOrgDest}>Reverse directions</Button>
 }
 export interface SettingsProps {
-    setAvoidHills: (value: number) => void
-    setPreferProtectedLanes: (value: number) => void
+    setAvoidHills: (value: number, commit: boolean) => void
+    setPreferProtectedLanes: (value: number, commit: boolean) => void
     reverseOrgDest: () => void
 }
 
-export interface RouteInformation {
+export interface Energy {
     calories: number
+    uphill_meters: number
+    downhill_meters: number
+    total_meters: number
+}
+
+export interface RouteInformation {
+    energy: Energy
 }
 
 function Settings_({
     setAvoidHills,
     setPreferProtectedLanes,
-    calories,
-   reverseOrgDest
+    energy,
+    reverseOrgDest
 }: SettingsProps & RouteInformation) {
     return (
         <Card className="w-[240px] absolute top-0 right-0 z-10 m-5 p-6 pt-6 grid gap-5">
@@ -95,7 +131,7 @@ function Settings_({
                 // className="mt-5"
                 startValue={0.5}
                 onChange={setAvoidHills}
-                label={"Avoid hills"}
+                label={"Avoid steep hills"}
                 hoverDescription={
                     "Increase to prioritize avoiding steep hills (routes will have gradual slopes)"
                 }
@@ -104,12 +140,12 @@ function Settings_({
                 // className="mt-5"
                 startValue={0.5}
                 onChange={setPreferProtectedLanes}
-                label={"Prefer protected bike lanes"}
+                label={"Prefer bike lanes"}
                 hoverDescription={"Increase to prioritize routes that use bike lanes."}
             />
             <SwitchOrgDest reverseOrgDest={reverseOrgDest}/>
 
-            <CaloriesCounter calories={calories} />
+            <CaloriesCounter energy={energy} />
         </Card>
     );
 }

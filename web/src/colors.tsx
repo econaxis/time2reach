@@ -102,18 +102,18 @@ export class TimeColorMapper {
         this.calculate_colors();
     }
 
-    static async fetchCached(
-        location: mapboxgl.LngLat,
-        startTime: number,
-        durationRange: number,
-        agencies: Record<string, boolean>,
-        modes: Record<string, boolean>,
-        // @ts-expect-error
-        minDuration: number
-    ): Promise<Response> {
-        const data = await fetch(`http://localhost:8000/${startTime}`);
-        return data;
-    }
+    // static async fetchCached(
+    //     location: mapboxgl.LngLat,
+    //     startTime: number,
+    //     durationRange: number,
+    //     agencies: Record<string, boolean>,
+    //     modes: Record<string, boolean>,
+    //     // @ts-expect-error
+    //     minDuration: number
+    // ): Promise<Response> {
+    //     const data = await fetch(`http://localhost:8000/${startTime}`);
+    //     return data;
+    // }
 
     static async fetch(
         location: mapboxgl.LngLat,
@@ -121,8 +121,6 @@ export class TimeColorMapper {
         durationRange: number,
         agencies: Record<string, boolean>,
         modes: Record<string, boolean>,
-        // @ts-expect-error
-        minDuration: number
     ): Promise<TimeColorMapper> {
         const body = {
             latitude: location.lat,
@@ -134,8 +132,8 @@ export class TimeColorMapper {
         };
 
         let data;
-        if (GIF_RENDER) {
-            data = await this.fetchCached(location, startTime, durationRange, agencies, modes, minDuration);
+        if (GIF_RENDER && false) {
+            // data = await this.fetchCached(location, startTime, durationRange, agencies, modes, minDuration);
         } else {
             data = await fetch(`${baseUrl}/hello/`, {
                 method: "POST",

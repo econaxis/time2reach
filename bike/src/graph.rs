@@ -34,6 +34,9 @@ pub struct Point {
 
 
 impl Point {
+    pub fn new(lat: f64, lon: f64) -> Point {
+        Point { lat, lon, ele: 0.0 }
+    }
     fn eq(&self, b: &Point) -> bool {
         self.haversine_distance(b) <= 0.001
     }
@@ -134,7 +137,7 @@ pub struct Edge {
 }
 
 pub fn parse_graph() -> Graph {
-    let mut file = File::open("/Users/henry/graphhopper/export.json").unwrap();
+    let mut file = File::open("../graphhopper/norcal-small.json").unwrap();
     let mut json_str = String::new();
     file.read_to_string(&mut json_str);
 
