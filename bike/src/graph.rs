@@ -137,7 +137,7 @@ pub struct Edge {
 }
 
 pub fn parse_graph() -> Graph {
-    let mut file = File::open("../graphhopper/norcal-small.json").unwrap();
+    let mut file = File::open("city-gtfs/norcal-small.json").unwrap();
     let mut json_str = String::new();
     file.read_to_string(&mut json_str);
 

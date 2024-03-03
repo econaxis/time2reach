@@ -10,35 +10,34 @@ import {
 } from "@/components/ui/card";
 import { type HighlightedPointElev } from "@/routeHighlight";
 import { useEffect, useRef } from "react";
-import { color } from "chart.js/helpers";
-import { hashElevationData } from "@/bike";
+import type { ElevationChartData } from "@/bike";
 
 interface LineGraphProps {
-    elevationDataHistory: number[][][]
-    elevationData: number[][]
-    hp?: HighlightedPointElev
+    elevationData?: ElevationChartData
+    highlightedPoint?: HighlightedPointElev
 }
 
 // @ts-expect-error unused but it's fine because we need to import Chart to work
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function _unused() {
     return Chart.length + 1;
 }
 
-export default function ElevationChart({ elevationData, elevationDataHistory, hp }: LineGraphProps) {
+export default function ElevationChart({ elevationData, highlightedPoint }: LineGraphProps) {
     const chartRef = useRef<ChartJS<"line"> | undefined>()
 
     useEffect(() => {
-        if (hp && chartRef.current && elevationData) {
+        if (highlightedPoint && chartRef.current && elevationData) {
             const chart = chartRef.current;
-            console.log("Setting active elements", hp.elevation_index, chart.data)
+            console.log("Setting active elements", highlightedPoint.elevation_index, chart.data)
 
-            if (hp.elevation_index >= chart.data.datasets[0].data.length) {
+            if (highlightedPoint.elevation_index >= chart.data.datasets[0].data.length) {
                 console.warn("Elevation index out of bounds")
                 return
             }
             chart.setActiveElements([{
                 datasetIndex: 0,
-                index: hp.elevation_index,
+                index: highlightedPoint.elevation_index,
             }])
             // tooltip.setActiveElements([
             //     {
@@ -51,58 +50,72 @@ export default function ElevationChart({ elevationData, elevationDataHistory, hp
             // });
             chart.update();
         }
-    }, [hp, chartRef.current]);
+    }, [highlightedPoint, chartRef.current]);
 
     if (!elevationData) {
         return <></>;
     }
 
-    console.log("Currently rendered: ", hashElevationData(elevationData), elevationData.length)
-    const chartData = {
-        datasets: [
-            {
-                label: "",
-                data: elevationData.map((a) => ({ x: a[0], y: a[1] })),
-                borderColor: "rgba(75,192,192,1)",
-                borderWidth: 1,
-                radius: 0,
-                fill: { target: "origin", above: "rgba(45,231,231,0.2)" },
-            }
-        ],
-    };
-    for (const [index, history] of elevationDataHistory.entries()) {
-        if (index === elevationDataHistory.length - 1) break;
-        if (index !== 0) continue;
+    console.log("Currently rendering", elevationData)
+    const datasets: object[] = [];
+    // const chartData = {
+    //     datasets: [
+    //         {
+    //             label: "",
+    //             data: elevationData.foreground.map((a) => ({ x: a[0], y: a[1] })),
+    //             borderColor: "rgba(75,192,192,1)",
+    //             borderWidth: 1,
+    //             radius: 0,
+    //             fill: { target: "origin", above: "rgba(45,231,231,0.2)" },
+    //         }
+    //     ],
+    // };
 
-        const primary = "rgba(97,106,110,0.8)"
-        // const alpha = 0.2 + (0.8 / elevationDataHistory.length) * index;
-        const alpha = 0.8;
-        const secondary = `rgba(177,188,190,${alpha})`
-        const color = index === elevationDataHistory.length - 2 ? primary : secondary;
+    const borderColors = {
+        primary: 'rgba(75,192,192,1)',
+        secondary: 'rgb(112,112,112)'
+    }
+    const fillColors = {
+        primary: 'rgba(45,231,231,0.2)',
+        secondary: 'rgba(190,190,190,0)'
+    }
 
-        chartData.datasets.push({
-            borderColor: color,
+    let foregroundStatus: "primary" | "secondary" = "primary";
+    let backgroundStatus: "primary" | "secondary" = "secondary";
+    if (!elevationData.foreground) {
+        backgroundStatus = "primary";
+    }
+    if (elevationData.foreground) {
+        datasets.push({
+            borderColor: borderColors[foregroundStatus],
             borderWidth: 0.55,
-            data: history.map((a) => ({ x: a[0], y: a[1] })),
-            fill: undefined,
+            data: elevationData.foreground.map((a) => ({ x: a[0], y: a[1] })),
+            fill: { target: "origin", above: fillColors[foregroundStatus] },
             label: "",
             radius: 0,
             yAxisID: "y",
         });
     }
+    datasets.push({
+        borderColor: borderColors[backgroundStatus],
+        borderWidth: 0.55,
+        data: elevationData.background.map((a) => ({ x: a[0], y: a[1] })),
+        fill: { target: "origin", above: fillColors[backgroundStatus] },
+        label: "",
+        radius: 0,
+        yAxisID: "y",
+    });
 
-    let elevData1: number[][];
-    if (elevationDataHistory.length > 0) {
-        elevData1 = elevationDataHistory[0];
-    } else {
-        elevData1 = elevationData;
+    let elevDataForAxes: number[][] = elevationData.background;
+    if (elevationData.foreground && elevationData.foreground.length > elevationData.background.length) {
+        elevDataForAxes = elevationData.foreground;
     }
 
-    const maxRight = elevData1[elevData1.length - 1][1] + 1;
-    const maxLeft = Math.max(...elevData1.map((a) => a[1]));
+    const maxRight = elevDataForAxes[elevDataForAxes.length - 1][1] + 1;
+    const maxLeft = Math.max(...elevDataForAxes.map((a) => a[1]));
 
     const maxTotal = Math.max(maxRight, maxLeft);
-    const distance = Math.round(elevData1[elevData1.length - 1][0]);
+    const distance = Math.round(elevDataForAxes[elevDataForAxes.length - 1][0]);
     const useKilometers = distance > 4000;
     const options = {
         animation: false as false,
@@ -139,7 +152,7 @@ export default function ElevationChart({ elevationData, elevationDataHistory, hp
                          if (index === 0) {
                              // 0 tick
                             return Math.round(value).toString();
-                        } else if (value === Math.round(elevData1[0][1])) {
+                        } else if (value === Math.round(elevDataForAxes[0][1])) {
                              // Start (origin) tick
                             return Math.round(value).toString();
                         }
@@ -149,7 +162,7 @@ export default function ElevationChart({ elevationData, elevationDataHistory, hp
             x: {
                 grid: { drawTicks: false },
                 min: 0,
-                max: Math.round(Math.max(...elevationData.map((a) => a[0]))),
+                max: Math.round(Math.max(...elevDataForAxes.map((a) => a[0]))),
                 ticks: {
                     display: true,
                     autoSkip: false,
@@ -172,6 +185,10 @@ export default function ElevationChart({ elevationData, elevationDataHistory, hp
             }
         }
     };
+
+    const chartData = {
+        datasets,
+    }
     return (
         <Card className="w-[320px] absolute top-0 left-0 z-10">
             <CardHeader className="p-4">

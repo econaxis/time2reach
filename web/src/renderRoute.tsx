@@ -8,6 +8,7 @@ import RouteHighlight, {
 } from "@/routeHighlight";
 import { type Feature, type FeatureCollection, type LineString } from "geojson";
 import { Settings } from "@/Settings";
+import { baseUrl } from "@/dev-api";
 
 export const ROUTE_COLOR_BLUE = "#6A7EB8";
 
@@ -94,8 +95,7 @@ async function fetchBikeRoute(
     if (!origin || !destination || !routeSettings) {
         throw new Error("Origin or destination or route settings not set");
     }
-    const url = `http://localhost:3030/bike`;
-    // const url = `https://map.henryn.ca/api/v2/bike`;
+    const url = baseUrl + "/bike"
     const postData = {
         start: {
             latitude: origin.lat,

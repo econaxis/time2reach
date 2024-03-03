@@ -31,59 +31,34 @@ export function hashElevationData(elevationData: number[][]): string {
     return number.toString() + elevationData.length.toString();
 }
 
-function swapXY<T>(a: T[], idx1: number, idx2: number) {
-    const tmp = a[idx1];
-    a[idx1] = a[idx2];
-    a[idx2] = tmp;
-}
-
-type ElevData = number[][];
+export type ElevData = number[][];
 export interface ElevationChartData {
     background: ElevData
-    foreground: ElevData
+    foreground?: ElevData
 }
 function useHistory() {
-    const [history1, setHistory1] = useState<number[][][]>([]);
-    const [currentNotCommit, setCurrentNotCommit] = useState<number[][] | undefined>(undefined);
+    const [data, setData] = useState<ElevationChartData | undefined>(undefined);
 
-    const pushHistory = useCallback((elevationData: number[][], commit: boolean) => {
-        console.log("Commit", commit)
+    const pushHistory = (elevationData: ElevData, commit: boolean) => {
         if (!commit) {
-            setCurrentNotCommit(elevationData);
-            return
+            setData((data) => {
+               return {
+                     background: data?.background ?? [],
+                     foreground: elevationData
+               }
+            })
         } else {
-            setCurrentNotCommit(undefined);
+            setData({
+                    background: elevationData,
+                    foreground: undefined
+            })
         }
-        setHistory1((history_) => {
-            const history = [...history_];
-
-            const hash = hashElevationData(elevationData);
-            const foundIndex = history.findIndex((a) => hashElevationData(a) === hash)
-            if (foundIndex !== -1) {
-                if (history.length > 2) {
-                    // Always make sure the *last* route is the second last in history position
-                    swapXY(history, history.length - 2, history.length - 1)
-                }
-                swapXY(history, foundIndex, history.length - 1)
-                return history;
-            }
-            history.push(elevationData);
-            return history;
-        });
-    }, [])
-
-    const reset = useCallback(() => {
-        setHistory1([]);
-    }, []);
-
-    let current: number[][];
-    if (currentNotCommit) {
-        current = currentNotCommit;
-    } else {
-        current = history1[history1.length - 1];
     }
 
-    return { current, history: history1, pushHistory, reset };
+    const reset = () => {
+        setData(undefined);
+    }
+    return { current: data, pushHistory, reset };
 }
 
 export function BikeMap() {
@@ -91,7 +66,7 @@ export function BikeMap() {
 
     const [orgDest, setOrgDest] = useState<OrgDest>(DEFAULT_ORGDEST); // [origin, destination
     const [map, setMap] = useState<mapboxgl.Map | undefined>(undefined);
-    const { current, history, pushHistory, reset } = useHistory();
+    const { current, pushHistory, reset } = useHistory();
     const [highlightedPoint, setHighlightedPoint] = useState<HighlightedPointElev | undefined>(undefined); // [origin, destination
 
     const setOrgDestResetHistory = (...x: Parameters<typeof setOrgDest>) => {
@@ -131,7 +106,7 @@ export function BikeMap() {
     return (
         <QueryClientProvider client={queryClient}>
             <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}/>
-                <ElevationChart elevationData={current} elevationDataHistory={history} hp={highlightedPoint}/>
+                <ElevationChart elevationData={current} highlightedPoint={highlightedPoint}/>
                 <SetupMapbox setOrgDest={setOrgDestResetHistory} map={map} />
                 <RenderBikeRoute reverseOrgDest={reverseOrgDest} origin={orgDest.origin} destination={orgDest.destination} map={renderRouteMap} setRouteMetadata={setRouteMetadata} setHighlightedPoints={setHighlightedPoints}/>
         </QueryClientProvider>

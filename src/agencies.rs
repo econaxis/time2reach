@@ -76,6 +76,8 @@ pub struct Agency {
 
 pub fn load_all_gtfs() -> FxHashMap<City, (Gtfs1, Vec<Agency>)> {
     let mut result: FxHashMap<City, (Gtfs1, Vec<Agency>)> = FxHashMap::default();
+
+    // If we are in development mode, we don't want to load all the GTFS files
     if !cfg!(feature = "prod") {
         return result;
     }

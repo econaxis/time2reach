@@ -296,7 +296,6 @@ pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Re
 }
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
-    let agencies: Vec<Agency> = Vec::new();
     let agencies: Vec<Agency> = all_gtfs.values().map(|a| &a.1).flatten().cloned().collect();
     println!("Agencies is {:?}", agencies);
     let all_gtfs_future = all_gtfs.into_iter().map(|(city, (gtfs, _agency))| {
