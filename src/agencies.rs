@@ -90,7 +90,7 @@ pub fn load_all_gtfs() -> FxHashMap<City, (Gtfs1, Vec<Agency>)> {
                 public_name: this_gtfs.agency_name.to_string(),
                 path: path.to_string(),
                 short_code: this_gtfs.agency_name.to_string(),
-                city: city,
+                city,
             };
             if let Some((gtfs, agency_list)) = result.get_mut(&agency.city) {
                 agency_list.push(agency);
@@ -106,7 +106,7 @@ pub fn load_all_gtfs() -> FxHashMap<City, (Gtfs1, Vec<Agency>)> {
 }
 
 pub fn gtfspaths() -> Vec<(&'static str, City)> {
-    return vec![
+    vec![
         ("ttc", City::Toronto),
         ("up_express", City::Toronto),
         ("GO_GTFS", City::Toronto),
@@ -124,7 +124,7 @@ pub fn gtfspaths() -> Vec<(&'static str, City)> {
         ("paris-all", City::Paris),
         ("sanfran", City::SanFrancisco),
         ("chicago", City::Chicago),
-    ];
+    ]
 }
 
 // pub fn agencies() -> Vec<&'static Agency> {

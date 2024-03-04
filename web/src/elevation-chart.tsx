@@ -80,41 +80,39 @@ export default function ElevationChart({ elevationData, highlightedPoint }: Line
         secondary: 'rgba(190,190,190,0)'
     }
 
-    let foregroundStatus: "primary" | "secondary" = "primary";
+    const foregroundStatus: "primary" | "secondary" = "primary";
     let backgroundStatus: "primary" | "secondary" = "secondary";
     if (!elevationData.foreground) {
         backgroundStatus = "primary";
     }
-    if (elevationData.foreground) {
+    if (elevationData.background) {
         datasets.push({
-            borderColor: borderColors[foregroundStatus],
+            borderColor: borderColors[backgroundStatus],
             borderWidth: 0.55,
-            data: elevationData.foreground.map((a) => ({ x: a[0], y: a[1] })),
-            fill: { target: "origin", above: fillColors[foregroundStatus] },
+            data: elevationData.background.map((a) => ({ x: a[0], y: a[1] })),
+            fill: { target: "origin", above: fillColors[backgroundStatus] },
             label: "",
             radius: 0,
             yAxisID: "y",
         });
     }
     datasets.push({
-        borderColor: borderColors[backgroundStatus],
+        borderColor: borderColors[foregroundStatus],
         borderWidth: 0.55,
-        data: elevationData.background.map((a) => ({ x: a[0], y: a[1] })),
-        fill: { target: "origin", above: fillColors[backgroundStatus] },
+        data: elevationData.foreground.map((a) => ({ x: a[0], y: a[1] })),
+        fill: { target: "origin", above: fillColors[foregroundStatus] },
         label: "",
         radius: 0,
         yAxisID: "y",
     });
 
-    let elevDataForAxes: number[][] = elevationData.background;
-    if (elevationData.foreground && elevationData.foreground.length > elevationData.background.length) {
-        elevDataForAxes = elevationData.foreground;
+    let elevDataForAxes: number[][] = elevationData.foreground;
+    if (elevationData.background && elevationData.background.length > elevationData.foreground.length) {
+        elevDataForAxes = elevationData.background;
     }
 
-    const maxRight = elevDataForAxes[elevDataForAxes.length - 1][1] + 1;
-    const maxLeft = Math.max(...elevDataForAxes.map((a) => a[1]));
+    const maxTotal = elevationData.maxElevation + 20;
 
-    const maxTotal = Math.max(maxRight, maxLeft);
     const distance = Math.round(elevDataForAxes[elevDataForAxes.length - 1][0]);
     const useKilometers = distance > 4000;
     const options = {
@@ -162,7 +160,7 @@ export default function ElevationChart({ elevationData, highlightedPoint }: Line
             x: {
                 grid: { drawTicks: false },
                 min: 0,
-                max: Math.round(Math.max(...elevDataForAxes.map((a) => a[0]))),
+                max: Math.round(elevationData.maxDistance),
                 ticks: {
                     display: true,
                     autoSkip: false,
@@ -190,11 +188,12 @@ export default function ElevationChart({ elevationData, highlightedPoint }: Line
         datasets,
     }
     return (
-        <Card className="w-[320px] absolute top-0 left-0 z-10">
+        <Card className="w-[320px] absolute bottom-0 left-0 z-10 m-5">
             <CardHeader className="p-4">
                 <CardTitle>Elevation (meters)</CardTitle>
             </CardHeader>
             <CardContent className="p-2.5">
+                {/* @ts-expect-error chartRef is a ref */}
                 <Line ref={chartRef} data={chartData} options={options} />
             </CardContent>
         </Card>

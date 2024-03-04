@@ -70,7 +70,7 @@ export function MapboxWrapper(props: Props) {
                     type: 'raster-dem',
                     url: 'mapbox://mapbox.mapbox-terrain-dem-v1'
                 });
-                map1.setTerrain({ source: 'dem', exaggeration: 5 });
+                map1.setTerrain({ source: 'dem', exaggeration: 3.5 });
                 map1.addLayer(
                     {
                         id: 'hillshading',

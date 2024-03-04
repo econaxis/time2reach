@@ -7,6 +7,7 @@ import ElevationChart from "./elevation-chart";
 import "../app/globals.css"
 import { MapboxWrapper } from "@/mapbox-wrapper";
 import { type HighlightedPointElev } from "@/routeHighlight";
+import { ToFromSearchBox } from "@/search-box";
 
 export interface OrgDest {
     origin: mapboxgl.LngLat
@@ -19,38 +20,34 @@ const DEFAULT_ORGDEST = {
     // destination: undefined
 }
 
-export function hashElevationData(elevationData: number[][]): string {
-    let number = 0;
-
-    let index = 0;
-    for (const elev of elevationData) {
-        index += 0.2;
-        number += elev[0] * index + elev[1] * index;
-    }
-
-    return number.toString() + elevationData.length.toString();
-}
-
 export type ElevData = number[][];
 export interface ElevationChartData {
-    background: ElevData
-    foreground?: ElevData
+    background?: ElevData
+    foreground: ElevData
+    maxElevation: number
+    maxDistance: number
 }
 function useHistory() {
     const [data, setData] = useState<ElevationChartData | undefined>(undefined);
 
     const pushHistory = (elevationData: ElevData, commit: boolean) => {
+        const maxElevation = Math.max(...elevationData.map(a => a[1]), data?.maxElevation ?? 0)
+        const maxDistance = Math.max(...elevationData.map(a => a[0]), data?.maxDistance ?? 0)
         if (!commit) {
             setData((data) => {
                return {
                      background: data?.background ?? [],
-                     foreground: elevationData
+                     foreground: elevationData,
+                     maxElevation,
+                   maxDistance
                }
             })
         } else {
             setData({
-                    background: elevationData,
-                    foreground: undefined
+                    background: data?.background ?? [],
+                    foreground: elevationData,
+                    maxElevation,
+                maxDistance
             })
         }
     }
@@ -106,6 +103,7 @@ export function BikeMap() {
     return (
         <QueryClientProvider client={queryClient}>
             <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}/>
+                <ToFromSearchBox currentLocation={orgDest.origin} handleSetLocation={setOrgDestResetHistory} />
                 <ElevationChart elevationData={current} highlightedPoint={highlightedPoint}/>
                 <SetupMapbox setOrgDest={setOrgDestResetHistory} map={map} />
                 <RenderBikeRoute reverseOrgDest={reverseOrgDest} origin={orgDest.origin} destination={orgDest.destination} map={renderRouteMap} setRouteMetadata={setRouteMetadata} setHighlightedPoints={setHighlightedPoints}/>

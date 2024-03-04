@@ -26,7 +26,6 @@ export interface RenderRouteProps {
 
 export function RenderRoute(props: RenderRouteProps) {
     const { map, routeData } = props;
-    console.log("Rendering route", routeData)
 
     useEffect(() => {
         if (!map) {

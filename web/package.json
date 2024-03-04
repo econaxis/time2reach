@@ -28,6 +28,8 @@
         "vite-plugin-svgr": "^3.2.0"
     },
     "dependencies": {
+        "@mapbox/mapbox-gl-geocoder": "^5.0.2",
+        "@mapbox/search-js-react": "^1.0.0-beta.18",
         "@radix-ui/react-hover-card": "^1.0.7",
         "@radix-ui/react-label": "^2.0.2",
         "@radix-ui/react-slider": "^1.1.2",

@@ -44,18 +44,19 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
         _ => panic!("Invalid bicycle rating"),
     };
 
-    let bicycle_penalty_scaled = (bicycle_penalty + 0.5).powf((options.prefer_protected_bike_lanes + 0.05) * 2.0);
+    let bicycle_penalty_scaled = (bicycle_penalty + 0.5).powf((options.prefer_protected_bike_lanes + 0.01) * 2.0);
 
     let source = graph.node_weight(edgeref.source()).unwrap();
     let target = graph.node_weight(edgeref.target()).unwrap();
     let elevation_diff = target.ele - source.ele;
-    let slope = elevation_diff / edge.dist;
+    // let slope = elevation_diff / edge.dist;
+    //
+    // let elevation_penalty = (slope + 1.0).powi(1).abs() * elevation_diff.signum() * edge.dist;
+    // let elevation_penalty = if elevation_penalty.is_nan() { 0.0 } else { elevation_penalty };
+    // let elevation_penalty = if elevation_penalty < 0.0 { elevation_penalty / 1000.0 } else { elevation_penalty };
 
-    let elevation_penalty = (slope + 1.0).powi(30).abs() * elevation_diff.signum() * edge.dist;
-    let elevation_penalty = if elevation_penalty.is_nan() { 0.0 } else { elevation_penalty };
-    let elevation_penalty = if elevation_penalty < 0.0 { elevation_penalty / 1000.0 } else { elevation_penalty };
-
-    let avoid_steep_hills_scaled = 40000.0 * options.avoid_steep_hills.powi(7);
+    let avoid_steep_hills_scaled = 90000.0 * options.avoid_steep_hills.powi(30);
+    let elevation_penalty = elevation_diff.max(0.0);
 
     (edge.dist + elevation_penalty * avoid_steep_hills_scaled) * bicycle_penalty_scaled
 }

@@ -1,7 +1,6 @@
-use serde::Deserialize;
 use crate::Energy;
 use petgraph::graph::NodeIndex;
-use crate::{AGraph, Point};
+use crate::AGraph;
 
 /// Calculates the calories used for a route.
 

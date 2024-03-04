@@ -35,7 +35,7 @@ pub fn get_agency_id_from_short_name(short_name: &str) -> Option<u16> {
 
 #[test]
 fn test_nj() {
-    let gtfs = initialize_gtfs_as_bson("city-gtfs/nj-bus", City::NewYorkCity);
+    let _gtfs = initialize_gtfs_as_bson("city-gtfs/nj-bus", City::NewYorkCity);
 }
 pub fn initialize_gtfs_as_bson(path: &str, city: City) -> Vec<Gtfs1> {
     info!("Loading schedules for {path}");

@@ -22,7 +22,7 @@ use std::{fmt, io};
 use anyhow::{anyhow, Context};
 use futures::stream::FuturesUnordered;
 use std::sync::Arc;
-use geojson::GeoJson;
+
 
 use crate::trip_details::CalculateRequest;
 use crate::web_app_data::{AllAppData, CacheKey, CityAppData};
@@ -30,7 +30,7 @@ use crate::web_cache::{check_cache, insert_cache};
 use warp::http::HeaderValue;
 use warp::hyper::StatusCode;
 use warp::log::{Info, Log};
-use warp::path::{Exact, Tail};
+use warp::path::{Tail};
 use warp::reject::Reject;
 use warp::reply::Json;
 use warp::reply::Response;
@@ -273,7 +273,9 @@ struct BikeCalculateRequest {
     options: Option<RouteOptions>
 }
 pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    let bike_endpoint = warp::post()
+    
+
+    warp::post()
         .and(with_appdata(appdata.clone()))
         .and(warp::path!("bike"))
         .and(warp::body::json())
@@ -290,13 +292,11 @@ pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Re
         .map(|r: anyhow::Result<RouteResponse>| match r {
             Ok(a) => warp::reply::json(&a).into_response(),
             Err(e) => warp::reply::with_status(format!("{:#}", e), StatusCode::BAD_REQUEST).into_response(),
-        });
-
-    bike_endpoint
+        })
 }
 pub async fn main() {
     let all_gtfs = load_all_gtfs();
-    let agencies: Vec<Agency> = all_gtfs.values().map(|a| &a.1).flatten().cloned().collect();
+    let agencies: Vec<Agency> = all_gtfs.values().flat_map(|a| &a.1).cloned().collect();
     println!("Agencies is {:?}", agencies);
     let all_gtfs_future = all_gtfs.into_iter().map(|(city, (gtfs, _agency))| {
         tokio::task::spawn_blocking(move || (city, gtfs_to_city_appdata(city, gtfs)))
