@@ -23,7 +23,7 @@ function _unused() {
     return Chart.length + 1;
 }
 
-export default function ElevationChart({ elevationData, highlightedPoint }: LineGraphProps) {
+export default function ElevationChart({ elevationData, highlightedPoint, className }: LineGraphProps & { className?: string }) {
     const chartRef = useRef<ChartJS<"line"> | undefined>()
 
     useEffect(() => {
@@ -58,26 +58,13 @@ export default function ElevationChart({ elevationData, highlightedPoint }: Line
 
     console.log("Currently rendering", elevationData)
     const datasets: object[] = [];
-    // const chartData = {
-    //     datasets: [
-    //         {
-    //             label: "",
-    //             data: elevationData.foreground.map((a) => ({ x: a[0], y: a[1] })),
-    //             borderColor: "rgba(75,192,192,1)",
-    //             borderWidth: 1,
-    //             radius: 0,
-    //             fill: { target: "origin", above: "rgba(45,231,231,0.2)" },
-    //         }
-    //     ],
-    // };
-
     const borderColors = {
         primary: 'rgba(75,192,192,1)',
-        secondary: 'rgb(112,112,112)'
+        secondary: 'rgba(98,97,97,0.67)'
     }
     const fillColors = {
-        primary: 'rgba(45,231,231,0.2)',
-        secondary: 'rgba(190,190,190,0)'
+        primary: 'rgba(121,231,231,0.5)',
+        secondary: 'rgba(231,226,226,0.3)'
     }
 
     const foregroundStatus: "primary" | "secondary" = "primary";
@@ -140,24 +127,26 @@ export default function ElevationChart({ elevationData, highlightedPoint }: Line
             //     position: 'right'
             // },
             y: {
+                display: false,
                 grid: { drawTicks: false },
                 min: 0,
                 max: maxTotal,
-                ticks: {
-                    stepSize: 1,
-                    autoSkip: false,
-                    callback: (value, index, _values) => {
-                         if (index === 0) {
-                             // 0 tick
-                            return Math.round(value).toString();
-                        } else if (value === Math.round(elevDataForAxes[0][1])) {
-                             // Start (origin) tick
-                            return Math.round(value).toString();
-                        }
-                    },
-                },
+                // ticks: {
+                //     stepSize: 1,
+                //     autoSkip: false,
+                //     callback: (value, index, _values) => {
+                //          if (index === 0) {
+                //              // 0 tick
+                //             return Math.round(value).toString();
+                //         } else if (value === Math.round(elevDataForAxes[0][1])) {
+                //              // Start (origin) tick
+                //             return Math.round(value).toString();
+                //         }
+                //     },
+                // },
             },
             x: {
+                display: false,
                 grid: { drawTicks: false },
                 min: 0,
                 max: Math.round(elevationData.maxDistance),
@@ -174,28 +163,27 @@ export default function ElevationChart({ elevationData, highlightedPoint }: Line
                 type: "linear",
             },
         },
-        plugins: { legend: { display: false } },
+        plugins: {
+             legend: { display: false },
+            tooltip: { enabled: true }
+        },
         interaction: { intersect: false },
         elements: {
             point: {
                 hoverRadius: 2.2,
                 hoverBorderWidth: 4.5
             }
-        }
+        },
     };
 
     const chartData = {
         datasets,
     }
     return (
-        <Card className="w-[320px] absolute bottom-0 left-0 z-10 m-5">
-            <CardHeader className="p-4">
-                <CardTitle>Elevation (meters)</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2.5">
-                {/* @ts-expect-error chartRef is a ref */}
-                <Line ref={chartRef} data={chartData} options={options} />
-            </CardContent>
-        </Card>
+        <div className={`elevation-chart ${className ?? ''}`}>
+            {/* @ts-expect-error chartRef is a ref */}
+            <Line ref={chartRef} data={chartData} options={options} />
+            <h1 className="ml-2 text-sm">Elevation (meters)</h1>
+        </div>
     );
 }

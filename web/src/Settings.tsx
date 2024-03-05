@@ -106,6 +106,7 @@ export interface SettingsProps {
     setAvoidHills: (value: number, commit: boolean) => void
     setPreferProtectedLanes: (value: number, commit: boolean) => void
     reverseOrgDest: () => void
+    children?: React.ReactNode
 }
 
 export interface Energy {
@@ -123,10 +124,11 @@ function Settings_({
     setAvoidHills,
     setPreferProtectedLanes,
     energy,
-    reverseOrgDest
+    reverseOrgDest,
+    children
 }: SettingsProps & RouteInformation) {
-    return (
-        <Card className="w-[240px] absolute top-0 right-0 z-10 m-5 p-6 pt-6 grid gap-5">
+    return <div className="w-[240px] absolute top-0 right-0 m-5 z-10 pt-6" >
+        <Card className="w-full p-6 pt-6 flex flex-col gap-5">
             <MySlider
                 // className="mt-5"
                 startValue={0.5}
@@ -144,10 +146,11 @@ function Settings_({
                 hoverDescription={"Increase to prioritize routes that use bike lanes."}
             />
             <SwitchOrgDest reverseOrgDest={reverseOrgDest}/>
-
             <CaloriesCounter energy={energy} />
+            {children}
         </Card>
-    );
+
+        </div>
 }
 
 export const Settings = React.memo(Settings_);

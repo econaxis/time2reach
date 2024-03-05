@@ -109,3 +109,21 @@
 .text-xxs {
     font-size: 0.625rem;
 }
+
+.elevation-chart {
+    /*max-width: calc(100% - 1.5rem);*/
+    box-sizing: border-box;
+
+}
+/*.elevation-chart {*/
+/*    transition-property: backdrop-filter;*/
+
+/*    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);*/
+/*    transition-duration: 150ms;*/
+/*    border-radius: 20px;*/
+/*    !*padding:10px;*!*/
+/*    backdrop-filter: blur(1.2px);*/
+/*}*/
+/*.elevation-chart:hover {*/
+/*    backdrop-filter: blur(4px);*/
+/*}*/

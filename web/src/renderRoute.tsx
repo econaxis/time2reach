@@ -124,6 +124,7 @@ export interface RenderBikeRouteProps extends RenderStraightRouteProps {
     setRouteMetadata: (meta: number[][], commit: boolean) => void
     setHighlightedPoints: (_: HighlightedPointElev) => void
     reverseOrgDest: () => void
+    children?: React.ReactNode
 }
 
 export interface RouteSettings {
@@ -289,8 +290,10 @@ function RenderBikeRoute_(props: RenderBikeRouteProps) {
             setAvoidHills={setAvoidHills}
             setPreferProtectedLanes={setPreferProtectedLanes}
             reverseOrgDest={reverseOrgDest}
-        />
-        {bikeRouteComponent}
+        >
+            {bikeRouteComponent}
+            {props.children}
+        </Settings>
     </>
 }
 
