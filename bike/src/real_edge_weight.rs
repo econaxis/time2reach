@@ -49,11 +49,6 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
     let source = graph.node_weight(edgeref.source()).unwrap();
     let target = graph.node_weight(edgeref.target()).unwrap();
     let elevation_diff = target.ele - source.ele;
-    // let slope = elevation_diff / edge.dist;
-    //
-    // let elevation_penalty = (slope + 1.0).powi(1).abs() * elevation_diff.signum() * edge.dist;
-    // let elevation_penalty = if elevation_penalty.is_nan() { 0.0 } else { elevation_penalty };
-    // let elevation_penalty = if elevation_penalty < 0.0 { elevation_penalty / 1000.0 } else { elevation_penalty };
 
     let avoid_steep_hills_scaled = 90000.0 * options.avoid_steep_hills.powi(30);
     let elevation_penalty = elevation_diff.max(0.0);
