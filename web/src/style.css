@@ -110,11 +110,6 @@
     font-size: 0.625rem;
 }
 
-.elevation-chart {
-    /*max-width: calc(100% - 1.5rem);*/
-    box-sizing: border-box;
-
-}
 /*.elevation-chart {*/
 /*    transition-property: backdrop-filter;*/
 

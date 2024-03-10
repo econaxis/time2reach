@@ -36,6 +36,7 @@ export default function ElevationChart({ elevationData, highlightedPoint, classN
                 return
             }
             chart.setActiveElements([{
+                // TODO: fix dataset index
                 datasetIndex: 0,
                 index: highlightedPoint.elevation_index,
             }])
@@ -181,7 +182,7 @@ export default function ElevationChart({ elevationData, highlightedPoint, classN
     }
     return (
         <div className={`elevation-chart ${className ?? ''}`}>
-            {/* @ts-expect-error chartRef is a ref */}
+             {/* @ts-expect-error chartRef is a ref */}
             <Line ref={chartRef} data={chartData} options={options} />
             <h1 className="ml-2 text-sm">Elevation (meters)</h1>
         </div>
