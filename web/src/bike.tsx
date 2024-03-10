@@ -38,7 +38,7 @@ function useHistory() {
             if (!lastForeground.current) {
                 lastForeground.current = data?.foreground;
             }
-            setData((data) => {
+            setData((_data) => {
                return {
                      background: lastForeground.current,
                      foreground: elevationData,

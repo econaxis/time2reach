@@ -7,8 +7,8 @@ import RouteHighlight, {
     type HighlightedPointGeoJSON,
 } from "@/routeHighlight";
 import { type Feature, type FeatureCollection, type LineString } from "geojson";
-import { Settings } from "@/Settings";
 import { baseUrl } from "@/dev-api";
+import SettingsToggle from "@/SettingsToggle";
 
 export const ROUTE_COLOR_BLUE = "#6A7EB8";
 
@@ -284,8 +284,7 @@ function RenderBikeRoute_(props: RenderBikeRouteProps) {
                 </RenderRoute>;
     }
 
-    return <>
-        <Settings
+    return <SettingsToggle
             energy={energy}
             setAvoidHills={setAvoidHills}
             setPreferProtectedLanes={setPreferProtectedLanes}
@@ -293,8 +292,7 @@ function RenderBikeRoute_(props: RenderBikeRouteProps) {
         >
             {bikeRouteComponent}
             {props.children}
-        </Settings>
-    </>
+    </SettingsToggle>
 }
 
 export const RenderBikeRoute = React.memo(RenderBikeRoute_)

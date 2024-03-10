@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -16,6 +16,16 @@ export interface SliderProps {
 
 export function MySlider(props: SliderProps) {
     const [value, setValue] = React.useState(props.startValue);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        function handleResize() {
+            setIsMobile(window.innerWidth < 768);
+        }
+
+        window.addEventListener('resize', handleResize);
+        return () => { window.removeEventListener('resize', handleResize); };
+    }, []);
 
     const id = props.label.toLowerCase().replace(" ", "-");
     return (
@@ -45,7 +55,7 @@ export function MySlider(props: SliderProps) {
                         />
                     </div>
                 </HoverCardTrigger>
-                <HoverCardContent align="start" className="w-[260px] text-sm p-3" side="left">
+                <HoverCardContent align="start" className="w-[260px] text-sm p-3" side={isMobile ? "bottom" : "left"}>
                     {props.hoverDescription}
                 </HoverCardContent>
             </HoverCard>
@@ -53,7 +63,7 @@ export function MySlider(props: SliderProps) {
     );
 }
 
-function GeneralLabel({ label, value, hover }: { label: string, value: number, hover?: string}) {
+function GeneralLabel({ label, value, hover }: { label: string, value: number, hover?: string }) {
     return (
         <HoverCard openDelay={250}>
             <HoverCardTrigger asChild>
@@ -71,6 +81,7 @@ function GeneralLabel({ label, value, hover }: { label: string, value: number, h
     );
 }
 export function CaloriesCounter({ energy }: RouteInformation) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { calories, uphill_meters, downhill_meters, total_meters } = energy;
 
     let units = "meters";
@@ -121,36 +132,44 @@ export interface RouteInformation {
 }
 
 function Settings_({
-    setAvoidHills,
-    setPreferProtectedLanes,
-    energy,
-    reverseOrgDest,
-    children
-}: SettingsProps & RouteInformation) {
-    return <div className="w-[240px] absolute top-0 right-0 m-5 z-10 pt-6" >
-        <Card className="w-full p-6 pt-6 flex flex-col gap-5">
-            <MySlider
-                // className="mt-5"
-                startValue={0.5}
-                onChange={setAvoidHills}
-                label={"Avoid steep hills"}
-                hoverDescription={
-                    "Increase to prioritize avoiding steep hills (routes will have gradual slopes)"
-                }
-            />
-            <MySlider
-                // className="mt-5"
-                startValue={0.5}
-                onChange={setPreferProtectedLanes}
-                label={"Prefer bike lanes"}
-                hoverDescription={"Increase to prioritize routes that use bike lanes."}
-            />
-            <SwitchOrgDest reverseOrgDest={reverseOrgDest}/>
-            <CaloriesCounter energy={energy} />
-            {children}
-        </Card>
-
+                       setAvoidHills,
+                       setPreferProtectedLanes,
+                       energy,
+                       reverseOrgDest,
+                       children,
+                       onClose // Receive onClose method
+                   }: SettingsProps & RouteInformation & { onClose: () => void }) {
+    return (
+        <div className="w-full absolute bottom-20 right-0 z-10 pt-6">
+            <Card className="relative p-6 flex flex-col gap-5 m-5">
+                <button
+                    onClick={onClose}
+                    className="absolute top-0 right-0 m-2 text-gray-400 hover:text-gray-500"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <MySlider
+                    startValue={0.5}
+                    onChange={setAvoidHills}
+                    label={"Avoid steep hills"}
+                    hoverDescription={
+                        "Increase to prioritize avoiding steep hills (routes will have gradual slopes)"
+                    }
+                />
+                <MySlider
+                    startValue={0.5}
+                    onChange={setPreferProtectedLanes}
+                    label={"Prefer bike lanes"}
+                    hoverDescription={"Increase to prioritize routes that use bike lanes."}
+                />
+                <SwitchOrgDest reverseOrgDest={reverseOrgDest}/>
+                <CaloriesCounter energy={energy} />
+                {children}
+            </Card>
         </div>
+    );
 }
 
 export const Settings = React.memo(Settings_);

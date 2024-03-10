@@ -49,6 +49,7 @@
         "react": "^18.2.0",
         "react-chartjs-2": "^5.2.0",
         "react-dom": "^18.2.0",
+        "react-icons": "^5.0.1",
         "react-query": "^3.39.3",
         "tailwind-merge": "^2.0.0",
         "tailwindcss-animate": "^1.0.7"

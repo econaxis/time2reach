@@ -2,12 +2,6 @@ import Chart from "chart.js/auto";
 import { type Chart as ChartJS } from "chart.js";
 import { Line } from "react-chartjs-2";
 
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { type HighlightedPointElev } from "@/routeHighlight";
 import { useEffect, useRef } from "react";
 import type { ElevationChartData } from "@/bike";
