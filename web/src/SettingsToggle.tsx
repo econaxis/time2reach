@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { CiSettings } from "react-icons/ci";
 import { Button } from "@/components/ui/button";
 import { Settings } from "@/Settings";
@@ -11,9 +11,14 @@ interface SettingsToggleProps extends OmittedSettingsProps {
     children?: ReactNode
 }
 
+function mediaQuery(query: string) {
+    return window.matchMedia(query).matches;
+}
+
+const DESKTOP = mediaQuery("(min-width: 768px)"); // Example breakpoint for desktop
 export function SettingsToggle({ children, ...rest }: SettingsToggleProps) {
     const [isSettingsVisible, setIsSettingsVisible] = useState(false);
-    const settingsRef = useRef<HTMLDivElement>(null); // Typing the ref
+    const settingsRef = useRef<HTMLDivElement>(null);
 
     const toggleSettings = () => {
         setIsSettingsVisible(x => !x);
@@ -34,27 +39,33 @@ export function SettingsToggle({ children, ...rest }: SettingsToggleProps) {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, []); // Dependency array corrected to include the necessary dependencies
+    }, []);
 
-    return (
-        <>
-            {!isSettingsVisible && (
-                <Button
-                    className="fixed bottom-20 inset-x-0 w-max mx-auto"
-                    variant="secondary"
-                    onClick={toggleSettings}
-                >
-                    <CiSettings size={25} className="mr-1" />
-                    <span>Route Options</span>
-                </Button>
-            )}
-            {isSettingsVisible && (
-                <div ref={settingsRef}>
-                    <Settings {...rest} onClose={closeSettings} />
-                </div>
-            )}
-        </>
-    );
+    if (DESKTOP) {
+        // For desktop, always show settings without toggle functionality
+        return <Settings {...rest} onClose={undefined}> {children} </Settings>;
+    } else {
+        // For non-desktop, use the toggle functionality
+        return (
+            <>
+                {!isSettingsVisible && (
+                    <Button
+                        className="fixed bottom-16 inset-x-0 w-max mx-auto"
+                        variant="secondary"
+                        onClick={toggleSettings}
+                    >
+                        <CiSettings size={25} className="mr-1" />
+                        <span>Route Options</span>
+                    </Button>
+                )}
+                {isSettingsVisible && (
+                    <div ref={settingsRef}>
+                        <Settings {...rest} onClose={closeSettings}> {children} </Settings>
+                    </div>
+                )}
+            </>
+        );
+    }
 }
 
 export default SettingsToggle;

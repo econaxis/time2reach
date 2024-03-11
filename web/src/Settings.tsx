@@ -138,11 +138,12 @@ function Settings_({
                        reverseOrgDest,
                        children,
                        onClose // Receive onClose method
-                   }: SettingsProps & RouteInformation & { onClose: () => void }) {
+                   }: SettingsProps & RouteInformation & { onClose?: () => void }) {
+    const desktopClasses = " sm:w-80 sm:top-0 sm:mt-8"
     return (
-        <div className="w-full absolute bottom-20 right-0 z-10 pt-6">
+        <div className={"w-full sm:w-80 absolute bottom-20 right-0 z-10 pt-6" + desktopClasses}>
             <Card className="relative p-6 flex flex-col gap-5 m-5">
-                <button
+                {onClose && <button
                     onClick={onClose}
                     className="absolute top-0 right-0 m-2 text-gray-400 hover:text-gray-500"
                 >
@@ -150,6 +151,7 @@ function Settings_({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
+                }
                 <MySlider
                     startValue={0.5}
                     onChange={setAvoidHills}

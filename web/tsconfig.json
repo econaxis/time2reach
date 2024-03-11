@@ -30,7 +30,7 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "main.tsx"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules/**"],
 
   "references": [
     {

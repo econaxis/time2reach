@@ -11,9 +11,9 @@ export const LOCAL_API: boolean = IS_LOCAL;
 // export const mvtUrl: string = apiUrl
 
 // export const baseUrl: string = LOCAL_API ? "http://localhost:3030" : apiUrl
-export let baseUrl: string = LOCAL_API ? "http://127.0.0.1:3030" : "https://map.henryn.ca/api/v2";
+export const baseUrl: string = LOCAL_API ? "http://127.0.0.1:3030" : "https://map.henryn.ca/api/v2";
 
-export let mvtUrl: string = LOCAL_API
+export const mvtUrl: string = LOCAL_API
     ? "http://127.0.0.1:3030/mvt"
     : window.location.origin + "/api/v2/mvt";
 

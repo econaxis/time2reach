@@ -207,10 +207,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
             }
             prev = Some(x.clone());
 
-            let bike_friendly = rate_bicycle_friendliness(&edge.kvs);
-            if x.haversine_distance(&Point::new( 37.732368, -122.4397539)) <= 0.01 {
-                println!("Found matching point! {:?} {} {:?}", edge.kvs, bike_friendly, x);
-            }
+            let bike_friendly = edge.bike_friendly;
 
             route_metadata.push((current_cumdist, x.ele, bike_friendly));
         });
@@ -230,7 +227,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         let node = &graph.graph[last];
         let edge = graph.graph.find_edge(secondlast, last).unwrap();
         let edge = &graph.graph[edge];
-        route_metadata.push((cumdist, node.ele, rate_bicycle_friendliness(&edge.kvs)));
+        route_metadata.push((cumdist, node.ele, edge.bike_friendly));
     }
 
     assert!(has_started);

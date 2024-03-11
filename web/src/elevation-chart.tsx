@@ -20,6 +20,12 @@ function _unused() {
 export default function ElevationChart({ elevationData, highlightedPoint, className }: LineGraphProps & { className?: string }) {
     const chartRef = useRef<ChartJS<"line"> | undefined>()
 
+    const divRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        console.log("divRef", divRef.current)
+    }, []);
+
     useEffect(() => {
         if (highlightedPoint && chartRef.current && elevationData) {
             const chart = chartRef.current;
@@ -169,16 +175,19 @@ export default function ElevationChart({ elevationData, highlightedPoint, classN
                 hoverBorderWidth: 4.5
             }
         },
+        maintainAspectRatio: false,
     };
 
     const chartData = {
         datasets,
     }
     return (
-        <div className={`elevation-chart ${className ?? ''}`}>
-             {/* @ts-expect-error chartRef is a ref */}
-            <Line ref={chartRef} data={chartData} options={options} />
-            <h1 className="ml-2 text-sm">Elevation (meters)</h1>
+        <div className={" flex flex-col"}>
+            <div className={`elevation-chart ${className}`} ref={divRef}>
+                 {/* @ts-expect-error chartRef is a ref */}
+                <Line ref={chartRef} data={chartData} options={options} />
+            </div>
+                <h1 className="mt-3 text-sm">Elevation (meters)</h1>
         </div>
     );
 }

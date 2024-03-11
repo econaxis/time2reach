@@ -10,7 +10,7 @@ import { BlurBackground, WelcomePopup } from "./welcome-popup";
 import { InformationIcon } from "./information-icon";
 import { type BrightnessContextInt } from "./time-slider";
 import { BikeMap } from "./bike";
-import { JSX } from "react/jsx-runtime";
+import { type JSX } from "react/jsx-runtime";
 
 export const BG_WHITE_COLOR = "bg-zinc-50";
 

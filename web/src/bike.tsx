@@ -16,7 +16,7 @@ export interface OrgDest {
 
 const DEFAULT_ORGDEST = {
     origin: new mapboxgl.LngLat(-122.480, 37.732),
-    destination: new mapboxgl.LngLat(-122.4194, 37.7749)
+    destination: new mapboxgl.LngLat(-122.4194, 37.7769)
     // destination: undefined
 }
 
@@ -63,6 +63,15 @@ function useHistory() {
     return { current: data, pushHistory, reset };
 }
 
+const OrgDestContext = React.createContext<ReturnType<typeof useState<OrgDest>> | null>(null);
+export function useOrgDestContext(): ReturnType<typeof useState<OrgDest>> {
+    const context = React.useContext(OrgDestContext);
+    if (!context) {
+        throw new Error("useOrgDestContext must be used within a OrgDestProvider");
+    }
+    return context;
+}
+
 export function BikeMap() {
     const [queryClient] = React.useState(() => new QueryClient());
 
@@ -106,13 +115,15 @@ export function BikeMap() {
     }
 
     return (
-        <QueryClientProvider client={queryClient}>
-            <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}/>
-                <ToFromSearchBox currentLocation={orgDest.origin} handleSetLocation={setOrgDestResetHistory} />
-                <SetupMapbox setOrgDest={setOrgDestResetHistory} map={map} />
-                <RenderBikeRoute reverseOrgDest={reverseOrgDest} origin={orgDest.origin} destination={orgDest.destination} map={renderRouteMap} setRouteMetadata={setRouteMetadata} setHighlightedPoints={setHighlightedPoints}>
-                    <ElevationChart elevationData={current} highlightedPoint={highlightedPoint} className={''}/>
-                </RenderBikeRoute>
-        </QueryClientProvider>
+        <OrgDestContext.Provider value={[orgDest, setOrgDest]}>
+            <QueryClientProvider client={queryClient}>
+                <MapboxWrapper currentPos={new mapboxgl.LngLat(-122.4194, 37.7749)} onLoad={mapOnLoad}/>
+                    <ToFromSearchBox currentLocation={orgDest.origin} handleSetLocation={setOrgDestResetHistory} />
+                    <SetupMapbox setOrgDest={setOrgDestResetHistory} map={map} />
+                    <RenderBikeRoute reverseOrgDest={reverseOrgDest} origin={orgDest.origin} destination={orgDest.destination} map={renderRouteMap} setRouteMetadata={setRouteMetadata} setHighlightedPoints={setHighlightedPoints}>
+                        <ElevationChart elevationData={current} highlightedPoint={highlightedPoint} className={'max-h-32 sm:max-h-max'}/>
+                    </RenderBikeRoute>
+            </QueryClientProvider>
+        </OrgDestContext.Provider>
     );
 }

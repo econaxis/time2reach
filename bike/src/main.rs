@@ -1,3 +1,5 @@
+extern crate core;
+
 mod parse_graph;
 mod bicycle_rating;
 mod real_edge_weight;

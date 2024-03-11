@@ -1,9 +1,12 @@
-use serde::Deserialize;
+use core::fmt;
+use serde::{de, Deserialize, Deserializer};
 use std::collections::HashMap;
+use std::fmt::Write;
 use petgraph::graph::{EdgeIndex, NodeIndex, UnGraph};
 use std::fs::File;
 use serde_json::Value;
 use std::io::Read;
+use serde::de::Visitor;
 use crate::bicycle_rating::rate_bicycle_friendliness;
 use crate::bicycle_rating::filter_by_tag;
 use crate::parse_graph::PointSnap;
@@ -124,7 +127,7 @@ impl Node {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct Edge {
+pub struct EdgeHelper {
     pub id: usize,
     #[serde(rename = "nodeA")]
     pub source: usize,
@@ -136,17 +139,64 @@ pub struct Edge {
     pub points: Vec<Point>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Edge {
+    pub id: usize,
+    pub source: usize,
+    pub target: usize,
+    pub dist: f64,
+    pub bike_friendly: u8,
+    pub points: Vec<Point>,
+}
+
+struct EdgeOption(Option<Edge>);
+impl<'de> Deserialize<'de> for EdgeOption {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+    {
+        // Deserialize the JSON data into the EdgeHelper struct
+        let helper = EdgeHelper::deserialize(deserializer)?;
+
+        if filter_by_tag(&helper.kvs) == false {
+            return Ok(EdgeOption(None));
+        }
+        // Perform your custom logic to compute bike_rating
+        let bike_rating = rate_bicycle_friendliness(&helper.kvs);
+
+        // Construct and return an Edge instance
+        Ok(EdgeOption(Some(Edge {
+            id: helper.id,
+            source: helper.source,
+            target: helper.target,
+            dist: helper.dist,
+            points: helper.points,
+            bike_friendly: bike_rating, // Use the computed value
+        })))
+    }
+}
+
+
 pub fn parse_graph() -> Graph {
     let mut file = File::open("city-gtfs/norcal-small.json").unwrap();
     let mut json_str = String::new();
+    // json_str = r#"{"nodes": [], "edges": []}"#.to_string();
     file.read_to_string(&mut json_str);
 
-    let result: Value = serde_json::from_str(&json_str).expect("Error parsing JSON");
+    let mut result = match serde_json::from_str(&json_str).expect("Error parsing JSON") {
+        Value::Object(map) => map,
+        _ => panic!("Expected a JSON object"),
+    };
+
+    let nodes = std::mem::take(result.get_mut("nodes").unwrap());
+    let edges = std::mem::take(result.get_mut("edges").unwrap());
 
     let nodes: Vec<Node> =
-        serde_json::from_value(result["nodes"].clone()).expect("Error parsing nodes");
-    let edges: Vec<Edge> =
-        serde_json::from_value(result["edges"].clone()).expect("Error parsing edges");
+        serde_json::from_value(nodes).expect("Error parsing nodes");
+    let edges: Vec<EdgeOption> =
+        serde_json::from_value(edges).expect("Error parsing edges");
+
+    let edges: Vec<Edge> = edges.into_iter().filter_map(|edge| edge.0).collect();
 
     // Create a petgraph from the parsed nodes and edges
     let mut graph = AGraph::new_undirected();
@@ -157,7 +207,6 @@ pub fn parse_graph() -> Graph {
 
 
     let mut edge_indices: HashMap<usize, EdgeIndex> = HashMap::new();
-    let (_changed, edges) = filter_ways_by_bike_friendliness(edges);
 
     for edge in &edges {
         let source_index = node_indices[edge.source];
@@ -176,24 +225,3 @@ pub fn parse_graph() -> Graph {
     }
 }
 
-
-fn filter_ways_by_bike_friendliness(edges: Vec<Edge>) -> (bool, Vec<Edge>) {
-    let mut changed = false;
-    let new_edges = edges.into_iter().filter(|edge| {
-        if filter_by_tag(&edge.kvs) == false {
-            changed = true;
-            return false;
-        }
-        // Filter nodes
-        match rate_bicycle_friendliness(&edge.kvs) {
-            0 => {
-                changed = true;
-                return false;
-            }
-            _ => {}
-        }
-        return true;
-    }).collect::<Vec<Edge>>();
-
-    (changed, new_edges)
-}

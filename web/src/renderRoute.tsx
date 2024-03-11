@@ -6,11 +6,9 @@ import RouteHighlight, {
     type HighlightedPointElev,
     type HighlightedPointGeoJSON,
 } from "@/routeHighlight";
-import { type Feature, type FeatureCollection, type LineString } from "geojson";
+import { type LineString } from "geojson";
 import { baseUrl } from "@/dev-api";
 import SettingsToggle from "@/SettingsToggle";
-
-export const ROUTE_COLOR_BLUE = "#6A7EB8";
 
 export interface RenderStraightRouteProps {
     map: mapboxgl.Map | undefined
@@ -60,13 +58,13 @@ export function RenderRoute(props: RenderRouteProps) {
                     },
                     paint: {
                         "line-color": ['match', ['get', 'bikeFriendly'],
-0, COLORS[4],
-1, COLORS[3],
-2, COLORS[2],
-3, COLORS[1],
-4, COLORS[0],
-5, COLORS[0],
-COLORS[3]
+                                0, COLORS[4],
+                                1, COLORS[3],
+                                2, COLORS[2],
+                                3, COLORS[1],
+                                4, COLORS[0],
+                                5, COLORS[0],
+                                COLORS[3]
                             ],
                         "line-width": 4.2,
                     },
@@ -125,6 +123,7 @@ export interface RenderBikeRouteProps extends RenderStraightRouteProps {
     setHighlightedPoints: (_: HighlightedPointElev) => void
     reverseOrgDest: () => void
     children?: React.ReactNode
+    display?: boolean
 }
 
 export interface RouteSettings {
@@ -170,33 +169,40 @@ export interface EnergyResponse {
     total_meters: number
 }
 
-function splitRouteIntoSegments(route: GeoJSON.Feature<GeoJSON.LineString>, bikeFriendly: number[]): FeatureCollection<LineString> {
-    const bikeFriendlyFeatures: Array<Feature<LineString>> = [];
+function splitRouteIntoSegments(route: GeoJSON.Feature<GeoJSON.LineString>, bikeFriendly: number[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+    const bikeFriendlyFeatures: Array<GeoJSON.Feature<GeoJSON.LineString>> = [];
+    let currentSegmentCoordinates = [route.geometry.coordinates[0]];
+    let currentBikeFriendly = bikeFriendly[0];
 
-    for (let i = 0; i < route.geometry.coordinates.length - 1; i++) {
-        const lineStringFeature: Feature<LineString> = {
-            type: "Feature",
-            properties: {
-                bikeFriendly: bikeFriendly[i + 1]
-            },
-            geometry: {
-                type: "LineString",
-                coordinates: [
-                    route.geometry.coordinates[i],
-                    route.geometry.coordinates[i + 1]
-                ]
-            }
-        };
+    for (let i = 1; i < route.geometry.coordinates.length; i++) {
+        currentSegmentCoordinates.push(route.geometry.coordinates[i]);
 
-        bikeFriendlyFeatures.push(lineStringFeature);
+        // Check if bikeFriendly value has changed or it's the last coordinate
+        if (bikeFriendly[i] !== currentBikeFriendly || i === route.geometry.coordinates.length - 1) {
+            // Create a LineString feature for the current segment
+            const lineStringFeature: GeoJSON.Feature<GeoJSON.LineString> = {
+                type: "Feature",
+                properties: {
+                    bikeFriendly: currentBikeFriendly
+                },
+                geometry: {
+                    type: "LineString",
+                    coordinates: currentSegmentCoordinates
+                }
+            };
+
+            bikeFriendlyFeatures.push(lineStringFeature);
+
+            // Reset the current segment
+            currentSegmentCoordinates = [route.geometry.coordinates[i]];
+            currentBikeFriendly = bikeFriendly[i];
+        }
     }
 
     return {
         type: "FeatureCollection",
-        features: [
-            ...bikeFriendlyFeatures,
-        ]
-    }
+        features: bikeFriendlyFeatures
+    };
 }
 
 function defaultEnergy(): EnergyResponse {
@@ -254,7 +260,7 @@ function RenderBikeRoute_(props: RenderBikeRouteProps) {
     if (isError) {
         console.error("Error fetching bike route", data);
     } else if (isLoading || !data) {
-        console.log("Loading bike route...")
+        console.log("Loading bike route...", isLoading, data)
     } else {
         const { route, elevation_index: elevationIndex, energy: energy_ } = data;
 
@@ -284,15 +290,15 @@ function RenderBikeRoute_(props: RenderBikeRouteProps) {
                 </RenderRoute>;
     }
 
-    return <SettingsToggle
+    return <><SettingsToggle
             energy={energy}
             setAvoidHills={setAvoidHills}
             setPreferProtectedLanes={setPreferProtectedLanes}
             reverseOrgDest={reverseOrgDest}
         >
-            {bikeRouteComponent}
             {props.children}
     </SettingsToggle>
+        {bikeRouteComponent}</>
 }
 
 export const RenderBikeRoute = React.memo(RenderBikeRoute_)

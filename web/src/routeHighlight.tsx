@@ -51,7 +51,6 @@ export default function RouteHighlight(props: RouteHighlightProps) {
             const projectedPoint = map.project(arrayToLatLng(point));
             const projectedMouse = e.point;
 
-
             // Check if the distance is within 10 meters
             if (projectedPoint.dist(projectedMouse) <= 25) {
                 console.log("HIGHLIGHTING", nearestParams.properties.index)

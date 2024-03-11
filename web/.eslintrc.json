@@ -23,11 +23,12 @@
         "react/react-in-jsx-scope": "off",
         "@typescript-eslint/quotes": "off",
         "@typescript-eslint/explicit-function-return-type": "off",
-        "react/prop-types": "off",
         "semi": "off",
         "@typescript-eslint/semi": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
         "multiline-ternary": "off",
         "@typescript-eslint/comma-dangle": "off",
+        "react/prop-types": 1,
         "@typescript-eslint/indent": "off",
         "@typescript-eslint/space-before-function-paren": ["error", "never"]
     },

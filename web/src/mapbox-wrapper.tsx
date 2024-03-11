@@ -9,6 +9,7 @@ export interface Props {
 
 let mapInitialized = false;
 
+/* For bike! */
 export function MapboxWrapper(props: Props) {
     const currentPos = props.currentPos;
     const [map, setMap] = useState<mapboxgl.Map | null>(null);
@@ -30,6 +31,8 @@ export function MapboxWrapper(props: Props) {
             center: currentPos, // starting position [lng, lat]
             zoom: 13, // starting zoom
             preserveDrawingBuffer: true,
+            pitch: 25,
+            hash: true
         });
         setMap(map1);
         map1.doubleClickZoom.disable();

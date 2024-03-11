@@ -29,7 +29,7 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
     // Calculate the real edge weight including elevation difference
     let edge = edgeref.weight();
 
-    let bicyle_friendly = rate_bicycle_friendliness(&edge.kvs);
+    let bicyle_friendly = edge.bike_friendly;
 
     // from 0 -> 1. The higher the number, the worse it is.
     let bicycle_penalty: f64 = match bicyle_friendly {
