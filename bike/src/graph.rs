@@ -25,14 +25,14 @@ pub struct Node {
     pub lat: f64,
     #[serde(rename = "lon")]
     pub lon: f64,
-    pub ele: f64,
+    pub ele: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Point {
     pub lat: f64,
     pub lon: f64,
-    pub ele: f64,
+    pub ele: f32,
 }
 
 
@@ -43,8 +43,8 @@ impl Point {
     fn eq(&self, b: &Point) -> bool {
         self.haversine_distance(b) <= 0.001
     }
-    pub(crate) fn haversine_distance_ele(&self, other: &Point) -> f64 {
-        const EARTH_RADIUS: f64 = 6371.0; // Earth radius in kilometers
+    pub(crate) fn haversine_distance_ele(&self, other: &Point) -> f32 {
+        const EARTH_RADIUS: f32 = 6371.0; // Earth radius in kilometers
 
         let d_lat = (other.lat - self.lat).to_radians();
         let d_lon = (other.lon - self.lon).to_radians();
@@ -53,7 +53,7 @@ impl Point {
             + self.lat.to_radians().cos() * other.lat.to_radians().cos()
             * (d_lon / 2.0).sin() * (d_lon / 2.0).sin();
 
-        let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+        let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt()) as f32;
 
         let distance = EARTH_RADIUS * c * 1000.0;
 
@@ -133,7 +133,7 @@ pub struct EdgeHelper {
     pub source: usize,
     #[serde(rename = "nodeB")]
     pub target: usize,
-    pub dist: f64,
+    pub dist: f32,
     #[serde(rename = "kvs")]
     pub kvs: HashMap<String, String>,
     pub points: Vec<Point>,
@@ -144,7 +144,7 @@ pub struct Edge {
     pub id: usize,
     pub source: usize,
     pub target: usize,
-    pub dist: f64,
+    pub dist: f32,
     pub bike_friendly: u8,
     pub points: Vec<Point>,
 }

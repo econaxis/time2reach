@@ -48,10 +48,10 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
 
     let source = graph.node_weight(edgeref.source()).unwrap();
     let target = graph.node_weight(edgeref.target()).unwrap();
-    let elevation_diff = target.ele - source.ele;
+    let elevation_diff = (target.ele - source.ele) as f64;
 
     let avoid_steep_hills_scaled = 90000.0 * options.avoid_steep_hills.powi(30);
     let elevation_penalty = elevation_diff.max(0.0);
 
-    (edge.dist + elevation_penalty * avoid_steep_hills_scaled) * bicycle_penalty_scaled
+    (edge.dist as f64 + elevation_penalty * avoid_steep_hills_scaled) * bicycle_penalty_scaled
 }

@@ -36,9 +36,9 @@ fn calculate_calories_for_edge(from: NodeIndex, to: NodeIndex, graph: &AGraph) -
     let target = graph.node_weight(to).unwrap();
 
     let edge = graph.find_edge(from, to).unwrap();
-    let edge_dist = graph.edge_weight(edge).unwrap().dist;
+    let edge_dist = graph.edge_weight(edge).unwrap().dist as f64;
 
-    let elevation_diff = target.ele - source.ele;
+    let elevation_diff = (target.ele - source.ele) as f64;
     let slope = elevation_diff / edge_dist;
 
     let average_speed = match slope {
@@ -55,7 +55,7 @@ fn calculate_calories_for_edge(from: NodeIndex, to: NodeIndex, graph: &AGraph) -
         average_speed, // m/s
         0.0, // m/s
         86.0, // kg
-        slope, // percent
+        slope as f64, // percent
         0.0, // m/s^2
     ).max(5.0);
 

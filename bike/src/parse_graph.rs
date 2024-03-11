@@ -94,7 +94,7 @@ impl AddAssign for Energy {
 #[derive(Serialize, Debug)]
 pub struct RouteResponse {
     pub route: GeoJson,
-    pub route_metadata: Vec<(f64, f64, u8)>,
+    pub route_metadata: Vec<(f32, f32, u8)>,
     pub elevation_index: Vec<usize>,
     pub energy: Option<Energy>,
 }
@@ -304,7 +304,7 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
             let point = node.point();
 
             let cost = end.haversine_distance(&point);
-            cost * 0.80
+            cost
         },
     ) {
         if path.len() < 2 {
