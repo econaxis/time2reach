@@ -1,11 +1,9 @@
+import functools
 import os.path
 
 import math
-import json
-
-from osgeo import osr, gdal, ogr
 import requests
-import functools
+from osgeo import osr, gdal, ogr
 
 # API URL for downloading GEOTIFF files
 
@@ -49,7 +47,7 @@ def download_geo_tiff(bbox: tuple) -> str:
     return file_name
 
 
-def get_ele(lat: float, lon: float) -> float:
+def get_ele(lat: float, lon: float, default: float | None) -> float:
     # Convert latitude and longitude to EPSG:3857
     epsg3857_coords = convert_lat_lon_to_epsg3857(lat, lon)
     bbox = calculate_bounding_box(epsg3857_coords[1], epsg3857_coords[0])
@@ -59,8 +57,9 @@ def get_ele(lat: float, lon: float) -> float:
 
     # Add logic to extract elevation from downloaded GeoTIFF
     elevation: float = extract_elevation_from_geotiff(dataset, epsg3857_coords[0], epsg3857_coords[1])
-    return round(elevation, 1)
-
+    if elevation < 0.1 and default is not None:
+        return max(default, elevation)
+    return elevation
 
 def convert_lat_lon_to_epsg3857(lat: float, lon: float) -> tuple:
     source = osr.SpatialReference()
@@ -121,37 +120,128 @@ def extract_elevation_from_geotiff(dataset: gdal.Dataset, x_coord: float, y_coor
     return elevation.item()
 
 
-def add_elevation_to_json(filename: str):
+
+
+
+import sqlite3
+import json
+
+def create_db_and_tables(dbname: str):
+    conn = sqlite3.connect(dbname)
+    cursor = conn.cursor()
+
+    # Create nodes table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS nodes
+                      (node_id INTEGER PRIMARY KEY, lat REAL, lon REAL, ele REAL)''')
+
+    # Adjusted edges table to include dist and kvs
+    cursor.execute('''CREATE TABLE IF NOT EXISTS edges
+                      (id INTEGER PRIMARY KEY, nodeA INTEGER, nodeB INTEGER, dist REAL, kvs TEXT,
+                      FOREIGN KEY(nodeA) REFERENCES nodes(node_id),
+                      FOREIGN KEY(nodeB) REFERENCES nodes(node_id))''')
+
+    # Adjusted edge_points table to link with edges
+    cursor.execute('''CREATE TABLE IF NOT EXISTS edge_points
+                      (point_id INTEGER PRIMARY KEY AUTOINCREMENT, edge_id INTEGER, lat REAL, lon REAL, ele REAL,
+                       FOREIGN KEY(edge_id) REFERENCES edges(id))''')
+
+    cursor.execute('''CREATE INDEX IF NOT EXISTS idx_edge_points_on_edge_id_and_point_id ON edge_points (edge_id, point_id);''')
+    conn.commit()
+    conn.close()
+
+def export_edges_to_geojson(db_path, output_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Fetch edges with node coordinates
+    sql_query_edges = """
+    SELECT e.id, nA.lat AS latA, nA.lon AS lonA, nB.lat AS latB, nB.lon AS lonB
+    FROM edges AS e
+    JOIN nodes AS nA ON e.nodeA = nA.node_id
+    JOIN nodes AS nB ON e.nodeB = nB.node_id
+    """
+    cursor.execute(sql_query_edges)
+    edges = cursor.fetchall()
+
+    # Construct GeoJSON for edges
+    geojson_edges = {
+        "type": "FeatureCollection",
+        "features": []
+    }
+
+    for edge in edges:
+        feature = {
+            "type": "Feature",
+            "properties": {
+                "id": edge[0]
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [edge[2], edge[1]],  # lonA, latA
+                    [edge[4], edge[3]]   # lonB, latB
+                ]
+            }
+        }
+        geojson_edges["features"].append(feature)
+
+    # Save edges GeoJSON to file
+    with open(output_path, 'w') as f:
+        json.dump(geojson_edges, f)
+
+    print(f"Exported edges to {output_path}")
+
+
+def equiv(param, param1):
+    return abs(param - param1) < 0.0001
+
+
+def add_elevation_to_db(filename: str, dbname: str):
+    conn = sqlite3.connect(dbname)
+    cursor = conn.cursor()
+
+    # Open the JSON file and load its content
     with open(filename, "r") as f:
         data = json.load(f)
+
+    # Prepare for batch insertion of nodes and edges
+    nodes_to_insert = []
+    edges_to_insert = []
+    edge_points_to_insert = []
 
     for node in data["nodes"]:
         lat = node["lat"]
         lon = node["lon"]
-        elevation = get_ele(lat, lon)
-        node["ele"] = elevation
+        elevation = get_ele(lat, lon, node.get("ele"))
+        nodes_to_insert.append((node["id"], lat, lon, elevation))
 
     for edge in data["edges"]:
-        for points in edge["points"]:
-            lat = points['lat']
-            lon = points['lon']
-            elevation = get_ele(lat, lon)
-            points['ele'] = elevation
+        edge_id = edge['id']
+        kvs_json = json.dumps(edge["kvs"])
+        edges_to_insert.append((edge_id, edge['nodeA'], edge['nodeB'], edge['dist'], kvs_json))
 
-    with open(filename, "w") as f:
-        json.dump(data, f)
+        # assert edge["points"][0]["lat"] == data["nodes"][edge['nodeA']]["lat"], f'{edge["points"]} / {data["nodes"][edge["nodeA"]]}'
+        # assert edge["points"][0]["lon"] == data["nodes"][edge['nodeA']]["lon"], f'{edge["points"]} / {data["nodes"][edge["nodeA"]]}'
 
-def main():
-    latitude: float = 37.76527
-    longitude: float = -122.44077
-    elevation: float = get_ele(latitude, longitude)
-    elevation1: float = get_ele(latitude + 0.001, longitude + 0.001)
-    if elevation is not None:
-        print(f"Elevation at ({latitude}, {longitude}): {elevation} meters")
-        print(f"Elevation at ({latitude}, {longitude}): {elevation1} meters")
-    else:
-        print("Failed to retrieve elevation.")
+        if not equiv(edge["points"][-1]["lat"], data["nodes"][edge['nodeB']]["lat"]) or not equiv(edge["points"][-1]["lon"], data["nodes"][edge['nodeB']]["lon"]):
+            edge["points"].append(data["nodes"][edge['nodeB']])
 
+        for point in edge["points"]:
+            lat = point['lat']
+            lon = point['lon']
+            elevation = get_ele(lat, lon, point.get("ele"))
+            edge_points_to_insert.append((edge_id, lat, lon, elevation))
+
+    # Batch insert the prepared data
+    cursor.executemany('''INSERT INTO nodes (node_id, lat, lon, ele) VALUES (?, ?, ?, ?)''', nodes_to_insert)
+    cursor.executemany('''INSERT INTO edges (id, nodeA, nodeB, dist, kvs) VALUES (?, ?, ?, ?, ?)''', edges_to_insert)
+    cursor.executemany('''INSERT INTO edge_points (edge_id, lat, lon, ele) VALUES (?, ?, ?, ?)''', edge_points_to_insert)
+
+    conn.commit()
+    conn.close()
 
 if __name__ == "__main__":
-    add_elevation_to_json("/Users/henry/graphhopper/norcal-small.json")
+    import os
+    os.remove("elevation-big.db")
+    create_db_and_tables("elevation-big.db")
+    add_elevation_to_db("/Users/henry/graphhopper/norcal-big.json", "elevation-big.db")

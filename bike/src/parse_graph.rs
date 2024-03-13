@@ -20,48 +20,8 @@ pub struct PointSnap {
     pub(crate) edge_id: usize,
 }
 
-fn point_list_geojson(g: &AGraph) -> GeoJson {
-    let mut features = Vec::new();
-
-    for edge in g.edge_references() {
-        let edge_data = edge.weight();
-
-        // Convert each point_list in each edge to a GeoJSON LineString
-        let line_coordinates: Vec<Vec<f64>> = edge_data.points
-            .iter()
-            .map(|point| vec![point.lon, point.lat])
-            .collect();
-
-        let line_string = GeoJsonValue::LineString(line_coordinates);
-
-        // Create a GeoJSON feature for each edge
-        let feature_properties = json!({
-            "id": edge.id().index(),
-            "source": edge_data.source,
-            "dest": edge_data.target
-        });
-
-
-        let feature = Feature {
-            bbox: None,
-            geometry: Some(Geometry::new(line_string)),
-            id: None,
-            properties: feature_properties.as_object().cloned(),
-            foreign_members: None,
-        };
-
-        features.push(feature);
-    }
-
-    GeoJson::FeatureCollection(FeatureCollection {
-        bbox: None,
-        features: features,
-        foreign_members: None,
-    })
-}
-
 pub fn main() {
-    let graph = graph::parse_graph();
+    let graph = Graph::new();
 
     // let gj = point_list_geojson(&graph.graph);
     // println!("{}", serde_json::to_string(&gj).unwrap());
@@ -166,10 +126,11 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         let edge = graph.graph.find_edge(prev, cur).unwrap();
         let edge = &graph.graph[edge];
 
+        let edge_points = edge.points(&graph.db).to_vec();
         let points_iterator: Box<dyn Iterator<Item=&Point>> = if edge.source == prevnode.id {
-            Box::new(edge.points.iter())
+            Box::new(edge_points.iter())
         } else {
-            Box::new(edge.points.iter().rev())
+            Box::new(edge_points.iter().rev())
         };
 
         let mut pointlist = points_iterator.filter_map(|point| {
@@ -279,14 +240,14 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
 
     let start_node = start_nodes[0];
 
-    println!("Start node: {} {:?}", start_node.index(), graph.graph[start_node]);
-
-    for end_node in &end_nodes {
-        println!("End node: {} {:?}", end_node.index(), graph.graph[*end_node]);
-    }
-    println!("End edge {:?}", graph.graph[EdgeIndex::new(end_snap.edge_id)]);
-
-    println!("DIST {}", start.haversine_distance(&end));
+    // println!("Start node: {} {:?}", start_node.index(), graph.graph[start_node]);
+    //
+    // for end_node in &end_nodes {
+    //     println!("End node: {} {:?}", end_node.index(), graph.graph[*end_node]);
+    // }
+    // println!("End edge {:?}", graph.graph[EdgeIndex::new(end_snap.edge_id)]);
+    //
+    // println!("DIST {}", start.haversine_distance(&end));
 
     let mut points_checked = Vec::new();
 
@@ -304,36 +265,40 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
             let point = node.point();
 
             let cost = end.haversine_distance(&point);
-            cost
+            cost * 1.0
         },
     ) {
         if path.len() < 2 {
             println!("Path found but is too short!");
             return Err(anyhow::Error::msg("No path found"));
         }
+        println!("Found path with cost {}", cost);
         let response = render_route(&graph, Cow::from(&path), start_snap, end_snap);
         let energy = calories::calculate_energy(&path, &graph.graph);
+
+        // Convert points_checked to geojson
+        let p = GeoJsonValue::MultiPoint(points_checked.iter().take(1000).map(|&node_index| {
+            let node = &graph.graph[node_index];
+            vec![(node.lon * 100000.0).round() / 100000.0, (node.lat * 100000.0).round() / 100000.0]
+        }).collect());
+        let feature = Feature {
+            bbox: None,
+            geometry: Some(Geometry::new(p)),
+            id: None,
+            properties: None,
+            foreign_members: None,
+        };
+
+        let geojson = GeoJson::Feature(feature);
+        println!("{}", serde_json::to_string(&geojson).unwrap());
+
         Ok(response.with_energy(energy))
     } else {
         println!("No path found");
         Err(anyhow::Error::msg("No path found"))
     }
 
-    // Convert points_checked to geojson
-    // let p = GeoJsonValue::MultiPoint(points_checked.iter().map(|&node_index| {
-    //     let node = &graph.graph[node_index];
-    //     vec![node.lon, node.lat]
-    // }).collect());
-    // let feature = Feature {
-    //     bbox: None,
-    //     geometry: Some(Geometry::new(p)),
-    //     id: None,
-    //     properties: None,
-    //     foreign_members: None,
-    // };
-    //
-    // let geojson = GeoJson::Feature(feature);
-    // println!("{}", serde_json::to_string(&geojson).unwrap());
+
 }
 
 fn find_nearest_nodes(graph: &Graph, point: &Point) -> (PointSnap, Vec<NodeIndex>) {
@@ -345,8 +310,8 @@ fn find_nearest_nodes(graph: &Graph, point: &Point) -> (PointSnap, Vec<NodeIndex
     // Check
     let edge = pgraph.find_edge(endpoints.0, endpoints.1).unwrap();
     let edge = &pgraph[edge];
-    assert!(edge.points.iter().find(|x| closest.point.eq(x)).is_some());
+    // assert!(edge.points(&graph.db).iter().find(|x| closest.point.eq(x)).is_some());
 
-    println!("Closest edge: {:?} (E{}) {:?}", endpoints, edge.id, edge.points);
+    println!("Closest edge: {:?} (E{}) {:?}", endpoints, edge.id, edge.points(&graph.db));
     (closest, vec![endpoints.0, endpoints.1])
 }

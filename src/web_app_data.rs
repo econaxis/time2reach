@@ -16,7 +16,7 @@ pub struct CityAppData {
 
 pub struct AllAppData {
     pub ads: FxHashMap<City, CityAppData>,
-    pub bikegraph: Arc<bike::Graph>,
+    pub bikegraph: bike::Graph,
 }
 
 impl CityAppData {

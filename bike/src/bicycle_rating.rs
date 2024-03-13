@@ -16,6 +16,9 @@ pub fn filter_by_tag(osm_tags: &HashMap<String, String>) -> bool {
     if let Some(highway) = osm_tags.get("highway") {
         match highway.as_str() {
             "elevator" | "steps" | "platform" | "track" => return false,
+            "footway" | "pedestrian" => {
+                // return false
+            }
             _ => {}
         }
     }

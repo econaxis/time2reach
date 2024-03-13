@@ -1,14 +1,18 @@
-use core::fmt;
-use serde::{de, Deserialize, Deserializer};
 use std::collections::HashMap;
+use std::sync::Arc;
+use parking_lot::Mutex;
+use core::cell::RefCell;
 use std::fmt::Write;
-use petgraph::graph::{EdgeIndex, NodeIndex, UnGraph};
-use std::fs::File;
-use serde_json::Value;
 use std::io::Read;
-use serde::de::Visitor;
-use crate::bicycle_rating::rate_bicycle_friendliness;
-use crate::bicycle_rating::filter_by_tag;
+
+use lazy_static::lazy_static;
+use serde::{Deserialize};
+use sqlite::{Connection, State};
+
+use petgraph::graph::{NodeIndex, UnGraph};
+use petgraph::prelude::EdgeRef;
+
+use crate::bicycle_rating::{filter_by_tag, rate_bicycle_friendliness};
 use crate::parse_graph::PointSnap;
 
 pub type AGraph = UnGraph<Node, Edge>;
@@ -16,16 +20,29 @@ pub type AGraph = UnGraph<Node, Edge>;
 pub struct Graph {
     pub graph: AGraph,
     pub location_index: LocationIndex,
+    pub db: Mutex<Connection>,
 }
+
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Node {
+    // 32 bytes per node
     pub id: usize,
     #[serde(rename = "lat")]
     pub lat: f64,
     #[serde(rename = "lon")]
     pub lon: f64,
     pub ele: f32,
+}
+
+#[derive(Clone, Debug)]
+pub struct Edge {
+    // 32 bytes per edge
+    pub id: usize,
+    pub source: usize,
+    pub target: usize,
+    pub dist: f32,
+    pub bike_friendly: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -35,7 +52,64 @@ pub struct Point {
     pub ele: f32,
 }
 
+impl Graph {
+    pub fn new() -> Self {
+        let conn = Connection::open("elevation-big.db").unwrap();
+        let mut graph = AGraph::new_undirected();
+        let mut node_indices: HashMap<usize, NodeIndex> = HashMap::new();
 
+
+        // Query and insert nodes
+        let mut statement = conn.prepare("SELECT node_id, lat, lon, ele FROM nodes").unwrap();
+        while let State::Row = statement.next().unwrap() {
+            let node = Node {
+                id: statement.read::<i64, _>(0).unwrap() as usize,
+                lat: statement.read::<f64, _>(1).unwrap(),
+                lon: statement.read::<f64, _>(2).unwrap(),
+                ele: statement.read::<f64, _>(3).unwrap() as f32,
+            };
+            let node_index = graph.add_node(node.clone());
+            node_indices.insert(node.id, node_index);
+        }
+
+        // Query and insert edges
+        let mut statement1 = conn.prepare("SELECT id, nodeA, nodeB, dist, kvs FROM edges").unwrap();
+        while let State::Row = statement1.next().unwrap() {
+            let kvs_json: String = statement1.read(4).unwrap();
+            let kvs: HashMap<String, String> = serde_json::from_str(&kvs_json).unwrap();
+            if !filter_by_tag(&kvs) {
+                continue;
+            }
+            let bike_friendly = rate_bicycle_friendliness(&kvs); // Implement this function based on your criteria
+
+            if bike_friendly == 0 {
+                continue;
+            }
+
+            let edge = Edge {
+                id: statement1.read::<i64, _>(0).unwrap() as usize,
+                source: statement1.read::<i64, _>(1).unwrap() as usize,
+                target: statement1.read::<i64, _>(2).unwrap() as usize,
+                dist: statement1.read::<f64, _>(3).unwrap() as f32,
+                bike_friendly,
+            };
+
+            if let (Some(source_index), Some(target_index)) = (node_indices.get(&edge.source), node_indices.get(&edge.target)) {
+                graph.add_edge(*source_index, *target_index, edge);
+            }
+        }
+
+        // TODO: remove orphaned nodes
+
+        std::mem::drop(statement1);
+        std::mem::drop(statement);
+
+        let db =  Mutex::new(conn);
+        let location_index = LocationIndex::new(&graph, &db);
+
+        Self { graph, location_index, db }
+    }
+}
 impl Point {
     pub fn new(lat: f64, lon: f64) -> Point {
         Point { lat, lon, ele: 0.0 }
@@ -84,16 +158,17 @@ pub struct LocationIndex {
 }
 
 impl LocationIndex {
-    pub fn new(edge_indices: &HashMap<usize, EdgeIndex>, edges: Vec<Edge>) -> LocationIndex {
+    pub fn new(graph: &AGraph, conn: &Mutex<Connection>) -> LocationIndex {
+        let points = graph.edge_indices().flat_map(|edge_index| {
+            let (node_a, node_b) = graph.edge_endpoints(edge_index).unwrap();
+            // todo: don't use edge_id anymore
+            let node_a: &Node = &graph[node_a];
+            let node_b: &Node = &graph[node_b];
+            [PointSnap { point: node_a.point(), edge_id: edge_index.index() },
+             PointSnap { point: node_b.point(), edge_id: edge_index.index() }]
+        }).collect();
         LocationIndex {
-            points: edges.iter().map(|edge| PointSnap {
-                point: Point {
-                    lat: edge.points[0].lat,
-                    lon: edge.points[0].lon,
-                    ele: edge.points[0].ele,
-                },
-                edge_id: edge_indices[&edge.id].index(),
-            }).collect(),
+            points,
         }
     }
     pub(crate) fn snap_closest(&self, point: &Point) -> &PointSnap {
@@ -126,102 +201,38 @@ impl Node {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct EdgeHelper {
-    pub id: usize,
-    #[serde(rename = "nodeA")]
-    pub source: usize,
-    #[serde(rename = "nodeB")]
-    pub target: usize,
-    pub dist: f32,
-    #[serde(rename = "kvs")]
-    pub kvs: HashMap<String, String>,
-    pub points: Vec<Point>,
+lazy_static! {
+    static ref POINTS_CACHE: Mutex<HashMap<usize, Arc<Vec<Point>>>> = Mutex::new(HashMap::new());
 }
 
-#[derive(Clone, Debug)]
-pub struct Edge {
-    pub id: usize,
-    pub source: usize,
-    pub target: usize,
-    pub dist: f32,
-    pub bike_friendly: u8,
-    pub points: Vec<Point>,
-}
-
-struct EdgeOption(Option<Edge>);
-impl<'de> Deserialize<'de> for EdgeOption {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-    {
-        // Deserialize the JSON data into the EdgeHelper struct
-        let helper = EdgeHelper::deserialize(deserializer)?;
-
-        if filter_by_tag(&helper.kvs) == false {
-            return Ok(EdgeOption(None));
+impl Edge {
+    pub fn points(&self, conn: &Mutex<Connection>) -> Arc<Vec<Point>> {
+        let conn = conn.lock();
+        let cache_lock = POINTS_CACHE.lock();
+        if let Some(points) = cache_lock.get(&self.id) {
+            return Arc::clone(points);
         }
-        // Perform your custom logic to compute bike_rating
-        let bike_rating = rate_bicycle_friendliness(&helper.kvs);
+        drop(cache_lock); // Explicitly drop the lock to avoid holding it while querying the database
 
-        // Construct and return an Edge instance
-        Ok(EdgeOption(Some(Edge {
-            id: helper.id,
-            source: helper.source,
-            target: helper.target,
-            dist: helper.dist,
-            points: helper.points,
-            bike_friendly: bike_rating, // Use the computed value
-        })))
+        // Query the points from the database as they're not found in the cache
+        let mut points: Vec<Point> = Vec::new();
+        let mut statement = conn.prepare("SELECT lat, lon, ele FROM edge_points WHERE edge_id = ? ORDER BY point_id").unwrap();
+        statement.bind((1, self.id as i64)).unwrap();
+
+        while let sqlite::State::Row = statement.next().unwrap() {
+            points.push(Point {
+                lat: statement.read::<f64, _>(0).unwrap(),
+                lon: statement.read::<f64, _>(1).unwrap(),
+                ele: statement.read::<f64, _>(2).unwrap() as f32,
+            });
+        }
+
+        let points_arc = Arc::new(points);
+        let mut cache_lock = POINTS_CACHE.lock();
+        // Insert the points into the cache and return. This pattern avoids the issue where the points
+        // could be inserted into the cache while it was unlocked and queried.
+        cache_lock.entry(self.id).or_insert_with(|| Arc::clone(&points_arc));
+
+        points_arc
     }
 }
-
-
-pub fn parse_graph() -> Graph {
-    let mut file = File::open("city-gtfs/norcal-small.json").unwrap();
-    let mut json_str = String::new();
-    // json_str = r#"{"nodes": [], "edges": []}"#.to_string();
-    file.read_to_string(&mut json_str);
-
-    let mut result = match serde_json::from_str(&json_str).expect("Error parsing JSON") {
-        Value::Object(map) => map,
-        _ => panic!("Expected a JSON object"),
-    };
-
-    let nodes = std::mem::take(result.get_mut("nodes").unwrap());
-    let edges = std::mem::take(result.get_mut("edges").unwrap());
-
-    let nodes: Vec<Node> =
-        serde_json::from_value(nodes).expect("Error parsing nodes");
-    let edges: Vec<EdgeOption> =
-        serde_json::from_value(edges).expect("Error parsing edges");
-
-    let edges: Vec<Edge> = edges.into_iter().filter_map(|edge| edge.0).collect();
-
-    // Create a petgraph from the parsed nodes and edges
-    let mut graph = AGraph::new_undirected();
-    let node_indices: Vec<NodeIndex> = nodes
-        .iter()
-        .map(|node| graph.add_node(node.clone()))
-        .collect();
-
-
-    let mut edge_indices: HashMap<usize, EdgeIndex> = HashMap::new();
-
-    for edge in &edges {
-        let source_index = node_indices[edge.source];
-        let target_index = node_indices[edge.target];
-
-        let edge_index = graph.add_edge(source_index, target_index, edge.clone());
-        edge_indices.insert(edge.id, edge_index);
-        // let edge_index1 = graph.add_edge(target_index, source_index, edge.reverse());
-    }
-
-    let location_index = LocationIndex::new(&edge_indices, edges);
-
-    Graph {
-        graph,
-        location_index,
-    }
-}
-

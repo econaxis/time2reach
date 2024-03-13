@@ -1,4 +1,5 @@
 use crate::agencies::{load_all_gtfs, Agency, City};
+use bike::Graph;
 
 use futures::StreamExt;
 
@@ -191,9 +192,14 @@ pub struct RequestId {
     pub city: City,
 }
 
+pub struct ThreadLocalAppData {
+    pub shared: Arc<AllAppData>,
+    pub bikegraph: bike::Graph,
+}
 fn with_appdata(
     ad: Arc<AllAppData>,
 ) -> impl Filter<Extract = (Arc<AllAppData>,), Error = Infallible> + Clone {
+    println!("With appdata!");
     warp::any().map(move || ad.clone())
 }
 
@@ -273,8 +279,6 @@ struct BikeCalculateRequest {
     options: Option<RouteOptions>
 }
 pub fn bike_endpoints(appdata: Arc<AllAppData>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    
-
     warp::post()
         .and(with_appdata(appdata.clone()))
         .and(warp::path!("bike"))
@@ -309,7 +313,7 @@ pub async fn main() {
         let (city, ad) = result.unwrap();
         all_gtfs.insert(city, ad);
     }
-    let appdata = Arc::new(AllAppData { ads: all_gtfs, bikegraph: Arc::new(bike::parse_graph()) });
+    let appdata = Arc::new(AllAppData { ads: all_gtfs, bikegraph: Graph::new() });
 
     let bike_endpoint = bike_endpoints(appdata.clone());
 

@@ -38,13 +38,13 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
         },
         1 => 1.0,
         2 => 0.7,
-        3 => 0.5,
-        4 => 0.2,
-        5 => 0.1,
+        3 => 0.65,
+        4 => 0.5,
+        5 => 0.5,
         _ => panic!("Invalid bicycle rating"),
     };
 
-    let bicycle_penalty_scaled = (bicycle_penalty + 0.5).powf((options.prefer_protected_bike_lanes + 0.01) * 2.0);
+    let bicycle_penalty_scaled = (bicycle_penalty + 0.5) * (options.prefer_protected_bike_lanes) * (edge.dist as f64);
 
     let source = graph.node_weight(edgeref.source()).unwrap();
     let target = graph.node_weight(edgeref.target()).unwrap();
@@ -53,5 +53,5 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
     let avoid_steep_hills_scaled = 90000.0 * options.avoid_steep_hills.powi(30);
     let elevation_penalty = elevation_diff.max(0.0);
 
-    (edge.dist as f64 + elevation_penalty * avoid_steep_hills_scaled) * bicycle_penalty_scaled
+    edge.dist as f64 + elevation_penalty * avoid_steep_hills_scaled + bicycle_penalty_scaled
 }

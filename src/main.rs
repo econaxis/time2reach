@@ -32,6 +32,7 @@ use rustc_hash::FxHashSet;
 
 use gtfs_structure_2::IdType;
 use std::time::Instant;
+use tokio::runtime;
 
 use crate::road_structure::RoadStructure;
 use crate::web::LatLng;
@@ -120,7 +121,8 @@ fn main() {
         main1();
     } else {
         // let rt = runtime::Builder::new_multi_thread()
-        //     .worker_threads(4)
+        //     .worker_threads(8)
+        //     .enable_io()
         //     .build()
         //     .unwrap();
         let rt = tokio::runtime::Runtime::new().unwrap();
