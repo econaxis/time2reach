@@ -1,19 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use rusqlite::params;
+
 use std::sync::Arc;
 use parking_lot::Mutex;
-use core::cell::RefCell;
 use std::fmt::Write;
-use std::io::Read;
-
 use lazy_static::lazy_static;
-use serde::{Deserialize};
-use sqlite::{Connection, State};
+use serde::Deserialize;
+use rusqlite::Connection;
 
 use petgraph::graph::{NodeIndex, UnGraph};
-use petgraph::prelude::EdgeRef;
 
 use crate::bicycle_rating::{filter_by_tag, rate_bicycle_friendliness};
-use crate::parse_graph::PointSnap;
+use crate::location_index::LocationIndex;
 
 pub type AGraph = UnGraph<Node, Edge>;
 
@@ -43,59 +41,100 @@ pub struct Edge {
     pub target: usize,
     pub dist: f32,
     pub bike_friendly: u8,
+    pub access_friendly: bool
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Point {
     pub lat: f64,
     pub lon: f64,
     pub ele: f32,
 }
 
+impl PartialEq for Point {
+    fn eq(&self, other: &Self) -> bool {
+        (self.lat - other.lat).abs() < 0.0001 && (self.lon - other.lon).abs() < 0.0001
+    }
+}
+
+fn parse_to_hashmap(input: &str) -> HashMap<String, String> {
+    let trimmed_input = if input.starts_with('{') && input.ends_with('}') {
+        &input[1..input.len()-1]
+    } else {
+        input
+    };
+
+
+    trimmed_input.split(',')
+        .map(|kv| kv.trim()) // Trim spaces around the key-value pairs
+        .filter_map(|kv| {
+            let mut parts = kv.splitn(2, '='); // Split into key and value
+            if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
+                Some((key.to_string(), value.to_string()))
+            } else {
+                None
+            }
+        })
+        .collect::<HashMap<String, String>>()
+}
+
 impl Graph {
     pub fn new() -> Self {
-        let conn = Connection::open("elevation-big.db").unwrap();
+        let conn = Connection::open("california-big.db").unwrap();
         let mut graph = AGraph::new_undirected();
         let mut node_indices: HashMap<usize, NodeIndex> = HashMap::new();
 
 
-        // Query and insert nodes
         let mut statement = conn.prepare("SELECT node_id, lat, lon, ele FROM nodes").unwrap();
-        while let State::Row = statement.next().unwrap() {
-            let node = Node {
-                id: statement.read::<i64, _>(0).unwrap() as usize,
-                lat: statement.read::<f64, _>(1).unwrap(),
-                lon: statement.read::<f64, _>(2).unwrap(),
-                ele: statement.read::<f64, _>(3).unwrap() as f32,
-            };
+        let node_iter = statement.query_map((), |row| {
+            Ok(Node {
+                id: row.get(0)?,
+                lat: row.get(1)?,
+                lon: row.get(2)?,
+                ele: row.get::<_, f64>(3)? as f32, // Cast to f32 as needed
+            })
+        }).unwrap();
+
+        for node in node_iter {
+            let node = node.unwrap(); // Handle errors as needed
             let node_index = graph.add_node(node.clone());
             node_indices.insert(node.id, node_index);
         }
 
-        // Query and insert edges
+        let mut filtered_edges: HashSet<usize> = HashSet::new();
         let mut statement1 = conn.prepare("SELECT id, nodeA, nodeB, dist, kvs FROM edges").unwrap();
-        while let State::Row = statement1.next().unwrap() {
-            let kvs_json: String = statement1.read(4).unwrap();
-            let kvs: HashMap<String, String> = serde_json::from_str(&kvs_json).unwrap();
-            if !filter_by_tag(&kvs) {
-                continue;
-            }
-            let bike_friendly = rate_bicycle_friendliness(&kvs); // Implement this function based on your criteria
+        let edge_iter = statement1.query_map((), |row| {
+            let kvs_json: String = row.get(4)?;
+            let kvs = parse_to_hashmap(&kvs_json);
+            // let kvs: HashMap<String, String> = serde_json::from_str(&kvs_json).unwrap();
+            let mut access_friendly = filter_by_tag(&kvs);
+
+            // if !access_friendly {
+            //     return Ok(None);
+            // }
+            let bike_friendly = rate_bicycle_friendliness(&kvs);
 
             if bike_friendly == 0 {
-                continue;
+                filtered_edges.insert(row.get(0)?);
+                access_friendly = false;
+                // return Ok(None)
             }
 
-            let edge = Edge {
-                id: statement1.read::<i64, _>(0).unwrap() as usize,
-                source: statement1.read::<i64, _>(1).unwrap() as usize,
-                target: statement1.read::<i64, _>(2).unwrap() as usize,
-                dist: statement1.read::<f64, _>(3).unwrap() as f32,
+            Ok(Some(Edge {
+                id: row.get(0)?,
+                source: row.get(1)?,
+                target: row.get(2)?,
+                dist: row.get::<_, f64>(3)? as f32, // Cast to f32 as needed
                 bike_friendly,
-            };
+                access_friendly
+            }))
+        }).unwrap();
 
-            if let (Some(source_index), Some(target_index)) = (node_indices.get(&edge.source), node_indices.get(&edge.target)) {
-                graph.add_edge(*source_index, *target_index, edge);
+        for edge_option in edge_iter {
+            if let Some(edge) = edge_option.unwrap() { // Handle errors as needed
+                if let (Some(source_index), Some(target_index)) = (node_indices.get(&edge.source), node_indices.get(&edge.target)) {
+                    graph.add_edge(*source_index, *target_index, edge);
+                }
             }
         }
 
@@ -104,12 +143,13 @@ impl Graph {
         std::mem::drop(statement1);
         std::mem::drop(statement);
 
-        let db =  Mutex::new(conn);
+        let db = Mutex::new(conn);
         let location_index = LocationIndex::new(&graph, &db);
 
         Self { graph, location_index, db }
     }
 }
+
 impl Point {
     pub fn new(lat: f64, lon: f64) -> Point {
         Point { lat, lon, ele: 0.0 }
@@ -153,40 +193,6 @@ impl Point {
     }
 }
 
-pub struct LocationIndex {
-    points: Vec<PointSnap>,
-}
-
-impl LocationIndex {
-    pub fn new(graph: &AGraph, conn: &Mutex<Connection>) -> LocationIndex {
-        let points = graph.edge_indices().flat_map(|edge_index| {
-            let (node_a, node_b) = graph.edge_endpoints(edge_index).unwrap();
-            // todo: don't use edge_id anymore
-            let node_a: &Node = &graph[node_a];
-            let node_b: &Node = &graph[node_b];
-            [PointSnap { point: node_a.point(), edge_id: edge_index.index() },
-             PointSnap { point: node_b.point(), edge_id: edge_index.index() }]
-        }).collect();
-        LocationIndex {
-            points,
-        }
-    }
-    pub(crate) fn snap_closest(&self, point: &Point) -> &PointSnap {
-        // TODO: Use a spatial index to speed this up
-        let mut best = None;
-        let mut best_dist = std::f64::MAX;
-        for point_snap in &self.points {
-            let dist = (point_snap.point.lat - point.lat).powi(2)
-                + (point_snap.point.lon - point.lon).powi(2);
-            if dist < best_dist {
-                best_dist = dist;
-                best = Some(point_snap);
-            }
-        }
-        best.unwrap()
-    }
-}
-
 impl Node {
     pub(crate) fn debug_coords(&self) -> (f64, f64) {
         (self.lat, self.lon)
@@ -207,26 +213,35 @@ lazy_static! {
 
 impl Edge {
     pub fn points(&self, conn: &Mutex<Connection>) -> Arc<Vec<Point>> {
-        let conn = conn.lock();
+        let conn_guard = conn.lock();
         let cache_lock = POINTS_CACHE.lock();
+
+        // Check if points are already in the cache
         if let Some(points) = cache_lock.get(&self.id) {
             return Arc::clone(points);
         }
         drop(cache_lock); // Explicitly drop the lock to avoid holding it while querying the database
 
-        // Query the points from the database as they're not found in the cache
+        // Prepare the query for edge points
+        let mut statement = conn_guard.prepare("SELECT lat, lon, ele FROM edge_points WHERE edge_id = ? ORDER BY point_id").unwrap();
+
+        // Execute the query and map rows to Point instances
+        let points_result = statement.query_map(params![self.id as i64], |row| {
+            Ok(Point {
+                lat: row.get(0)?,
+                lon: row.get(1)?,
+                ele: row.get(2)?,
+            })
+        }).unwrap();
+
+        // Collect points and handle potential errors
         let mut points: Vec<Point> = Vec::new();
-        let mut statement = conn.prepare("SELECT lat, lon, ele FROM edge_points WHERE edge_id = ? ORDER BY point_id").unwrap();
-        statement.bind((1, self.id as i64)).unwrap();
-
-        while let sqlite::State::Row = statement.next().unwrap() {
-            points.push(Point {
-                lat: statement.read::<f64, _>(0).unwrap(),
-                lon: statement.read::<f64, _>(1).unwrap(),
-                ele: statement.read::<f64, _>(2).unwrap() as f32,
-            });
+        for point_result in points_result {
+            if let Ok(point) = point_result {
+                points.push(point);
+            }
+            // Else, handle error (e.g., log or panic) if necessary
         }
-
         let points_arc = Arc::new(points);
         let mut cache_lock = POINTS_CACHE.lock();
         // Insert the points into the cache and return. This pattern avoids the issue where the points
@@ -234,5 +249,38 @@ impl Edge {
         cache_lock.entry(self.id).or_insert_with(|| Arc::clone(&points_arc));
 
         points_arc
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic_functionality() {
+        let input = "{key1=value1, key2=value2}";
+        let expected: HashMap<String, String> = [("key1", "value1"), ("key2", "value2")]
+            .iter().map(|&(k, v)| (k.into(), v.into())).collect();
+        let result = parse_to_hashmap(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_values_with_spaces() {
+        let input = "{name=John Doe, occupation=Software Developer}";
+        let expected: HashMap<String, String> = [("name", "John Doe"), ("occupation", "Software Developer")]
+            .iter().map(|&(k, v)| (k.into(), v.into())).collect();
+        let result = parse_to_hashmap(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_numerical_values_and_mixed_characters() {
+        let input = "{age=30, location=New York, score=9.5, special_char=!@#}";
+        let expected: HashMap<String, String> = [("age", "30"), ("location", "New York"), ("score", "9.5"), ("special_char", "!@#")]
+            .iter().map(|&(k, v)| (k.into(), v.into())).collect();
+        let result = parse_to_hashmap(input);
+        assert_eq!(result, expected);
     }
 }

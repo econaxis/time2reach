@@ -34,7 +34,9 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
     // from 0 -> 1. The higher the number, the worse it is.
     let bicycle_penalty: f64 = match bicyle_friendly {
         0 => {
-            return DO_NOT_EXPLORE;
+            // return DO_NOT_EXPLORE;
+            // handled by access_friendly penalty
+            2.0
         },
         1 => 1.0,
         2 => 0.7,
@@ -44,14 +46,23 @@ pub fn real_edge_weight<'a>(graph: &'a AGraph, edgeref: EdgeReference<'a, Edge>,
         _ => panic!("Invalid bicycle rating"),
     };
 
-    let bicycle_penalty_scaled = (bicycle_penalty + 0.5) * (options.prefer_protected_bike_lanes) * (edge.dist as f64);
+    let bicycle_penalty_scaled = 0.5 * (bicycle_penalty + 0.5) * (options.prefer_protected_bike_lanes) * (edge.dist as f64);
 
     let source = graph.node_weight(edgeref.source()).unwrap();
     let target = graph.node_weight(edgeref.target()).unwrap();
     let elevation_diff = (target.ele - source.ele) as f64;
 
-    let avoid_steep_hills_scaled = 90000.0 * options.avoid_steep_hills.powi(30);
+    let avoid_steep_hills_scaled = 1500.0 * options.avoid_steep_hills.powi(30);
     let elevation_penalty = elevation_diff.max(0.0);
 
-    edge.dist as f64 + elevation_penalty * avoid_steep_hills_scaled + bicycle_penalty_scaled
+    let access_friendly_penalty = if edge.access_friendly {
+        0.0
+    } else {
+        // 200000.0
+        20.0
+    };
+
+
+    let result = edge.dist as f64 + elevation_penalty * avoid_steep_hills_scaled + bicycle_penalty_scaled + access_friendly_penalty * edge.dist as f64;
+    result
 }

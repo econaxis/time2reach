@@ -172,6 +172,8 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const [paintProperty, setPaintProperty] = useState<any>(null);
     const [timeData, setTimeData] = useState<any>(null);
 
+    const [transferPenalty, setTransferPenalty] = useState(0);
+
     const cityLocation = CITY_LOCATION[currentCity];
     console.log("Current city mapbox", currentCity, cityLocation)
 
@@ -193,6 +195,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                 duration,
                 minDuration,
                 startTime,
+                transferPenalty
             };
             setSpinner(true);
             console.log("Start time is", formatTime(startTime))
@@ -208,7 +211,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                     console.error("Got error in setAndColorNewOriginLocation", err);
                 });
         }
-    }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime]);
+    }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime, transferPenalty]);
 
     // Activates only when GIF_RENDER = true
     useGifRenderNewAnimationFrame(spinner, startTime, setStartTime);
@@ -285,6 +288,8 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                     setMinDuration={setMinDuration}
                     startTime={startTime}
                     setStartTime={setStartTime}
+                    transferPenalty={transferPenalty}
+                    setTransferPenalty={setTransferPenalty}
                 />
                 <p className="text-xs border-t mt-6 pt-3">
                     Find this project on{" "}

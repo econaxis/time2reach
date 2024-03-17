@@ -1,4 +1,5 @@
 mod parse_graph;
+mod location_index;
 mod bicycle_rating;
 mod virtual_graph;
 mod graph;

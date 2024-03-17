@@ -77,12 +77,12 @@ pub struct Agency {
 pub fn load_all_gtfs() -> FxHashMap<City, (Gtfs1, Vec<Agency>)> {
     let mut result: FxHashMap<City, (Gtfs1, Vec<Agency>)> = FxHashMap::default();
 
-    // If we are in development mode, we don't want to load all the GTFS files
-    if !cfg!(feature = "prod") {
-        return result;
-    }
 
     for (path, city) in gtfspaths() {
+        // If we are in development mode, we don't want to load all the GTFS files
+        if !cfg!(feature = "prod") {
+            return result;
+        }
         let gtfs_list = initialize_gtfs_as_bson(&format!("city-gtfs/{}", path), city);
 
         for this_gtfs in gtfs_list {

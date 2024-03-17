@@ -192,6 +192,7 @@ export async function setAndColorNewOriginLocation(currentLatLng, currentOptions
         currentOptions.duration,
         currentOptions.agencies,
         currentOptions.modes,
+        currentOptions.transferPenalty
         // currentOptions.minDuration
     );
 }

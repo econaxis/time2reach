@@ -83,8 +83,8 @@ fn process_coordinates(
     include_modes: Vec<String>,
     start_time: u64,
     max_search_time: f64,
-    _prev_request_id: Option<RequestId>,
-) -> Result<warp::reply::Json, BadQuery> {
+    transfer_cost_secs: u64,
+) -> Result<Json, BadQuery> {
     let city = check_city(&ad, lat, lng);
 
     if city.is_none() {
@@ -106,6 +106,7 @@ fn process_coordinates(
         &include_modes,
         start_time,
         max_search_time as u64,
+        transfer_cost_secs
     ) {
         Ok(reply) => return Ok(reply),
         Err(key) => key,
@@ -138,6 +139,7 @@ fn process_coordinates(
                 longitude: lng,
             },
             agency_ids,
+            transfer_cost: transfer_cost_secs,
             modes,
         },
     );
@@ -345,7 +347,7 @@ pub async fn main() {
                 req.modes,
                 req.start_time,
                 req.max_search_time,
-                req.previous_request_id,
+                req.transfer_cost_secs.unwrap_or(0)
             )
         })
         .map(|r: Result<Json, BadQuery>| match r {

@@ -34,6 +34,7 @@ fn cache_key(
     include_modes: &[String],
     start_time: u64,
     max_duration_secs: u64,
+    transfer_costs: u64,
 ) -> u64 {
     let mut hasher = DefaultHasher::new();
     hasher.write_u64(round_f64_for_hash(lat));
@@ -51,6 +52,8 @@ fn cache_key(
 
     start_time.hash(&mut hasher);
     max_duration_secs.hash(&mut hasher);
+
+    transfer_costs.hash(&mut hasher);
     hasher.finish()
 }
 
@@ -62,6 +65,7 @@ pub fn check_cache<'a>(
     include_modes: &[String],
     start_time: u64,
     max_duration_secs: u64,
+    transfer_costs: u64
 ) -> Result<Json, u64> {
     let mut cache = CACHE.lock().unwrap();
     let hash = cache_key(
@@ -71,6 +75,7 @@ pub fn check_cache<'a>(
         include_modes,
         start_time,
         max_duration_secs,
+        transfer_costs
     );
     cache
         .get(&hash)

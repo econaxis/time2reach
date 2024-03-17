@@ -3,6 +3,7 @@
 #![feature(file_create_new)]
 #![feature(vec_into_raw_parts)]
 
+use anyhow::Result;
 mod agencies;
 mod best_times;
 mod configuration;
@@ -25,6 +26,7 @@ mod web_cache;
 
 #[macro_use]
 pub(crate) mod cache_function;
+mod elevation_script;
 
 use gtfs_structure_2::gtfs_wrapper::DirectionType;
 
@@ -89,6 +91,7 @@ fn main1() {
                 location: LatLng::from_lat_lng(48.860679403040606, 2.3423617371568994),
                 agency_ids: agency_ids.clone(),
                 modes: vec![],
+                transfer_cost: 0
             },
         );
         let et = rs.save();
@@ -111,25 +114,31 @@ fn main1() {
     println!("Elapsed: {}", time.elapsed().as_secs_f32());
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::builder()
         .parse_filters("debug")
         .parse_default_env()
         .init();
 
     if false {
+        let result = elevation_script::main1().unwrap();
+        return Ok(());
+    }
+    if false {
         main1();
     } else {
-        // let rt = runtime::Builder::new_multi_thread()
-        //     .worker_threads(8)
-        //     .enable_io()
-        //     .build()
-        //     .unwrap();
+        let rt = runtime::Builder::new_multi_thread()
+            .worker_threads(8)
+            .enable_io()
+            .build()
+            .unwrap();
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             web::main().await;
         });
     }
+
+    return Ok(())
 }
 
 fn setup_gtfs() -> (Gtfs1, Vec<Agency>) {

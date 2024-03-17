@@ -23,6 +23,9 @@ pub struct CalculateRequest {
 
     #[serde(rename = "previousRequestId")]
     pub previous_request_id: Option<RequestId>,
+
+    #[serde(rename = "transferPenaltySecs")]
+    pub transfer_cost_secs: Option<u64>
 }
 
 #[derive(Serialize, Deserialize)]

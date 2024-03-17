@@ -4,7 +4,7 @@ import { Header } from "./control-sidebar";
 import track from "./analytics";
 import { BrightnessContext } from "./app";
 
-export function TimeSliderInner({ duration, setDuration, text, min, max, formatFunc }) {
+export function TimeSliderInner({ duration, setDuration, text, min, max, formatFunc, title }) {
     const [iduration, setIduration] = useState(duration);
 
     const onChange = (element) => {
@@ -19,7 +19,7 @@ export function TimeSliderInner({ duration, setDuration, text, min, max, formatF
     };
 
     return (
-        <div className="mt-2">
+        <div className="mt-2" title={title}>
             <div>
                 <label
                     htmlFor="duration-range"
@@ -61,6 +61,8 @@ export function TimeSlider({
     setMinDuration,
     startTime,
     setStartTime,
+    transferPenalty,
+    setTransferPenalty
 }) {
     const { brightness, setBrightness } = useContext<BrightnessContextInt>(BrightnessContext);
     return (
@@ -86,17 +88,30 @@ export function TimeSlider({
                 text="Maximum trip duration"
             />
 
-            {false && <TimeSliderInner
-                duration={minDuration}
-                setDuration={setMinDuration}
+            <TimeSliderInner
+                duration={transferPenalty}
+                setDuration={setTransferPenalty}
                 formatFunc={(duration) => {
-                    // 00:44:26
-                    return formatDuration(duration).substring(0, 5);
+                    return duration;
                 }}
                 min="0"
-                max={duration.toString()}
-                text="Minimum trip duration"
-            /> }
+                max={"1200"}
+                text={"Transfer Penalty"}
+                title={"Penalty (seconds) to add to total trip time for each transfer"}
+            />
+            {false && (
+                <TimeSliderInner
+                    duration={minDuration}
+                    setDuration={setMinDuration}
+                    formatFunc={(duration) => {
+                        // 00:44:26
+                        return formatDuration(duration).substring(0, 5);
+                    }}
+                    min="0"
+                    max={duration.toString()}
+                    text="Minimum trip duration"
+                />
+            )}
 
             <TimeSliderInner
                 duration={brightness}

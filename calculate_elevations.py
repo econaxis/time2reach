@@ -32,7 +32,6 @@ def download_geo_tiff(bbox: tuple) -> str:
     file_name: str = f"target/geotiff/geotiff_{bbox[0]}_{bbox[1]}_{bbox[2]}_{bbox[3]}_{IMAGE_SIZE}_{PIXEL_SIZE}.tif"
 
     if os.path.exists(file_name):
-        print("Using cached!", bbox)
         return file_name
 
     # Make the request to download the GeoTIFF file
@@ -61,15 +60,14 @@ def get_ele(lat: float, lon: float, default: float | None) -> float:
         return max(default, elevation)
     return elevation
 
+source = osr.SpatialReference()
+source.ImportFromEPSG(4326)  # EPSG:4326 (WGS 84) for lat/lon
+
+target = osr.SpatialReference()
+target.ImportFromEPSG(3857)  # EPSG:3857 (Web Mercator)
+
+transformation = osr.CoordinateTransformation(source, target)
 def convert_lat_lon_to_epsg3857(lat: float, lon: float) -> tuple:
-    source = osr.SpatialReference()
-    source.ImportFromEPSG(4326)  # EPSG:4326 (WGS 84) for lat/lon
-
-    target = osr.SpatialReference()
-    target.ImportFromEPSG(3857)  # EPSG:3857 (Web Mercator)
-
-    transformation = osr.CoordinateTransformation(source, target)
-
     point = ogr.Geometry(ogr.wkbPoint)
     point.AddPoint(lat, lon)  # Note the order: lon, lat
 
@@ -215,6 +213,9 @@ def add_elevation_to_db(filename: str, dbname: str):
         elevation = get_ele(lat, lon, node.get("ele"))
         nodes_to_insert.append((node["id"], lat, lon, elevation))
 
+        if len(nodes_to_insert) % 1000 == 0:
+            print(f"Processed {len(nodes_to_insert)} / {len(data['nodes'])} nodes")
+
     for edge in data["edges"]:
         edge_id = edge['id']
         kvs_json = json.dumps(edge["kvs"])
@@ -232,6 +233,9 @@ def add_elevation_to_db(filename: str, dbname: str):
             elevation = get_ele(lat, lon, point.get("ele"))
             edge_points_to_insert.append((edge_id, lat, lon, elevation))
 
+        if len(edges_to_insert) % 1000 == 0:
+            print(f"Processed {len(edges_to_insert)} / {len(data['edges'])} edges")
+
     # Batch insert the prepared data
     cursor.executemany('''INSERT INTO nodes (node_id, lat, lon, ele) VALUES (?, ?, ?, ?)''', nodes_to_insert)
     cursor.executemany('''INSERT INTO edges (id, nodeA, nodeB, dist, kvs) VALUES (?, ?, ?, ?, ?)''', edges_to_insert)
@@ -242,6 +246,5 @@ def add_elevation_to_db(filename: str, dbname: str):
 
 if __name__ == "__main__":
     import os
-    os.remove("elevation-big.db")
-    create_db_and_tables("elevation-big.db")
-    add_elevation_to_db("/Users/henry/graphhopper/norcal-big.json", "elevation-big.db")
+    # create_db_and_tables("elevation-big.db")
+    add_elevation_to_db("/Users/henry/graphhopper/norcal-big.json", "/Users/henry/graphhopper/california-big.db")

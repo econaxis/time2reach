@@ -121,6 +121,7 @@ export class TimeColorMapper {
         durationRange: number,
         agencies: Record<string, boolean>,
         modes: Record<string, boolean>,
+        transferPenalty: number
     ): Promise<TimeColorMapper> {
         const body = {
             latitude: location.lat,
@@ -129,6 +130,7 @@ export class TimeColorMapper {
             modes: objectToTrueValues(modes),
             startTime,
             maxSearchTime: durationRange,
+            transferPenaltySecs: transferPenalty
         };
 
         let data;

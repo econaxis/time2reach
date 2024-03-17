@@ -48,20 +48,22 @@ impl TripsArena {
         }
         true
     }
-    pub(crate) fn add_to_explore(&mut self, item: InProgressTrip) -> Option<Id<InProgressTrip>> {
+    pub(crate) fn add_to_explore(&mut self, item: InProgressTrip, transfer_cost: u64) -> Option<Id<InProgressTrip>> {
+        println!("Transfer cost {} {}",item.total_transfers, transfer_cost);
+        let score = item.exit_time + Time((item.total_transfers as u64 * transfer_cost) as f64);
         if let Some(arrival_time) = self.stop_arrival_times.get_mut(&item.get_off_stop_id) {
-            if *arrival_time <= item.exit_time {
+            if *arrival_time <= score {
                 // Someone arrived at this stop before us. Don't explore further.
                 return None;
             } else {
                 // We arrived at the stop before them. Set our best time instead
-                *arrival_time = item.exit_time;
+                *arrival_time = score;
             }
         } else {
             self.stop_arrival_times
                 .insert(item.get_off_stop_id, item.exit_time);
         }
-        let item_exit_time = item.exit_time;
+        let item_exit_time = score;
         let id = self.arena.alloc(item);
         let heap_struct = HeapIdTrip {
             compare: item_exit_time,

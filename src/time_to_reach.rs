@@ -99,7 +99,7 @@ pub fn generate_reach_times(
         walking_length_m: 0.0,
         boarding_stop_time_idx: 0,
         get_off_stop_time_idx: 0,
-    });
+    }, config.transfer_cost);
 
     while let Some((item, id)) = rs.trips_arena.pop_front() {
         if item.exit_time > config.start_time + config.duration_secs {
@@ -146,6 +146,7 @@ fn all_stops_along_trip(
     explore_queue: &mut TripsArena,
     transfer_walking_time: Time,
     transfer_walking_length: f64,
+    transfer_cost: u64
 ) {
     let is_free_transfer = explore_queue
         .get_by_id(previous_transfer_id)
@@ -179,7 +180,7 @@ fn all_stops_along_trip(
             get_off_stop_time_idx: st.index_of_stop_time,
         };
 
-        let id = explore_queue.add_to_explore(current_inprogress_trip);
+        let id = explore_queue.add_to_explore(current_inprogress_trip, transfer_cost);
 
         if id.is_none() {
             break;
@@ -269,6 +270,7 @@ fn explore_from_point(
                         explore_queue,
                         Time(time_to_stop),
                         transfer_walking_length,
+                        config.transfer_cost
                     );
                     routes_already_taken.insert(route_info.clone());
                     break;

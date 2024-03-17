@@ -9,4 +9,5 @@ pub struct Configuration {
     pub location: LatLng,
     pub agency_ids: FxHashSet<u16>,
     pub modes: Vec<RouteType>,
+    pub(crate) transfer_cost: u64
 }
