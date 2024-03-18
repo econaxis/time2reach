@@ -262,7 +262,7 @@ export function ColorLegend({ tcm, currentHover }: ColorLegendProps) {
         // const fraction = i / NSHADES;
         const color = cmap[i];
         // cssGradient.push(`${color} ${(fraction * 100).toFixed(1)}%`);
-        colors.push(<ColorSquare color={color} />)
+        colors.push(<ColorSquare color={color} key={i} />)
 
         if (i % 2 === 1) {
             const percentage = Math.round((i / NSHADES) * 100);

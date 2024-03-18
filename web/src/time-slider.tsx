@@ -4,17 +4,29 @@ import { Header } from "./control-sidebar";
 import track from "./analytics";
 import { BrightnessContext } from "./app";
 
-export function TimeSliderInner({ duration, setDuration, text, min, max, formatFunc, title }) {
+interface TimeSliderInnerProps {
+    duration: number
+    setDuration: (duration: number) => void
+    text: string
+    min: string
+    max: string
+    formatFunc: (duration: number) => string
+    title?: string
+}
+
+export function TimeSliderInner({ duration, setDuration, text, min, max, formatFunc, title }: TimeSliderInnerProps) {
     const [iduration, setIduration] = useState(duration);
 
-    const onChange = (element) => {
+    const onChange = (element: React.ChangeEvent<HTMLInputElement>) => {
         const dur = parseInt(element.target.value);
         setIduration(dur);
     };
 
-    const onMouseUp = (element) => {
+    const onMouseUp = (element: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
         track("range-change", { text });
-        const dur = parseInt(element.target.value);
+        track("range-change", { text });
+        const touchTarget = element.target as HTMLInputElement;
+        const dur = parseInt(touchTarget.value);
         setDuration(dur);
     };
 
@@ -54,16 +66,23 @@ export interface BrightnessContextInt {
     setBrightness: (value: number) => void
 }
 
+interface TimeSliderProps {
+    duration: number
+    setDuration: (duration: number) => void
+    startTime: number
+    setStartTime: (time: number) => void
+    transferPenalty: number
+    setTransferPenalty: (penalty: number) => void
+}
+
 export function TimeSlider({
-    duration,
-    setDuration,
-    minDuration,
-    setMinDuration,
-    startTime,
-    setStartTime,
-    transferPenalty,
-    setTransferPenalty
-}) {
+                               duration,
+                               setDuration,
+                               startTime,
+                               setStartTime,
+                               transferPenalty,
+                               setTransferPenalty,
+                           }: TimeSliderProps) {
     const { brightness, setBrightness } = useContext<BrightnessContextInt>(BrightnessContext);
     return (
         <div className="mt-2">
@@ -92,26 +111,26 @@ export function TimeSlider({
                 duration={transferPenalty}
                 setDuration={setTransferPenalty}
                 formatFunc={(duration) => {
-                    return duration;
+                    return duration.toString();
                 }}
                 min="0"
-                max={"1200"}
-                text={"Transfer Penalty"}
-                title={"Penalty (seconds) to add to total trip time for each transfer"}
+                max="1200"
+                text="Transfer Penalty"
+                title="Penalty (seconds) to add to total trip time for each transfer"
             />
-            {false && (
-                <TimeSliderInner
-                    duration={minDuration}
-                    setDuration={setMinDuration}
-                    formatFunc={(duration) => {
-                        // 00:44:26
-                        return formatDuration(duration).substring(0, 5);
-                    }}
-                    min="0"
-                    max={duration.toString()}
-                    text="Minimum trip duration"
-                />
-            )}
+            {/* {false && ( */}
+            {/*    <TimeSliderInner */}
+            {/*        duration={minDuration} */}
+            {/*        setDuration={setMinDuration} */}
+            {/*        formatFunc={(duration) => { */}
+            {/*            // 00:44:26 */}
+            {/*            return formatDuration(duration).substring(0, 5); */}
+            {/*        }} */}
+            {/*        min="0" */}
+            {/*        max={duration.toString()} */}
+            {/*        text="Minimum trip duration" */}
+            {/*    /> */}
+            {/* )} */}
 
             <TimeSliderInner
                 duration={brightness}

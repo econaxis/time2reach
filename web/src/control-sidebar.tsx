@@ -1,5 +1,5 @@
 import { useQuery } from "react-query";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useReducer, useRef, useState } from "react";
 import { TimeSlider } from "./time-slider";
 import { baseUrl } from "./dev-api";
 import { BG_WHITE_COLOR, CITY_LOCATION } from "./app";
@@ -169,6 +169,32 @@ export interface ControlSidebarProps {
     currentCity: string
 }
 
+// Define the action types
+type OptionsAction =
+    | { type: 'SET_START_TIME', payload: number }
+    | { type: 'SET_DURATION', payload: number }
+    | { type: 'SET_TRANSFER_PENALTY', payload: number }
+    | { type: 'SET_AGENCIES', payload: Record<string, boolean> }
+    | { type: 'SET_MODES', payload: Record<string, boolean> };
+
+// Define the reducer function
+function optionsReducer(state: any, action: OptionsAction) {
+    switch (action.type) {
+        case 'SET_START_TIME':
+            return { ...state, startTime: action.payload };
+        case 'SET_DURATION':
+            return { ...state, duration: action.payload };
+        case 'SET_TRANSFER_PENALTY':
+            return { ...state, transferPenalty: action.payload };
+        case 'SET_AGENCIES':
+            return { ...state, agencies: action.payload };
+        case 'SET_MODES':
+            return { ...state, modes: action.payload };
+        default:
+            return state;
+    }
+}
+
 export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarProps) {
     const { isLoading, data } = useAgencies();
 
@@ -183,18 +209,18 @@ export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarP
 
     const agencies = useRef<Record<string, boolean>>({});
 
-    const [duration, setDuration] = useState(2700);
-    const [startTime, setStartTime] = useState(17 * 3600 + 40 * 60);
-
-    const [currentOptions, setOptions] = useState<any>({ startTime, duration });
+    const [currentOptions, dispatch] = useReducer(optionsReducer, {
+        startTime: 17 * 3600 + 40 * 60,
+        duration: 2700,
+        minDuration: 0,
+        transferPenalty: 0,
+    });
     const [currentStartingLoc, setCurrentStartingLoc] = useState<[number, number]>(defaultStartLoc);
     const [lastWorkingLocation, setLastWorkingLocation] = useState<[number, number]>(defaultStartLoc);
     const [spinner, setSpinner] = useState(true);
 
     const [paintProperty, setPaintProperty] = useState<any>(null);
     const [timeData, setTimeData] = useState<any>(null);
-
-    const [transferPenalty, setTransferPenalty] = useState(0);
 
     const cityLocation = CITY_LOCATION[currentCity];
     console.log("Current city mapbox", currentCity, cityLocation);
@@ -204,23 +230,16 @@ export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarP
         setCurrentStartingLoc(defaultStartLoc);
 
         if (GIF_RENDER) {
-            setStartTime(GIF_RENDER_START_TIME);
+            dispatch({ type: 'SET_START_TIME', payload: GIF_RENDER_START_TIME });
         }
     }, [defaultStartLoc]);
 
     useEffect(() => {
         if (!isLoading && currentOptions.agencies && currentOptions.modes && currentStartingLoc) {
-            const joinedOptions = {
-                ...currentOptions,
-                duration,
-                minDuration: 0,
-                startTime,
-                transferPenalty,
-            };
             setSpinner(true);
-            console.log("Start time is", formatTime(startTime));
+            console.log("Start time is", formatTime(currentOptions.startTime));
             console.log("Location is", currentStartingLoc);
-            setAndColorNewOriginLocation(currentStartingLoc, joinedOptions)
+            setAndColorNewOriginLocation(currentStartingLoc, currentOptions)
                 .then((data) => {
                     setPaintProperty(data.m);
                     setTimeData(data);
@@ -231,34 +250,22 @@ export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarP
                     console.error("Got error in setAndColorNewOriginLocation", err);
                 });
         }
-    }, [currentOptions, currentStartingLoc, isLoading, duration, startTime, transferPenalty]);
+    }, [currentOptions, currentStartingLoc, isLoading]);
 
     // Activates only when GIF_RENDER = true
-    useGifRenderNewAnimationFrame(spinner, startTime, setStartTime);
+    useGifRenderNewAnimationFrame(spinner, currentOptions.startTime, (startTime: number) => { dispatch({ type: 'SET_START_TIME', payload: startTime }); });
 
     const onAgencyChange = (agencies1: Record<string, boolean>) => {
         track("agency-change", agencies1);
         console.log("agency change!");
         agencies.current = agencies1;
-        setOptions((options: any) => {
-            options = options || {};
-            return {
-                ...options,
-                agencies: agencies.current,
-            };
-        });
+        dispatch({ type: 'SET_AGENCIES', payload: agencies.current });
     };
 
     const onModeChange = (modes1: Record<string, boolean>) => {
         track("mode-change", modes1);
         console.log("mode change!");
-        setOptions((options: any) => {
-            options = options || {};
-            return {
-                ...options,
-                modes: modes1,
-            };
-        });
+        dispatch({ type: 'SET_MODES', payload: modes1 });
     };
 
     return (
@@ -285,14 +292,15 @@ export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarP
                 <AgencyForm agencies={MODES} header="Modes" updateValues={onModeChange} />
 
                 <TimeSlider
-                    duration={duration}
-                    setDuration={(e) => {
-                        setDuration(e);
-                    }}
-                    startTime={startTime}
-                    setStartTime={setStartTime}
-                    transferPenalty={transferPenalty}
-                    setTransferPenalty={setTransferPenalty}
+                    duration={currentOptions.duration}
+                    setDuration={(duration: number) => { dispatch({ type: 'SET_DURATION', payload: duration }); }
+                    }
+                    startTime={currentOptions.startTime}
+                    setStartTime={(startTime: number) => { dispatch({ type: 'SET_START_TIME', payload: startTime }); }
+                    }
+                    transferPenalty={currentOptions.transferPenalty}
+                    setTransferPenalty={(transferPenalty: number) => { dispatch({ type: 'SET_TRANSFER_PENALTY', payload: transferPenalty }); }
+                    }
                 />
                 <p className="text-xs border-t mt-6 pt-3">
                     Find this project on{" "}
