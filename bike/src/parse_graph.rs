@@ -118,10 +118,11 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
         let cur = indices[1];
 
         let edge = graph.graph.find_edge(prev, cur).unwrap();
-        let edge = &graph.graph[edge];
+        let (source, target) = &graph.graph.edge_endpoints(edge).unwrap();
+        let edge_weight = &graph.graph[edge];
 
-        let edge_points = edge.points(&graph.db).to_vec();
-        let points_iterator: Box<dyn Iterator<Item=&Point>> = if edge.source == prevnode.id {
+        let edge_points = edge_weight.points(&graph.db).to_vec();
+        let points_iterator: Box<dyn Iterator<Item=&Point>> = if source == &prev {
             Box::new(edge_points.iter())
         } else {
             Box::new(edge_points.iter().rev())
@@ -162,7 +163,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
             }
             prev = Some(x.clone());
 
-            let bike_friendly = edge.bike_friendly;
+            let bike_friendly = edge_weight.bike_friendly;
 
             route_metadata.push((current_cumdist, x.ele, bike_friendly));
         });
@@ -173,7 +174,7 @@ fn render_route(graph: &Graph, mut nodes: Cow<[NodeIndex]>, start_snap: PointSna
             cumdist = current_cumdist;
         }
 
-        pointlist.into_iter().map(|point| vec![point.lon, point.lat])
+        pointlist.into_iter().map(|point| vec![point.lon as f64, point.lat as f64])
     }).collect();
 
     if nodes.len() >= 2 {
@@ -256,7 +257,7 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
 
                 let cost = end.haversine_distance(&point);
                 // Might overestimate...what's the impact?
-                cost * 1.0
+                (cost * 1.0) as f64
             },
         ) {
             if path.len() < 2 {
@@ -272,20 +273,20 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
             Ok(response.with_energy(energy))
         } else {
             println!("No path found");
-            let p = GeoJsonValue::MultiPoint(points_checked.iter().take(1000).map(|&node_index| {
-                let node = &graph.graph[node_index];
-                vec![(node.lon * 100000.0).round() / 100000.0, (node.lat * 100000.0).round() / 100000.0]
-            }).collect());
-            let feature = Feature {
-                bbox: None,
-                geometry: Some(Geometry::new(p)),
-                id: None,
-                properties: None,
-                foreign_members: None,
-            };
-
-            let geojson = GeoJson::Feature(feature);
-            println!("GEOJSON {}", serde_json::to_string(&geojson).unwrap());
+            // let p = GeoJsonValue::MultiPoint(points_checked.iter().take(1000).map(|&node_index| {
+            //     let node = &graph.graph[node_index];
+            //     vec![(node.lon * 100000.0).round() / 100000.0, (node.lat * 100000.0).round() / 100000.0]
+            // }).collect());
+            // let feature = Feature {
+            //     bbox: None,
+            //     geometry: Some(Geometry::new(p)),
+            //     id: None,
+            //     properties: None,
+            //     foreign_members: None,
+            // };
+            //
+            // let geojson = GeoJson::Feature(feature);
+            // println!("GEOJSON {}", serde_json::to_string(&geojson).unwrap());
 
 
             let mut line_strings: Vec<Vec<Vec<f64>>> = Vec::new();
@@ -296,12 +297,12 @@ pub fn route(graph: &Graph, start: Point, end: Point, options: RouteOptions) -> 
                 let start_point = &graph.graph[start_node];
                 let end_point = &graph.graph[end_node];
                 let start_coords = vec![
-                    (start_point.lon * 100000.0).round() / 100000.0,
-                    (start_point.lat * 100000.0).round() / 100000.0,
+                    ((start_point.lon * 100000.0).round() / 100000.0) as f64,
+                    ((start_point.lat * 100000.0).round() / 100000.0) as f64,
                 ];
                 let end_coords = vec![
-                    (end_point.lon * 100000.0).round() / 100000.0,
-                    (end_point.lat * 100000.0).round() / 100000.0,
+                    ((end_point.lon * 100000.0).round() / 100000.0) as f64,
+                    ((end_point.lat * 100000.0).round() / 100000.0) as f64,
                 ];
                 line_strings.push(vec![start_coords, end_coords]);
             }

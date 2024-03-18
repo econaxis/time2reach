@@ -24,7 +24,7 @@ impl LocationIndex {
     pub(crate) fn snap_closest<'a>(&'a self, point: &Point) -> PointSnapResult<'a> {
         // TODO: Use a spatial index to speed this up
         let mut best = None;
-        let mut best_dist = std::f64::MAX;
+        let mut best_dist = std::f32::MAX;
         for point_snap in &self.points {
             let dist =  point_snap.point.haversine_distance(point);
             if dist < best_dist {
@@ -48,5 +48,5 @@ pub struct PointSnap {
 #[derive(Debug)]
 pub struct PointSnapResult<'a> {
     pub point_snap: &'a PointSnap,
-    pub dist: f64,
+    pub dist: f32,
 }

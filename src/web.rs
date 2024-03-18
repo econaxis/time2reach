@@ -172,8 +172,8 @@ pub struct LatLng {
 impl From<LatLng> for bike::Point {
     fn from(value: LatLng) -> Self {
         Self {
-            lat: value.latitude,
-            lon: value.longitude,
+            lat: value.latitude as f32,
+            lon: value.longitude as f32,
             ele: 0.0,
         }
     }

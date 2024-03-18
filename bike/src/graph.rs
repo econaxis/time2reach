@@ -24,30 +24,52 @@ pub struct Graph {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Node {
-    // 32 bytes per node
-    pub id: usize,
     #[serde(rename = "lat")]
-    pub lat: f64,
+    pub lat: f32,
     #[serde(rename = "lon")]
-    pub lon: f64,
+    pub lon: f32,
     pub ele: f32,
+}
+
+pub struct NodeWithId {
+    pub id: usize,
+    pub node: Node,
+}
+
+#[derive(Clone, Debug)]
+pub struct EdgeWithSourceTarget {
+    // 32 bytes per edge
+    pub source: usize,
+    pub target: usize,
+    pub id: u32,
+    pub dist: f32,
+    pub bike_friendly: u8,
+    pub access_friendly: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct Edge {
-    // 32 bytes per edge
-    pub id: usize,
-    pub source: usize,
-    pub target: usize,
+    pub id: u32,
     pub dist: f32,
     pub bike_friendly: u8,
-    pub access_friendly: bool
+    pub access_friendly: bool,
+}
+
+impl From<EdgeWithSourceTarget> for Edge {
+    fn from(value: EdgeWithSourceTarget) -> Self {
+        Self {
+            id: value.id,
+            dist: value.dist,
+            bike_friendly: value.bike_friendly,
+            access_friendly: value.access_friendly,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Point {
-    pub lat: f64,
-    pub lon: f64,
+    pub lat: f32,
+    pub lon: f32,
     pub ele: f32,
 }
 
@@ -59,7 +81,7 @@ impl PartialEq for Point {
 
 fn parse_to_hashmap(input: &str) -> HashMap<String, String> {
     let trimmed_input = if input.starts_with('{') && input.ends_with('}') {
-        &input[1..input.len()-1]
+        &input[1..input.len() - 1]
     } else {
         input
     };
@@ -87,17 +109,19 @@ impl Graph {
 
         let mut statement = conn.prepare("SELECT node_id, lat, lon, ele FROM nodes").unwrap();
         let node_iter = statement.query_map((), |row| {
-            Ok(Node {
+            Ok(NodeWithId {
                 id: row.get(0)?,
-                lat: row.get(1)?,
-                lon: row.get(2)?,
-                ele: row.get::<_, f64>(3)? as f32, // Cast to f32 as needed
+                node: Node {
+                    lat: row.get(1)?,
+                    lon: row.get(2)?,
+                    ele: row.get::<_, f64>(3)? as f32, // Cast to f32 as needed
+                },
             })
         }).unwrap();
 
         for node in node_iter {
             let node = node.unwrap(); // Handle errors as needed
-            let node_index = graph.add_node(node.clone());
+            let node_index = graph.add_node(node.node);
             node_indices.insert(node.id, node_index);
         }
 
@@ -120,20 +144,20 @@ impl Graph {
                 // return Ok(None)
             }
 
-            Ok(Some(Edge {
-                id: row.get(0)?,
+            Ok(Some(EdgeWithSourceTarget {
                 source: row.get(1)?,
                 target: row.get(2)?,
+                id: row.get(0)?,
                 dist: row.get::<_, f64>(3)? as f32, // Cast to f32 as needed
                 bike_friendly,
-                access_friendly
+                access_friendly,
             }))
         }).unwrap();
 
         for edge_option in edge_iter {
             if let Some(edge) = edge_option.unwrap() { // Handle errors as needed
                 if let (Some(source_index), Some(target_index)) = (node_indices.get(&edge.source), node_indices.get(&edge.target)) {
-                    graph.add_edge(*source_index, *target_index, edge);
+                    graph.add_edge(*source_index, *target_index, edge.into());
                 }
             }
         }
@@ -151,7 +175,7 @@ impl Graph {
 }
 
 impl Point {
-    pub fn new(lat: f64, lon: f64) -> Point {
+    pub fn new(lat: f32, lon: f32) -> Point {
         Point { lat, lon, ele: 0.0 }
     }
     fn eq(&self, b: &Point) -> bool {
@@ -177,8 +201,8 @@ impl Point {
 
         distance + ele_adjustment
     }
-    pub(crate) fn haversine_distance(&self, other: &Point) -> f64 {
-        const EARTH_RADIUS: f64 = 6371.0; // Earth radius in kilometers
+    pub(crate) fn haversine_distance(&self, other: &Point) -> f32 {
+        const EARTH_RADIUS: f32 = 6371.0; // Earth radius in kilometers
 
         let d_lat = (other.lat - self.lat).to_radians();
         let d_lon = (other.lon - self.lon).to_radians();
@@ -194,7 +218,7 @@ impl Point {
 }
 
 impl Node {
-    pub(crate) fn debug_coords(&self) -> (f64, f64) {
+    pub(crate) fn debug_coords(&self) -> (f32, f32) {
         (self.lat, self.lon)
     }
 
@@ -208,7 +232,7 @@ impl Node {
 }
 
 lazy_static! {
-    static ref POINTS_CACHE: Mutex<HashMap<usize, Arc<Vec<Point>>>> = Mutex::new(HashMap::new());
+    static ref POINTS_CACHE: Mutex<HashMap<u32, Arc<Vec<Point>>>> = Mutex::new(HashMap::new());
 }
 
 impl Edge {
@@ -240,7 +264,6 @@ impl Edge {
             if let Ok(point) = point_result {
                 points.push(point);
             }
-            // Else, handle error (e.g., log or panic) if necessary
         }
         let points_arc = Arc::new(points);
         let mut cache_lock = POINTS_CACHE.lock();
