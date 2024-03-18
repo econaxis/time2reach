@@ -1,8 +1,13 @@
 import { type TimeColorMapper } from "./colors";
 import { type LngLat } from "mapbox-gl";
 import { baseUrl } from "./dev-api";
+import { type TripDetailsTransit } from "@/format-details";
 
-export async function getDetails(data: TimeColorMapper, location: LngLat, signal: AbortSignal) {
+export interface DetailResponse {
+    details: TripDetailsTransit[]
+    path: GeoJSON.Feature
+}
+export async function getDetails(data: TimeColorMapper, location: LngLat, signal: AbortSignal): Promise<DetailResponse> {
     const body = {
         request_id: data.request_id,
         latlng: {

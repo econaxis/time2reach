@@ -114,9 +114,9 @@ export function TimeSlider({
                     return duration.toString();
                 }}
                 min="0"
-                max="1200"
-                text="Transfer Penalty"
-                title="Penalty (seconds) to add to total trip time for each transfer"
+                max="1800"
+                text="Transfer Penalty (seconds)"
+                title="Penalty to add to total trip time for each transfer"
             />
             {/* {false && ( */}
             {/*    <TimeSliderInner */}

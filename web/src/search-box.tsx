@@ -3,7 +3,7 @@ import { SearchBox } from "@mapbox/search-js-react";
 import type { OrgDest } from "@/bike";
 import mapboxgl, { type LngLat } from "mapbox-gl";
 import { FiArrowDown, FiArrowRight } from "react-icons/fi";
-import { type SearchBoxRefType } from "@mapbox/search-js-react/src/components/SearchBox";
+// import { type SearchBoxRefType } from "@mapbox/search-js-react/src/components/SearchBox";
 import React from "react";
 
 import { useQuery } from 'react-query';
@@ -28,7 +28,7 @@ function SearchBoxComponent(props: SearchBoxComponentProps) {
     const baseClass = "flex-grow flex-shrink ";
     const className = baseClass + (props.className ?? '');
 
-    const sbRef = React.useRef<SearchBoxRefType>();
+    const sbRef = React.useRef<unknown>();
 
     // Define the fetch function
     const fetchGeocodedLocation = async(location: LngLat): Promise<string> => {

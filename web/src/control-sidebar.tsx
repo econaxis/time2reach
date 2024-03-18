@@ -9,6 +9,7 @@ import { MapboxMap, setAndColorNewOriginLocation } from "./mapbox-map";
 import { LoadingSpinner } from "./loading-spinner";
 import { formatTime } from "./format-details";
 import { GIF_RENDER_START_TIME, GIF_RENDER, useGifRenderNewAnimationFrame } from "./gif-generator";
+import type mapboxgl from "mapbox-gl";
 
 interface Agency {
     agencyCode: string
@@ -133,7 +134,7 @@ async function fetchAgencies(): Promise<Agency[]> {
 }
 
 function useAgencies() {
-    return useQuery("agencies", fetchAgencies);
+    return useQuery("agencies", fetchAgencies, { staleTime: 100000000 });
 }
 
 const MODES: Agency[] = [
@@ -165,7 +166,7 @@ const MODES: Agency[] = [
 ];
 
 export interface ControlSidebarProps {
-    defaultStartLoc: [number, number]
+    defaultStartLoc: mapboxgl.LngLat
     currentCity: string
 }
 
@@ -179,6 +180,7 @@ type OptionsAction =
 
 // Define the reducer function
 function optionsReducer(state: any, action: OptionsAction) {
+    console.debug("Reducer call", state, action.type, action.payload);
     switch (action.type) {
         case 'SET_START_TIME':
             return { ...state, startTime: action.payload };
@@ -215,8 +217,8 @@ export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarP
         minDuration: 0,
         transferPenalty: 0,
     });
-    const [currentStartingLoc, setCurrentStartingLoc] = useState<[number, number]>(defaultStartLoc);
-    const [lastWorkingLocation, setLastWorkingLocation] = useState<[number, number]>(defaultStartLoc);
+    const [currentStartingLoc, setCurrentStartingLoc] = useState<mapboxgl.LngLat>(defaultStartLoc);
+    const [lastWorkingLocation, setLastWorkingLocation] = useState<mapboxgl.LngLat>(defaultStartLoc);
     const [spinner, setSpinner] = useState(true);
 
     const [paintProperty, setPaintProperty] = useState<any>(null);
@@ -257,14 +259,12 @@ export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarP
 
     const onAgencyChange = (agencies1: Record<string, boolean>) => {
         track("agency-change", agencies1);
-        console.log("agency change!");
         agencies.current = agencies1;
         dispatch({ type: 'SET_AGENCIES', payload: agencies.current });
     };
 
     const onModeChange = (modes1: Record<string, boolean>) => {
         track("mode-change", modes1);
-        console.log("mode change!");
         dispatch({ type: 'SET_MODES', payload: modes1 });
     };
 
