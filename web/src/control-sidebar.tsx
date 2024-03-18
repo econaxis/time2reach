@@ -14,18 +14,19 @@ interface Agency {
     agencyCode: string
     agencyLongName: string
     city: string
+    shouldShow?: boolean
 }
 
 export interface AgencyEntryProps {
-    setSelectValue: (value: string, status: string) => void
+    setSelectValue: (value: string, status: boolean) => void
 }
 
 export function AgencyEntry({
-    agencyCode,
-    agencyLongName,
-    setSelectValue,
-}: Agency & AgencyEntryProps) {
-    const onChange = (element: any) => {
+                                agencyCode,
+                                agencyLongName,
+                                setSelectValue,
+                            }: Agency & AgencyEntryProps) {
+    const onChange = (element: React.ChangeEvent<HTMLInputElement>) => {
         setSelectValue(agencyCode, element.target.checked);
     };
 
@@ -49,22 +50,33 @@ export function AgencyEntry({
 export interface HeaderProps {
     children?: ReactNode
 }
+
 export function Header({ children }: HeaderProps) {
     return <h2 className="font-medium text-md border-b mt-2 md:mt-3">{children}</h2>;
 }
 
-export function AgencyForm({ agencies, header, updateValues }) {
-    const values = useRef(Object.fromEntries(agencies.map((ag) => [ag.agencyCode, true])));
+export interface AgencyFormProps {
+    agencies: Agency[]
+    header: string
+    updateValues: (values: Record<string, boolean>) => void
+}
+
+export function AgencyForm({ agencies, header, updateValues }: AgencyFormProps) {
+    const values = useRef<Record<string, boolean>>(
+        Object.fromEntries(agencies.map((ag) => [ag.agencyCode, true]))
+    );
 
     useEffect(() => {
         updateValues(values.current);
     }, []);
-    const setSelectValue = (value, status) => {
+
+    const setSelectValue = (value: string, status: boolean) => {
         values.current[value] = status;
         updateValues(values.current);
     };
+
     const agencyList = agencies
-        .filter((ag) => ag.shouldShow || ag.shouldShow === undefined)
+        .filter((ag) => ag.shouldShow ?? ag.shouldShow === undefined)
         .map((ag) => <AgencyEntry {...ag} setSelectValue={setSelectValue} key={ag.agencyCode} />);
 
     return (
@@ -80,7 +92,7 @@ export function AgencyForm({ agencies, header, updateValues }) {
 
 export interface SidebarProps {
     positioning?: string
-    children?: any[]
+    children?: ReactNode[]
     zi?: number
     style?: Record<string, any>
 }
@@ -107,10 +119,11 @@ function getID(): string {
 
     return id;
 }
+
 async function fetchAgencies(): Promise<Agency[]> {
     const result = await fetch(`${baseUrl}/agencies?id=${getID()}`);
     const json = await result.json();
-    return json.map((agency) => {
+    return json.map((agency: any) => {
         return {
             agencyCode: agency.short_code,
             agencyLongName: agency.public_name,
@@ -123,50 +136,59 @@ function useAgencies() {
     return useQuery("agencies", fetchAgencies);
 }
 
-const MODES = [
+const MODES: Agency[] = [
     {
         agencyCode: "bus",
         agencyLongName: "Bus",
+        city: "",
     },
     {
         agencyCode: "subway",
         agencyLongName: "Subway",
+        city: "",
     },
     {
         agencyCode: "tram",
         agencyLongName: "Tram",
+        city: "",
     },
     {
         agencyCode: "rail",
         agencyLongName: "Train",
+        city: "",
     },
     {
         agencyCode: "ferry",
         agencyLongName: "Ferry",
+        city: "",
     },
 ];
 
-export function ControlSidebar({ defaultStartLoc, currentCity }) {
+export interface ControlSidebarProps {
+    defaultStartLoc: [number, number]
+    currentCity: string
+}
+
+export function ControlSidebar({ defaultStartLoc, currentCity }: ControlSidebarProps) {
     const { isLoading, data } = useAgencies();
 
     const filtered = data
         ? data.map((ag) => {
-              return {
-                  shouldShow: (ag.city === currentCity) || (ag.city === "Toronto" && currentCity === "Kitchener-Waterloo"),
-                  ...ag,
-              };
-          })
+            return {
+                shouldShow: ag.city === currentCity || (ag.city === "Toronto" && currentCity === "Kitchener-Waterloo"),
+                ...ag,
+            };
+        })
         : null;
 
-    const agencies = useRef<object>({});
+    const agencies = useRef<Record<string, boolean>>({});
 
     const [duration, setDuration] = useState(2700);
     const [startTime, setStartTime] = useState(17 * 3600 + 40 * 60);
-    const [minDuration, setMinDuration] = useState(0);
 
-    const [currentOptions, setOptions] = useState<any>({ startTime, minDuration, duration });
-    const [currentStartingLoc, setCurrentStartingLoc] = useState(defaultStartLoc);
-    const [lastWorkingLocation, setLastWorkingLocation] = useState(defaultStartLoc);
+    const [currentOptions, setOptions] = useState<any>({ startTime, duration });
+    const [currentStartingLoc, setCurrentStartingLoc] = useState<[number, number]>(defaultStartLoc);
+    const [lastWorkingLocation, setLastWorkingLocation] = useState<[number, number]>(defaultStartLoc);
     const [spinner, setSpinner] = useState(true);
 
     const [paintProperty, setPaintProperty] = useState<any>(null);
@@ -175,16 +197,14 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
     const [transferPenalty, setTransferPenalty] = useState(0);
 
     const cityLocation = CITY_LOCATION[currentCity];
-    console.log("Current city mapbox", currentCity, cityLocation)
+    console.log("Current city mapbox", currentCity, cityLocation);
 
     useEffect(() => {
         setLastWorkingLocation(defaultStartLoc);
         setCurrentStartingLoc(defaultStartLoc);
 
         if (GIF_RENDER) {
-            // setStartTime(4 * 3600)
-            setStartTime(GIF_RENDER_START_TIME)
-            // setStartTime(60240)
+            setStartTime(GIF_RENDER_START_TIME);
         }
     }, [defaultStartLoc]);
 
@@ -193,13 +213,13 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
             const joinedOptions = {
                 ...currentOptions,
                 duration,
-                minDuration,
+                minDuration: 0,
                 startTime,
-                transferPenalty
+                transferPenalty,
             };
             setSpinner(true);
-            console.log("Start time is", formatTime(startTime))
-            console.log("Location is", currentStartingLoc)
+            console.log("Start time is", formatTime(startTime));
+            console.log("Location is", currentStartingLoc);
             setAndColorNewOriginLocation(currentStartingLoc, joinedOptions)
                 .then((data) => {
                     setPaintProperty(data.m);
@@ -211,24 +231,17 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                     console.error("Got error in setAndColorNewOriginLocation", err);
                 });
         }
-    }, [currentOptions, currentStartingLoc, isLoading, duration, minDuration, startTime, transferPenalty]);
+    }, [currentOptions, currentStartingLoc, isLoading, duration, startTime, transferPenalty]);
 
     // Activates only when GIF_RENDER = true
     useGifRenderNewAnimationFrame(spinner, startTime, setStartTime);
 
-    const onAgencyChange = (agencies1: object) => {
+    const onAgencyChange = (agencies1: Record<string, boolean>) => {
         track("agency-change", agencies1);
         console.log("agency change!");
         agencies.current = agencies1;
         setOptions((options: any) => {
             options = options || {};
-            // setOptions({
-            //     duration,
-            //     startTime,
-            //     agencies: agencies.current,
-            //     modes: modes.current,
-            //     minDuration,
-            // });
             return {
                 ...options,
                 agencies: agencies.current,
@@ -236,18 +249,11 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
         });
     };
 
-    const onModeChange = (modes1: object) => {
+    const onModeChange = (modes1: Record<string, boolean>) => {
         track("mode-change", modes1);
         console.log("mode change!");
         setOptions((options: any) => {
             options = options || {};
-            // setOptions({
-            //     duration,
-            //     startTime,
-            //     agencies: agencies.current,
-            //     modes: modes.current,
-            //     minDuration,
-            // });
             return {
                 ...options,
                 modes: modes1,
@@ -260,8 +266,7 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
             <LoadingSpinner display={spinner} />
             <Sidebar
                 zi={10}
-                positioning="sm:top-0 sm:right-0 sm:block sm:hover:opacity-90 sm:opacity-30 transition-opacity sm:max-h-screen overflow-y-scroll
-               top40"
+                positioning="sm:top-0 sm:right-0 sm:block sm:hover:opacity-90 sm:opacity-30 transition-opacity sm:max-h-screen overflow-y-scroll top40"
             >
                 <p className="text-gray-700">
                     <ul>
@@ -284,8 +289,6 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                     setDuration={(e) => {
                         setDuration(e);
                     }}
-                    minDuration={minDuration}
-                    setMinDuration={setMinDuration}
                     startTime={startTime}
                     setStartTime={setStartTime}
                     transferPenalty={transferPenalty}
@@ -314,7 +317,6 @@ export function ControlSidebar({ defaultStartLoc, currentCity }) {
                         here!
                     </a>
                 </p>
-
             </Sidebar>
             <MapboxMap
                 timeData={timeData}
